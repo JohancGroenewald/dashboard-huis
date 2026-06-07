@@ -293,27 +293,37 @@ function speedTier(ms) {
   return '🐢';
 }
 
+let activeModel = '';
+function setModel(m, ms) {
+  activeModel = m;
+  $('#model-btn-label').innerHTML = m ? `${esc(m)}${ms ? ` <span class="pill-badge">${speedTier(ms)} ~${fmtMs(ms)}</span>` : ''}` : 'no models';
+  $('#model-menu').classList.add('hidden');
+}
+
 async function loadModels() {
-  const sel = $('#model-select');
   try {
     const { approved, details, results, supervised, delegated, parallel } = await api('/api/models');
+    const menu = $('#model-menu');
     if (!approved.length) {
-      sel.innerHTML = '<option value="">no validated models</option>';
-      sel.disabled = true;
+      menu.innerHTML = '<div class="mm-empty">No validated models. Run the gate first.</div>';
+      setModel('', null);
     } else {
-      sel.disabled = false;
-      sel.innerHTML = approved
+      menu.innerHTML = approved
         .map((m) => {
           const ms = details?.[m]?.msPerAction;
-          const hint = ms ? ` ${speedTier(ms)} ~${fmtMs(ms)}/action` : '';
-          return `<option value="${esc(m)}">${esc(m)}${esc(hint)}</option>`;
+          const badge = ms ? `<span class="mm-badge">${speedTier(ms)} ~${fmtMs(ms)}</span>` : '';
+          return `<button type="button" class="mm-item" data-model="${esc(m)}">${esc(m)}${badge}</button>`;
         })
         .join('');
+      menu.querySelectorAll('.mm-item').forEach((it) =>
+        it.addEventListener('click', () => setModel(it.dataset.model, details?.[it.dataset.model]?.msPerAction))
+      );
+      if (!activeModel || !approved.includes(activeModel)) setModel(approved[0], details?.[approved[0]]?.msPerAction);
     }
     renderModelsReport(results || {}, supervised || {}, delegated || {}, parallel || {});
   } catch {
-    sel.innerHTML = '<option value="">offline</option>';
-    sel.disabled = true;
+    setModel('', null);
+    $('#model-btn-label').textContent = 'offline';
   }
 }
 
@@ -370,22 +380,32 @@ function renderModelsReport(results, supervised = {}, delegated = {}, parallel =
 
 const history = [];
 function addMsg(role, text, trace) {
-  const el = document.createElement('div');
-  el.className = `msg ${role}`;
-  el.textContent = text;
+  $('#chat-log .intro')?.remove();
+  const row = document.createElement('div');
+  row.className = `row ${role}`;
+  if (role === 'assistant' || role === 'error') {
+    const av = document.createElement('div');
+    av.className = 'avatar';
+    av.textContent = role === 'error' ? '⚠️' : '🤖';
+    row.appendChild(av);
+  }
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
   if (trace?.length) {
     const t = document.createElement('div');
     t.className = 'trace';
-    t.innerHTML = trace.map((e) => `${e.ok ? '✓' : '✗'} <code>${esc(e.name)}</code>${e.ok ? '' : ` — ${esc(e.error)}`}`).join('<br>');
-    el.appendChild(t);
+    t.innerHTML = trace.map((e) => `<span class="tchip ${e.ok ? 'ok' : 'bad'}">${e.ok ? '✓' : '✗'} ${esc(e.name)}</span>`).join('');
+    bubble.appendChild(t);
   }
-  chatLog.appendChild(el);
+  row.appendChild(bubble);
+  chatLog.appendChild(row);
   chatLog.scrollTop = chatLog.scrollHeight;
-  return el;
+  return row;
 }
 
 async function sendChat(text) {
-  const model = $('#model-select').value;
+  const model = activeModel;
   if (!model) return addMsg('error', 'No validated model selected.');
   history.push({ role: 'user', content: text });
   addMsg('user', text);
@@ -409,6 +429,12 @@ async function sendChat(text) {
 // ---- wiring --------------------------------------------------------------
 $('#chat-toggle').addEventListener('click', () => $('#chat').classList.toggle('hidden'));
 $('#chat-close').addEventListener('click', () => $('#chat').classList.add('hidden'));
+
+const modelMenu = $('#model-menu');
+$('#model-btn').addEventListener('click', (e) => { e.stopPropagation(); modelMenu.classList.toggle('hidden'); });
+document.addEventListener('click', (e) => {
+  if (!modelMenu.classList.contains('hidden') && !e.target.closest('.model-picker')) modelMenu.classList.add('hidden');
+});
 $('#fr-toggle').addEventListener('click', () => $('#fr-panel').classList.toggle('hidden'));
 $('#fr-close').addEventListener('click', () => $('#fr-panel').classList.add('hidden'));
 $('#note-add').addEventListener('click', addNote);
@@ -464,6 +490,10 @@ $('#chat-form').addEventListener('submit', (e) => {
   $('#chat').classList.remove('hidden');
   sendChat(text);
 });
+
+document.querySelectorAll('.suggestion').forEach((b) =>
+  b.addEventListener('click', () => { chatInput.value = b.textContent; autoGrow(); chatInput.focus(); })
+);
 
 function tick() {
   $('#clock').textContent = new Date().toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });

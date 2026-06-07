@@ -45,16 +45,27 @@
     </aside>
 
     <!-- Assistant -->
-    <aside id="chat" class="side-panel right hidden">
-      <div class="side-head">
-        <strong>Dashboard assistant</strong>
-        <select id="model-select" title="Driver model (validated only)"></select>
+    <aside id="chat" class="side-panel right assistant hidden">
+      <header class="asst-head">
+        <span class="asst-avatar">🤖</span>
+        <div class="asst-id">
+          <div class="asst-title">Assistant</div>
+          <div class="model-picker">
+            <button id="model-btn" class="model-btn" type="button"><span id="model-btn-label">…</span><span class="caret">▾</span></button>
+            <div id="model-menu" class="model-menu hidden"></div>
+          </div>
+        </div>
         <button id="chat-close" class="icon-btn" title="Close">✕</button>
-      </div>
+      </header>
       <div id="chat-log" class="chat-log">
-        <div class="msg system">
-          Ask me to add, edit, move, group, or remove tiles, sections and notes.
-          If I can't do something, I'll file a feature request. Only validated models appear in the selector.
+        <div class="intro">
+          <div class="intro-avatar">🤖</div>
+          <p>I can add, edit, move, group, or remove tiles, sections and notes — just ask. If I can't do something, I'll file a feature request.</p>
+          <div class="suggestions">
+            <button class="suggestion" type="button">Add a Grafana tile to a new Monitoring section</button>
+            <button class="suggestion" type="button">Add a sticky note to call the plumber</button>
+            <button class="suggestion" type="button">Group my media apps into a Media section</button>
+          </div>
         </div>
       </div>
     </aside>
