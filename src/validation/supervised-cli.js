@@ -43,8 +43,8 @@ async function main() {
   console.log(`${C.gray}Useful = supervision makes the worker safe, keeps capability, and beats the supervisor alone on speed.${C.reset}\n`);
 
   for (const worker of workers) {
-    if (worker === supervisor) { console.log(`(skipping ${worker} — that's the supervisor)\n`); continue; }
-    console.log(`${C.bold}▶ ${worker}  ${C.gray}supervised by ${supervisor}${C.reset}`);
+    const self = worker === supervisor ? `${C.gray} (self-supervision)${C.reset}` : '';
+    console.log(`${C.bold}▶ ${worker}  ${C.gray}supervised by ${supervisor}${C.reset}${self}`);
     const report = await superviseModel(worker, supervisor, {
       ollama,
       onProgress: (r) => {

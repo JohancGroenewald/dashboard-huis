@@ -43,8 +43,8 @@ async function main() {
   console.log(`${C.gray}Useful = orchestrator review keeps it safe + capable AND the pair beats the orchestrator alone on speed.${C.reset}\n`);
 
   for (const sub of subs) {
-    if (sub === orchestrator) { console.log(`(skipping ${sub} — that's the orchestrator)\n`); continue; }
-    console.log(`${C.bold}▶ ${orchestrator} ▸ ${sub}${C.reset}`);
+    const self = sub === orchestrator ? `${C.gray} (self-delegation)${C.reset}` : '';
+    console.log(`${C.bold}▶ ${orchestrator} ▸ ${sub}${C.reset}${self}`);
     const report = await delegateModel(sub, orchestrator, {
       ollama,
       onProgress: (r) => {
