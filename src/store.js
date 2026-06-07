@@ -90,6 +90,7 @@ function normalizeSection(raw) {
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     name: checkString(raw.name, 'section.name', { max: 120 }),
+    layout: normalizeLayout(raw.layout),
     tiles: tiles.map(normalizeTile),
   };
 }
@@ -293,11 +294,14 @@ export class Store {
   // items: [{ id, x, y, w, h }]
   setLayouts(items) {
     if (!Array.isArray(items)) fail('items must be an array');
-    const tiles = new Map();
-    for (const s of this.state.sections) for (const t of s.tiles) tiles.set(t.id, t);
-    const notes = new Map(this.state.notes.map((n) => [n.id, n]));
+    const byId = new Map();
+    for (const s of this.state.sections) {
+      byId.set(s.id, s);
+      for (const t of s.tiles) byId.set(t.id, t);
+    }
+    for (const n of this.state.notes) byId.set(n.id, n);
     for (const it of items) {
-      const target = tiles.get(it.id) || notes.get(it.id);
+      const target = byId.get(it.id);
       if (target) target.layout = normalizeLayout(it);
     }
     return this.#commit();

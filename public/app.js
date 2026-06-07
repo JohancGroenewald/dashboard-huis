@@ -72,20 +72,27 @@ function widgetEl(id, layout, defW, defH, innerHtml) {
   return el;
 }
 
-function tileInner(tile, sectionName) {
+function tileChip(tile) {
   const h = healthCache[tile.id];
   const dot = tile.health?.enabled ? `<span class="dot ${h?.status || 'unknown'}" title="${esc(healthTitle(h))}"></span>` : '';
-  return `<div class="card tile-card" data-id="${tile.id}">
-    <span class="card-grip" title="Drag">⠿</span>
-    <button class="card-del" title="Delete tile">✕</button>
-    <div class="tile-body" data-url="${esc(tile.url)}" title="${esc(tile.url)}">
-      <span class="tile-icon">${esc(tile.icon || '🔗')}</span>
-      <div class="tile-meta">
-        <div class="tile-name">${esc(tile.name)}</div>
-        ${tile.description ? `<div class="tile-desc">${esc(tile.description)}</div>` : ''}
-      </div>
+  return `<div class="tile-chip" draggable="true" data-id="${tile.id}" data-url="${esc(tile.url)}" title="${esc(tile.url)}">
+    <span class="tile-icon">${esc(tile.icon || '🔗')}</span>
+    <span class="tile-meta"><span class="tile-name">${esc(tile.name)}</span>${tile.description ? `<span class="tile-desc">${esc(tile.description)}</span>` : ''}</span>
+    ${dot}
+    <button class="chip-del" title="Delete tile">✕</button>
+  </div>`;
+}
+
+function sectionInner(section) {
+  const tiles = section.tiles.map(tileChip).join('') || '<div class="sec-empty">No tiles — ＋ to add, or drop one here</div>';
+  return `<div class="card section-card" data-id="${section.id}">
+    <div class="sec-head">
+      <span class="card-grip" title="Drag section">⠿</span>
+      <span class="sec-name" title="Click to rename">${esc(section.name)}</span>
+      <button class="sec-add" title="Add tile to this section">＋</button>
+      <button class="sec-del" title="Delete section">✕</button>
     </div>
-    <div class="card-foot"><span class="tile-section">${esc(sectionName)}</span>${dot}</div>
+    <div class="sec-tiles" data-section="${section.id}">${tiles}</div>
   </div>`;
 }
 
@@ -105,16 +112,13 @@ function renderGrid() {
   rendering = true;
   grid.removeAll(true);
 
-  const tileCount = state.sections.reduce((n, s) => n + s.tiles.length, 0);
-  $('#empty-hint').classList.toggle('hidden', tileCount + state.notes.length > 0);
+  $('#empty-hint').classList.toggle('hidden', state.sections.length + state.notes.length > 0);
 
   for (const section of state.sections) {
-    for (const tile of section.tiles) {
-      const el = widgetEl(tile.id, tile.layout || {}, 3, 2, tileInner(tile, section.name));
-      gridEl.appendChild(el);
-      grid.makeWidget(el);
-      wireTile(el, tile);
-    }
+    const el = widgetEl(section.id, section.layout || {}, 4, 4, sectionInner(section));
+    gridEl.appendChild(el);
+    grid.makeWidget(el);
+    wireSection(el, section);
   }
   for (const note of state.notes) {
     const el = widgetEl(note.id, note.layout || {}, 3, 3, noteInner(note));
@@ -125,12 +129,48 @@ function renderGrid() {
   rendering = false;
 }
 
-function wireTile(el, tile) {
-  el.querySelector('.tile-body').addEventListener('click', () => window.open(tile.url, '_blank', 'noopener'));
-  el.querySelector('.card-del').addEventListener('click', async (e) => {
-    e.stopPropagation();
-    if (!confirm(`Delete tile "${tile.name}"?`)) return;
-    await api(`/api/tiles/${tile.id}`, { method: 'DELETE' });
+function wireSection(el, section) {
+  el.querySelector('.sec-name').addEventListener('click', async () => {
+    const name = prompt('Rename section:', section.name);
+    if (name && name.trim() && name !== section.name) {
+      await api(`/api/sections/${section.id}`, jsonBody({ name: name.trim() }, 'PATCH'));
+      await loadDashboard();
+    }
+  });
+  el.querySelector('.sec-add').addEventListener('click', () => addTileTo(section.id));
+  el.querySelector('.sec-del').addEventListener('click', async () => {
+    const n = section.tiles.length;
+    if (!confirm(`Delete section "${section.name}"${n ? ` and its ${n} tile(s)` : ''}?`)) return;
+    await api(`/api/sections/${section.id}`, { method: 'DELETE' });
+    await loadDashboard();
+  });
+
+  el.querySelectorAll('.tile-chip').forEach((chip) => {
+    chip.addEventListener('click', (e) => {
+      if (!e.target.closest('.chip-del')) window.open(chip.dataset.url, '_blank', 'noopener');
+    });
+    chip.querySelector('.chip-del').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      await api(`/api/tiles/${chip.dataset.id}`, { method: 'DELETE' });
+      await loadDashboard();
+    });
+    chip.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/tile', chip.dataset.id);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+  });
+
+  const zone = el.querySelector('.sec-tiles');
+  zone.addEventListener('dragover', (e) => {
+    if (e.dataTransfer.types.includes('text/tile')) { e.preventDefault(); zone.classList.add('drop'); }
+  });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drop'));
+  zone.addEventListener('drop', async (e) => {
+    zone.classList.remove('drop');
+    const tileId = e.dataTransfer.getData('text/tile');
+    if (!tileId) return;
+    e.preventDefault();
+    await api(`/api/tiles/${tileId}/move`, jsonBody({ section_id: section.id }));
     await loadDashboard();
   });
 }
@@ -161,24 +201,33 @@ function healthTitle(h) {
 async function loadHealth() {
   try {
     healthCache = await api('/api/health');
-    gridEl.querySelectorAll('.tile-card').forEach((card) => {
-      const h = healthCache[card.dataset.id];
-      const dot = card.querySelector('.dot');
+    gridEl.querySelectorAll('.tile-chip').forEach((chip) => {
+      const h = healthCache[chip.dataset.id];
+      const dot = chip.querySelector('.dot');
       if (dot && h) { dot.className = `dot ${h.status}`; dot.title = healthTitle(h); }
     });
   } catch { /* ignore */ }
 }
 
-// ---- add tile / note -----------------------------------------------------
-async function addTile() {
+// ---- add section / tile / note -------------------------------------------
+async function addSection() {
+  const name = prompt('New section name:');
+  if (!name || !name.trim()) return;
+  try {
+    await api('/api/sections', jsonBody({ name: name.trim() }));
+    await loadDashboard();
+  } catch (err) {
+    alert('Could not add section: ' + err.message);
+  }
+}
+
+async function addTileTo(sectionId) {
   const name = prompt('Tile name:');
   if (!name) return;
   let url = prompt('Link URL (e.g. http://service.huis):');
   if (!url) return;
   if (!/^https?:\/\//i.test(url) && !url.startsWith('/')) url = 'http://' + url;
   try {
-    let sectionId = state.sections[0]?.id;
-    if (!sectionId) sectionId = (await api('/api/sections', jsonBody({ name: 'Services' }))).id;
     await api(`/api/sections/${sectionId}/tiles`, jsonBody({ name, url }));
     await loadDashboard();
   } catch (err) {
@@ -363,7 +412,7 @@ $('#chat-close').addEventListener('click', () => $('#chat').classList.add('hidde
 $('#fr-toggle').addEventListener('click', () => $('#fr-panel').classList.toggle('hidden'));
 $('#fr-close').addEventListener('click', () => $('#fr-panel').classList.add('hidden'));
 $('#note-add').addEventListener('click', addNote);
-$('#tile-add').addEventListener('click', addTile);
+$('#section-add').addEventListener('click', addSection);
 
 let locked = false;
 $('#edit-toggle').addEventListener('click', () => {
