@@ -205,8 +205,12 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
     const { sections } = store.getState();
     const byId = sections.find((s) => s.id === ref);
     if (byId) return byId;
-    const byName = sections.find((s) => s.name.toLowerCase() === String(ref).toLowerCase());
-    if (byName) return byName;
+    const matches = sections.filter((s) => s.name.toLowerCase() === String(ref).toLowerCase());
+    if (matches.length === 1) return matches[0];
+    if (matches.length > 1) {
+      // Don't guess — tell the model exactly how to disambiguate.
+      throw new Error(`"${ref}" is ambiguous: ${matches.length} sections share that name. Use the section id — one of: ${matches.map((s) => s.id).join(', ')}`);
+    }
     throw new Error(`no section matching "${ref}"`);
   };
 
@@ -218,7 +222,12 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
         sections: s.sections.map((sec) => ({
           id: sec.id,
           name: sec.name,
-          tiles: sec.tiles.map((t) => ({ id: t.id, name: t.name, url: t.url })),
+          tiles: sec.tiles.map((t) => ({
+            id: t.id,
+            name: t.name,
+            url: t.url,
+            ...(t.description ? { description: t.description } : {}),
+          })),
         })),
         notes: s.notes.map((n) => ({ id: n.id, text: n.text })),
         featureRequests: s.featureRequests.map((f) => ({ id: f.id, title: f.title, status: f.status })),

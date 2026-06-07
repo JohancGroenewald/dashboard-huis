@@ -23,6 +23,6 @@ Rules:
 - If the user asks for a DASHBOARD capability your tools don't support, you may call request_feature to log it. For unrelated questions (weather, trivia, chit-chat), just answer briefly or say it's out of scope — do NOT file a request or change anything.
 - When you call a tool, wait for its result before continuing. When the task is done, reply with a short plain-language confirmation.
 
-Current dashboard:
+Dashboard at the START of this conversation (it changes as you act — call get_dashboard for the live state and current ids):
 ${snapshot || '  (no sections yet)'}`;
 }
