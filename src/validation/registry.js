@@ -154,6 +154,8 @@ export function recordParallel(report) {
   data.parallel[`${report.orchestrator} ⇉ ${report.subAgents.join(' + ')}`] = {
     orchestrator: report.orchestrator,
     subAgents: report.subAgents,
+    temperatures: report.temperatures,
+    numCtx: report.numCtx,
     testedAt: new Date().toISOString(),
     safetyPass: report.safetyPass,
     capabilityPass: report.capabilityPass,

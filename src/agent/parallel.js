@@ -60,16 +60,18 @@ Which candidate should be applied? Reply "APPLY <number>" or "REJECT".`;
   return { index, raw: text.slice(0, 120), ms: Date.now() - started };
 }
 
-export async function runParallelDelegatedAgent({ orchestrator, subAgents, store, messages, ollama = new Ollama() }) {
+export async function runParallelDelegatedAgent({ orchestrator, subAgents, subAgentOptions = [], store, messages, ollama = new Ollama() }) {
   const before = store.getState();
   const userText = messages.map((m) => m.content).join(' ');
 
   // Fan out to all sub-agents at once (concurrent if OLLAMA_NUM_PARALLEL allows).
+  // Each sub-agent can get its own sampling options (e.g. a different
+  // temperature) so duplicate models still produce diverse candidates.
   const candidates = await Promise.all(
-    subAgents.map(async (model) => {
+    subAgents.map(async (model, i) => {
       const sandbox = new Store({ persist: false }).seed(before);
-      const sub = await runAgent({ model, store: sandbox, messages, ollama });
-      return { model, after: sandbox.getState(), trace: sub.trace, reply: sub.reply };
+      const sub = await runAgent({ model, store: sandbox, messages, ollama, options: subAgentOptions[i] });
+      return { model, temperature: subAgentOptions[i]?.temperature, after: sandbox.getState(), trace: sub.trace, reply: sub.reply };
     })
   );
 

@@ -30,7 +30,13 @@ async function main() {
   if (oi !== -1) orchestrator = args[oi + 1];
   orchestrator = orchestrator || fastestApproved();
 
-  const subs = args.filter((a, i) => !a.startsWith('--') && args[i - 1] !== '--orchestrator');
+  const ti = args.indexOf('--temps');
+  const temps = ti !== -1 ? args[ti + 1].split(',').map(Number) : undefined;
+  const ci = args.indexOf('--num-ctx');
+  const numCtx = ci !== -1 ? Number(args[ci + 1]) : undefined;
+
+  const flagVals = new Set(['--orchestrator', '--temps', '--num-ctx']);
+  const subs = args.filter((a, i) => !a.startsWith('--') && !flagVals.has(args[i - 1]));
   if (!orchestrator) {
     console.error('No orchestrator available — approve a trusted model first, or pass --orchestrator <model>.');
     process.exit(1);
@@ -45,7 +51,7 @@ async function main() {
   console.log(`${C.gray}Useful = safe + capable AND faster per action than the orchestrator alone.${C.reset}\n`);
 
   const report = await parallelModel(subs, orchestrator, {
-    ollama,
+    ollama, temps, numCtx,
     onProgress: (r) => {
       const tag = r.pass ? ok('PASS') : bad('FAIL');
       const crit = r.critical ? `${C.yellow}[safety]${C.reset} ` : '';
@@ -59,7 +65,8 @@ async function main() {
     ? `${(report.medianActionMs / 1000).toFixed(1)}s/action vs ${(report.orchestratorAloneMs / 1000).toFixed(1)}s solo (${report.speedup}x)`
     : `${(report.medianActionMs / 1000).toFixed(1)}s/action`;
   const verdict = report.useful ? ok('USEFUL (parallel sub-agents)') : bad('NOT worthwhile');
-  console.log(`\n  ${C.bold}${verdict}${C.reset}  safe=${report.safetyPass} capable=${report.capabilityPass} · ${spd}\n`);
+  console.log(`\n  ${C.bold}${verdict}${C.reset}  safe=${report.safetyPass} capable=${report.capabilityPass} · ${spd}`);
+  console.log(`  ${C.gray}temps=[${(report.temperatures || []).join(', ')}] · num_ctx=${report.numCtx}${C.reset}\n`);
   recordParallel(report);
 }
 

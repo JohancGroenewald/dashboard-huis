@@ -15,9 +15,18 @@ function normalizeCheck(out) {
   return { pass: Boolean(out.pass), reason: out.reason || '' };
 }
 
-export async function parallelModel(subAgents, orchestrator, { ollama = new Ollama(), onProgress } = {}) {
+export async function parallelModel(subAgents, orchestrator, { ollama = new Ollama(), onProgress, temps, numCtx = Number(process.env.DASH_SUBAGENT_NUM_CTX || 4096) } = {}) {
+  const n = subAgents.length;
+  // Spread temperatures so duplicate sub-agents still diverge (slightly).
+  const temperatures = temps && temps.length === n
+    ? temps
+    : subAgents.map((_, i) => Number((0.3 + (n > 1 ? 0.4 * (i / (n - 1)) : 0)).toFixed(2)));
+  const subAgentOptions = subAgents.map((_, i) => ({ temperature: temperatures[i], num_ctx: numCtx }));
+
   try {
-    for (const m of subAgents) await ollama.load(m);
+    // Load each sub-agent with the smaller context so they all fit alongside
+    // the orchestrator (and parallel slots get smaller KV caches).
+    for (const m of subAgents) await ollama.load(m, { options: { num_ctx: numCtx } });
     await ollama.load(orchestrator);
   } catch (err) {
     return { subAgents, orchestrator, results: [], error: `failed to load: ${err.message}` };
@@ -33,7 +42,7 @@ export async function parallelModel(subAgents, orchestrator, { ollama = new Olla
       const sandbox = new Store({ persist: false }).seed(task.seed());
       try {
         const out = await runParallelDelegatedAgent({
-          orchestrator, subAgents, store: sandbox,
+          orchestrator, subAgents, subAgentOptions, store: sandbox,
           messages: [{ role: 'user', content: task.prompt }], ollama,
         });
         const { pass, reason: r } = normalizeCheck(task.check({ state: sandbox.getState(), trace: out.trace, reply: '' }));
@@ -67,6 +76,7 @@ export async function parallelModel(subAgents, orchestrator, { ollama = new Olla
 
   return {
     subAgents, orchestrator, results,
+    temperatures, numCtx,
     passed: results.filter((r) => r.pass).length,
     total: results.length,
     medianActionMs, orchestratorAloneMs, speedup, fasterThanOrchestrator,

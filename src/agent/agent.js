@@ -19,13 +19,13 @@ function parseArgs(raw) {
   }
 }
 
-export async function runAgent({ model, store, messages, ollama = new Ollama(), maxSteps = MAX_STEPS }) {
+export async function runAgent({ model, store, messages, ollama = new Ollama(), maxSteps = MAX_STEPS, options }) {
   const handlers = makeToolHandlers(store, { requestedBy: model });
   const convo = [{ role: 'system', content: systemPrompt(store) }, ...messages];
   const trace = []; // { name, args, ok, result|error }
 
   for (let step = 0; step < maxSteps; step++) {
-    const msg = await ollama.chat({ model, messages: convo, tools: toolSpecs });
+    const msg = await ollama.chat({ model, messages: convo, tools: toolSpecs, options });
     convo.push(msg);
 
     const calls = msg.tool_calls || [];

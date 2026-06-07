@@ -21,7 +21,8 @@ export class Ollama {
 
   // Preload a model into memory (cold loads of large models can take minutes).
   // Empty messages make Ollama load weights and return without generating.
-  async load(model, timeoutMs = 300_000) {
+  // Pass options (e.g. num_ctx) to size the context/KV-cache at load time.
+  async load(model, { timeoutMs = 300_000, options } = {}) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
@@ -29,7 +30,7 @@ export class Ollama {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         signal: ctrl.signal,
-        body: JSON.stringify({ model, messages: [], stream: false }),
+        body: JSON.stringify({ model, messages: [], stream: false, options }),
       });
       if (!res.ok) throw new Error(`ollama load ${model} → ${res.status}`);
       return res.json();
