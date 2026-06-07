@@ -53,11 +53,13 @@
           If I can't do something, I'll file a feature request. Only validated models appear in the selector.
         </div>
       </div>
-      <form id="chat-form" class="chat-form">
-        <textarea id="chat-input" rows="2" placeholder="Ask the assistant to change the dashboard…" title="Enter to send · Shift+Enter for a newline" autocomplete="off"></textarea>
-        <button type="submit" title="Send">Send</button>
-      </form>
     </aside>
+
+    <!-- Assistant input — centered bottom bar (history lives in the panel above) -->
+    <form id="chat-form" class="chat-bar">
+      <textarea id="chat-input" rows="2" placeholder="Ask the assistant to change the dashboard…" title="Enter to send · Shift+Enter for a newline" autocomplete="off"></textarea>
+      <button type="submit" title="Send">Send</button>
+    </form>
 
     <script src="/app.js" type="module"></script>
   </body>

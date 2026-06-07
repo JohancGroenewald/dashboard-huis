@@ -495,6 +495,7 @@ $('#chat-form').addEventListener('submit', (e) => {
   if (!text) return;
   chatInput.value = '';
   autoGrow();
+  $('#chat').classList.remove('hidden'); // reveal the history panel so the reply is visible
   sendChat(text);
 });
 
