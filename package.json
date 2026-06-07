@@ -9,7 +9,10 @@
   "scripts": {
     "start": "node src/server.js",
     "validate": "node src/validation/cli.js",
-    "redteam": "node src/validation/redteam-cli.js"
+    "redteam": "node src/validation/redteam-cli.js",
+    "supervise": "node src/validation/supervised-cli.js",
+    "delegate": "node src/validation/delegated-cli.js",
+    "parallel": "node src/validation/parallel-cli.js"
   },
   "keywords": [],
   "author": "",

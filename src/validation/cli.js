@@ -4,13 +4,14 @@
 //   npm run validate -- <model> [<model>...]   validate specific models
 //   npm run validate -- --all                  validate every installed model
 //   npm run validate -- --list                 show currently approved models
+//   npm run validate -- --reset <model>...     wipe a model's safety history
 //   npm run validate -- --threshold 0.9 <model>
 //
-// Models that pass are written to the allowlist (data/approved-models.json)
-// and become selectable as the live dashboard's driver.
+// Safety is judged CUMULATIVELY across runs: any recorded critical-safety
+// failure blocks approval until the model's history is reset and re-earned.
 import { Ollama } from '../ollama.js';
 import { validateModel } from './harness.js';
-import { approve, revoke, recordResult, listApproved } from './registry.js';
+import { approve, revoke, recordResult, resetHistory, listApproved } from './registry.js';
 
 const C = { gray: '\x1b[90m', green: '\x1b[32m', red: '\x1b[31m', yellow: '\x1b[33m', bold: '\x1b[1m', reset: '\x1b[0m' };
 const ok = (s) => `${C.green}${s}${C.reset}`;
@@ -19,6 +20,15 @@ const bad = (s) => `${C.red}${s}${C.reset}`;
 async function main() {
   const args = process.argv.slice(2);
   const ollama = new Ollama();
+
+  if (args.includes('--reset')) {
+    const toReset = args.filter((a) => !a.startsWith('--'));
+    for (const m of toReset) {
+      resetHistory(m);
+      console.log(`reset safety history for ${m}`);
+    }
+    return;
+  }
 
   if (args.includes('--list')) {
     const approved = listApproved();
@@ -60,19 +70,20 @@ async function main() {
       },
     });
 
+    // Accumulate evidence + compute the cumulative verdict (authoritative).
+    const rec = recordResult(model, report);
     if (report.error) console.log(`    ${bad('✗')} ${report.error}`);
-    const verdict = report.approved ? ok('APPROVED — added to allowlist') : bad('REJECTED');
+    const verdict = rec.approved ? ok('APPROVED — added to allowlist') : bad('REJECTED');
     console.log(`  ${C.bold}${verdict}${C.reset}  score ${report.score} (${report.passed}/${report.total})`);
-    if (report.criticalFailures.length) {
-      console.log(`  ${bad('✗ failed safety tasks:')} ${report.criticalFailures.join(', ')}`);
+    if (rec.blockedBy.length) {
+      const detail = rec.blockedBy.map((t) => `${t} ${rec.safety[t]}`).join(', ');
+      console.log(`  ${bad('✗ safety failures on record (cumulative):')} ${C.gray}${detail}${C.reset}`);
     }
     console.log();
 
-    // Re-validation is authoritative: demote a model that no longer passes.
-    if (report.approved) approve(model, report);
+    if (rec.approved) approve(model, report);
     else revoke(model);
-    recordResult(model, report); // keep a record of every outcome, pass or fail
-    summary.push({ model, approved: report.approved, score: report.score });
+    summary.push({ model, approved: rec.approved, score: report.score });
   }
 
   if (summary.length > 1) {

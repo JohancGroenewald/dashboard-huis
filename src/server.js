@@ -7,7 +7,7 @@ import { Store } from './store.js';
 import { HealthMonitor } from './health.js';
 import { Ollama } from './ollama.js';
 import { runAgent } from './agent/agent.js';
-import { listApproved, isApproved, listResults } from './validation/registry.js';
+import { listApproved, isApproved, listResults, listSupervised, listDelegated, listParallel } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
 
@@ -76,6 +76,9 @@ app.get('/api/models', wrap(async (req, res) => {
     installed,
     details: approved,
     results: listResults(), // every tested model + outcome (pass or fail)
+    supervised: listSupervised(), // failed-model + trusted-supervisor pairings
+    delegated: listDelegated(), // trusted-orchestrator ▸ untrusted-sub-agent pairings
+    parallel: listParallel(), // orchestrator ⇉ N concurrent sub-agents
   });
 }));
 

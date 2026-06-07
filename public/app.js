@@ -281,7 +281,7 @@ function speedTier(ms) {
 async function loadModels() {
   const sel = $('#model-select');
   try {
-    const { approved, details, results } = await api('/api/models');
+    const { approved, details, results, supervised, delegated, parallel } = await api('/api/models');
     if (!approved.length) {
       sel.innerHTML = '<option value="">no validated models</option>';
       sel.disabled = true;
@@ -295,14 +295,77 @@ async function loadModels() {
         })
         .join('');
     }
-    renderModelsReport(results || {});
+    renderModelsReport(results || {}, supervised || {}, delegated || {}, parallel || {});
   } catch {
     sel.innerHTML = '<option value="">offline</option>';
     sel.disabled = true;
   }
 }
 
-function renderModelsReport(results) {
+function renderSupervised(supervised) {
+  const pairs = Object.values(supervised);
+  if (!pairs.length) return '';
+  pairs.sort((a, b) => Number(b.useful) - Number(a.useful));
+  const rows = pairs
+    .map((s) => {
+      const spd = s.supervisorAloneMs
+        ? `~${fmtMs(s.msPerAction)} vs ${fmtMs(s.supervisorAloneMs)} solo (${s.speedup}×)`
+        : `~${fmtMs(s.msPerAction)}`;
+      return `<div class="mr-row ${s.useful ? 'ok' : 'bad'}">
+        <span class="mr-badge">${s.useful ? '✓' : '✗'}</span>
+        <div class="mr-body">
+          <div class="mr-name">${esc(s.worker)} <span class="mr-sub">▸ sup: ${esc(s.supervisor)}</span></div>
+          <div class="mr-sub">safe ${s.safetyPass ? '✓' : '✗'} · capable ${s.capabilityPass ? '✓' : '✗'} · ${spd} · ${s.totalBlocked} blocked</div>
+        </div>
+      </div>`;
+    })
+    .join('');
+  return `<div class="mr-head">supervised pairings (worker ▸ supervisor)</div>${rows}`;
+}
+
+function renderDelegated(delegated) {
+  const pairs = Object.values(delegated);
+  if (!pairs.length) return '';
+  pairs.sort((a, b) => Number(b.useful) - Number(a.useful));
+  const rows = pairs
+    .map((d) => {
+      const spd = d.orchestratorAloneMs
+        ? `~${fmtMs(d.msPerAction)} vs ${fmtMs(d.orchestratorAloneMs)} solo (${d.speedup}×)`
+        : `~${fmtMs(d.msPerAction)}`;
+      return `<div class="mr-row ${d.useful ? 'ok' : 'bad'}">
+        <span class="mr-badge">${d.useful ? '✓' : '✗'}</span>
+        <div class="mr-body">
+          <div class="mr-name">${esc(d.orchestrator)} <span class="mr-sub">▸ sub: ${esc(d.subAgent)}</span></div>
+          <div class="mr-sub">safe ${d.safetyPass ? '✓' : '✗'} · capable ${d.capabilityPass ? '✓' : '✗'} · ${spd}</div>
+        </div>
+      </div>`;
+    })
+    .join('');
+  return `<div class="mr-head">sub-agent delegation (orchestrator ▸ sub-agent)</div>${rows}`;
+}
+
+function renderParallel(parallel) {
+  const pairs = Object.values(parallel);
+  if (!pairs.length) return '';
+  pairs.sort((a, b) => Number(b.useful) - Number(a.useful));
+  const rows = pairs
+    .map((p) => {
+      const spd = p.orchestratorAloneMs
+        ? `~${fmtMs(p.msPerAction)} vs ${fmtMs(p.orchestratorAloneMs)} solo (${p.speedup}×)`
+        : `~${fmtMs(p.msPerAction)}`;
+      return `<div class="mr-row ${p.useful ? 'ok' : 'bad'}">
+        <span class="mr-badge">${p.useful ? '✓' : '✗'}</span>
+        <div class="mr-body">
+          <div class="mr-name">${esc(p.orchestrator)} <span class="mr-sub">⇉ ${esc((p.subAgents || []).join(' + '))}</span></div>
+          <div class="mr-sub">safe ${p.safetyPass ? '✓' : '✗'} · capable ${p.capabilityPass ? '✓' : '✗'} · ${spd}</div>
+        </div>
+      </div>`;
+    })
+    .join('');
+  return `<div class="mr-head">parallel sub-agents (orchestrator ⇉ concurrent)</div>${rows}`;
+}
+
+function renderModelsReport(results, supervised = {}, delegated = {}, parallel = {}) {
   const menu = $('#models-menu');
   const entries = Object.entries(results);
   if (!entries.length) {
@@ -315,19 +378,23 @@ function renderModelsReport(results) {
   const rows = entries
     .map(([name, r]) => {
       const time = r.msPerAction ? `${speedTier(r.msPerAction)} ~${fmtMs(r.msPerAction)}/action` : '';
-      const fails = r.failures?.length ? `<div class="mr-fail">✗ ${esc(r.failures.join(', '))}</div>` : '';
+      const blocked = r.blockedBy?.length
+        ? `<div class="mr-fail">✗ safety: ${esc(r.blockedBy.map((t) => `${t.replace('safety-', '')} ${r.safety?.[t] || ''}`).join(', '))}</div>`
+        : r.failures?.length
+          ? `<div class="mr-fail">✗ ${esc(r.failures.join(', '))}</div>`
+          : '';
       const err = r.error ? `<div class="mr-fail">${esc(r.error)}</div>` : '';
       return `<div class="mr-row ${r.approved ? 'ok' : 'bad'}">
         <span class="mr-badge">${r.approved ? '✓' : '✗'}</span>
         <div class="mr-body">
           <div class="mr-name">${esc(name)}</div>
           <div class="mr-sub">${r.passed}/${r.total}${time ? ' · ' + time : ''}</div>
-          ${fails}${err}
+          ${blocked}${err}
         </div>
       </div>`;
     })
     .join('');
-  menu.innerHTML = `<div class="mr-head">${approvedCount} approved · ${entries.length} tested</div>${rows}`;
+  menu.innerHTML = `<div class="mr-head">${approvedCount} approved · ${entries.length} tested</div>${rows}${renderSupervised(supervised)}${renderDelegated(delegated)}${renderParallel(parallel)}`;
 }
 
 function addMsg(role, text, trace) {
@@ -382,8 +449,8 @@ $('#note-add').addEventListener('click', addNote);
 const modelsMenu = $('#models-menu');
 async function refreshReport() {
   try {
-    const { results } = await api('/api/models');
-    renderModelsReport(results || {});
+    const { results, supervised, delegated, parallel } = await api('/api/models');
+    renderModelsReport(results || {}, supervised || {}, delegated || {}, parallel || {});
   } catch { /* ignore */ }
 }
 $('#models-toggle').addEventListener('click', (e) => {
