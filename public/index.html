@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Huis Dashboard</title>
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🏠</text></svg>" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1 id="title">Dashboard</h1>
+      <div class="topbar-right">
+        <span id="clock" class="clock"></span>
+        <div class="dropdown">
+          <button id="models-toggle" class="ghost-btn" title="Validated & tested models">🧪 Models ▾</button>
+          <div id="models-menu" class="dropdown-menu hidden"></div>
+        </div>
+        <button id="note-add" class="ghost-btn" title="Add a sticky note">📝 Note</button>
+        <button id="fr-toggle" class="ghost-btn" title="Feature requests">🗒️ Requests<span id="fr-count" class="badge hidden">0</span></button>
+        <button id="chat-toggle" class="chat-toggle" title="Open assistant">💬 Assistant</button>
+      </div>
+    </header>
+
+    <section id="notes" class="notes"></section>
+
+    <main id="board" class="board"><p class="loading">Loading…</p></main>
+
+    <!-- Feature request queue -->
+    <aside id="fr-panel" class="side-panel left hidden">
+      <div class="side-head">
+        <strong>Feature requests</strong>
+        <button id="fr-close" class="icon-btn" title="Close">✕</button>
+      </div>
+      <form id="fr-form" class="fr-form">
+        <input id="fr-title" type="text" placeholder="Request a feature…" autocomplete="off" />
+        <textarea id="fr-detail" rows="2" placeholder="Details (optional)"></textarea>
+        <button type="submit">Add request</button>
+      </form>
+      <div id="fr-list" class="fr-list"></div>
+    </aside>
+
+    <!-- Assistant -->
+    <aside id="chat" class="side-panel right hidden">
+      <div class="side-head">
+        <strong>Dashboard assistant</strong>
+        <select id="model-select" title="Driver model (validated only)"></select>
+        <button id="chat-close" class="icon-btn" title="Close">✕</button>
+      </div>
+      <div id="chat-log" class="chat-log">
+        <div class="msg system">
+          Ask me to add, edit, move, group, or remove tiles, sections and notes.
+          If I can't do something, I'll file a feature request. Only validated models appear in the selector.
+        </div>
+      </div>
+      <form id="chat-form" class="chat-form">
+        <textarea id="chat-input" rows="2" placeholder="Ask the assistant to change the dashboard…" title="Enter to send · Shift+Enter for a newline" autocomplete="off"></textarea>
+        <button type="submit" title="Send">Send</button>
+      </form>
+    </aside>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
