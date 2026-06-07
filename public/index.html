@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Huis Dashboard</title>
+    <link rel="stylesheet" href="/vendor/gridstack.min.css" />
     <link rel="stylesheet" href="/style.css" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🏠</text></svg>" />
   </head>
@@ -12,19 +13,22 @@
       <h1 id="title">Dashboard</h1>
       <div class="topbar-right">
         <span id="clock" class="clock"></span>
+        <button id="tile-add" class="ghost-btn" title="Add a tile">＋ Tile</button>
+        <button id="note-add" class="ghost-btn" title="Add a sticky note">📝 Note</button>
+        <button id="edit-toggle" class="ghost-btn" title="Lock / unlock the layout">🔓 Edit</button>
         <div class="dropdown">
           <button id="models-toggle" class="ghost-btn" title="Validated & tested models">🧪 Models ▾</button>
           <div id="models-menu" class="dropdown-menu hidden"></div>
         </div>
-        <button id="note-add" class="ghost-btn" title="Add a sticky note">📝 Note</button>
         <button id="fr-toggle" class="ghost-btn" title="Feature requests">🗒️ Requests<span id="fr-count" class="badge hidden">0</span></button>
         <button id="chat-toggle" class="chat-toggle" title="Open assistant">💬 Assistant</button>
       </div>
     </header>
 
-    <section id="notes" class="notes"></section>
-
-    <main id="board" class="board"><p class="loading">Loading…</p></main>
+    <main class="board-wrap">
+      <div id="board" class="grid-stack"></div>
+      <p id="empty-hint" class="empty-hint hidden">Nothing here yet — add a tile, a note, or ask the assistant.</p>
+    </main>
 
     <!-- Feature request queue -->
     <aside id="fr-panel" class="side-panel left hidden">
@@ -55,12 +59,13 @@
       </div>
     </aside>
 
-    <!-- Assistant input — centered bottom bar (history lives in the panel above) -->
+    <!-- Assistant input — centered bottom bar -->
     <form id="chat-form" class="chat-bar">
       <textarea id="chat-input" rows="2" placeholder="Ask the assistant to change the dashboard…" title="Enter to send · Shift+Enter for a newline" autocomplete="off"></textarea>
       <button type="submit" title="Send">Send</button>
     </form>
 
+    <script src="/vendor/gridstack-all.js"></script>
     <script src="/app.js" type="module"></script>
   </body>
 </html>

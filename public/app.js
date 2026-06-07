@@ -1,11 +1,13 @@
-// Dashboard frontend: render state + health, drag-and-drop, sticky notes,
-// feature-request queue, and the agent chat.
+// Dashboard frontend: a Gridstack grid of draggable/resizable cards (tiles +
+// notes), with health, feature-request queue, models report, and agent chat.
 const $ = (sel) => document.querySelector(sel);
-const board = $('#board');
+const gridEl = $('#board');
 const chatLog = $('#chat-log');
 
 let state = { title: 'Dashboard', sections: [], notes: [], featureRequests: [] };
 let healthCache = {};
+let grid;
+let rendering = false; // suppress layout-persist while we rebuild programmatically
 
 async function api(path, opts) {
   const res = await fetch(path, opts);
@@ -13,7 +15,11 @@ async function api(path, opts) {
   if (!res.ok) throw new Error(data.error || res.statusText);
   return data;
 }
-
+const jsonBody = (obj, method = 'POST') => ({
+  method,
+  headers: { 'content-type': 'application/json' },
+  body: JSON.stringify(obj),
+});
 const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
@@ -27,42 +33,122 @@ async function loadDashboard() {
 function render() {
   $('#title').textContent = state.title;
   document.title = `${state.title} · Dashboard`;
-  renderNotes();
-  renderBoard();
+  renderGrid();
   renderFR();
 }
 
-// ---- board: sections + tiles + drag-and-drop -----------------------------
-function renderBoard() {
-  board.innerHTML = '';
-  if (!state.sections.length) {
-    board.innerHTML = '<p class="empty">No sections yet. Ask the assistant to add one.</p>';
-    return;
-  }
-  for (const section of state.sections) {
-    const el = document.createElement('section');
-    el.className = 'section';
-    el.dataset.id = section.id;
-    const tiles = section.tiles.map(tileHtml).join('') || '<p class="empty">Drop tiles here</p>';
-    el.innerHTML = `<h2><span class="section-grip" draggable="true" title="Drag to reorder">⋮⋮</span>${esc(section.name)}</h2><div class="tiles">${tiles}</div>`;
-    wireSectionDnD(el, section);
-    board.appendChild(el);
-  }
+// ---- grid ----------------------------------------------------------------
+function initGrid() {
+  grid = GridStack.init(
+    { column: 12, cellHeight: 92, margin: 8, float: false, handle: '.card-grip', animate: true },
+    gridEl
+  );
+  grid.on('change', persistLayout);
 }
 
-function tileHtml(tile) {
+let persistTimer = null;
+function persistLayout() {
+  if (rendering) return;
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    const items = grid.save(false).map((n) => ({ id: n.id, x: n.x, y: n.y, w: n.w, h: n.h }));
+    api('/api/layout', jsonBody({ items })).catch(() => {});
+  }, 400);
+}
+
+function widgetEl(id, layout, defW, defH, innerHtml) {
+  const el = document.createElement('div');
+  el.className = 'grid-stack-item';
+  el.setAttribute('gs-id', id);
+  el.setAttribute('gs-w', layout.w || defW);
+  el.setAttribute('gs-h', layout.h || defH);
+  if (Number.isInteger(layout.x) && Number.isInteger(layout.y)) {
+    el.setAttribute('gs-x', layout.x);
+    el.setAttribute('gs-y', layout.y);
+  } else {
+    el.setAttribute('gs-auto-position', 'true');
+  }
+  el.innerHTML = `<div class="grid-stack-item-content">${innerHtml}</div>`;
+  return el;
+}
+
+function tileInner(tile, sectionName) {
   const h = healthCache[tile.id];
-  const dot = tile.health?.enabled
-    ? `<span class="dot ${h?.status || 'unknown'}" title="${esc(healthTitle(h))}"></span>`
-    : '';
-  return `<a class="tile" draggable="true" data-id="${tile.id}" href="${esc(tile.url)}" target="_blank" rel="noopener">
-    <span class="icon">${esc(tile.icon || '🔗')}</span>
-    <span class="meta">
-      <div class="name">${esc(tile.name)}</div>
-      ${tile.description ? `<div class="desc">${esc(tile.description)}</div>` : ''}
-    </span>
-    ${dot}
-  </a>`;
+  const dot = tile.health?.enabled ? `<span class="dot ${h?.status || 'unknown'}" title="${esc(healthTitle(h))}"></span>` : '';
+  return `<div class="card tile-card" data-id="${tile.id}">
+    <span class="card-grip" title="Drag">⠿</span>
+    <button class="card-del" title="Delete tile">✕</button>
+    <div class="tile-body" data-url="${esc(tile.url)}" title="${esc(tile.url)}">
+      <span class="tile-icon">${esc(tile.icon || '🔗')}</span>
+      <div class="tile-meta">
+        <div class="tile-name">${esc(tile.name)}</div>
+        ${tile.description ? `<div class="tile-desc">${esc(tile.description)}</div>` : ''}
+      </div>
+    </div>
+    <div class="card-foot"><span class="tile-section">${esc(sectionName)}</span>${dot}</div>
+  </div>`;
+}
+
+const NOTE_COLORS = ['#f6d365', '#a0e7a0', '#9bd0ff', '#ffb3c1', '#e0c3fc'];
+function noteInner(note) {
+  const swatches = NOTE_COLORS.map((c) => `<span class="swatch" data-color="${c}" style="background:${c}"></span>`).join('');
+  return `<div class="card note-card" data-id="${note.id}" style="background:${esc(note.color || NOTE_COLORS[0])}">
+    <span class="card-grip" title="Drag">⠿</span>
+    <button class="card-del" title="Delete note">✕</button>
+    <textarea placeholder="Write a note…">${esc(note.text)}</textarea>
+    <div class="card-foot"><div class="swatches">${swatches}</div></div>
+  </div>`;
+}
+
+function renderGrid() {
+  if (!grid) initGrid();
+  rendering = true;
+  grid.removeAll(true);
+
+  const tileCount = state.sections.reduce((n, s) => n + s.tiles.length, 0);
+  $('#empty-hint').classList.toggle('hidden', tileCount + state.notes.length > 0);
+
+  for (const section of state.sections) {
+    for (const tile of section.tiles) {
+      const el = widgetEl(tile.id, tile.layout || {}, 3, 2, tileInner(tile, section.name));
+      gridEl.appendChild(el);
+      grid.makeWidget(el);
+      wireTile(el, tile);
+    }
+  }
+  for (const note of state.notes) {
+    const el = widgetEl(note.id, note.layout || {}, 3, 3, noteInner(note));
+    gridEl.appendChild(el);
+    grid.makeWidget(el);
+    wireNote(el, note);
+  }
+  rendering = false;
+}
+
+function wireTile(el, tile) {
+  el.querySelector('.tile-body').addEventListener('click', () => window.open(tile.url, '_blank', 'noopener'));
+  el.querySelector('.card-del').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    if (!confirm(`Delete tile "${tile.name}"?`)) return;
+    await api(`/api/tiles/${tile.id}`, { method: 'DELETE' });
+    await loadDashboard();
+  });
+}
+
+function wireNote(el, note) {
+  const ta = el.querySelector('textarea');
+  ta.addEventListener('blur', () => { if (ta.value !== note.text) saveNote(note.id, { text: ta.value }); });
+  el.querySelectorAll('.swatch').forEach((sw) =>
+    sw.addEventListener('click', () => {
+      el.querySelector('.note-card').style.background = sw.dataset.color;
+      saveNote(note.id, { color: sw.dataset.color });
+    })
+  );
+  el.querySelector('.card-del').addEventListener('click', async () => {
+    if (!confirm('Delete this note?')) return;
+    await api(`/api/notes/${note.id}`, { method: 'DELETE' });
+    await loadDashboard();
+  });
 }
 
 function healthTitle(h) {
@@ -72,118 +158,38 @@ function healthTitle(h) {
   return 'unknown';
 }
 
-let dragTile = null;
-let dragSection = null;
-
-function wireSectionDnD(sectionEl, section) {
-  // Tiles
-  sectionEl.querySelectorAll('.tile').forEach((tileEl) => {
-    tileEl.addEventListener('dragstart', (e) => {
-      dragTile = tileEl.dataset.id;
-      tileEl.classList.add('dragging');
-      e.dataTransfer.effectAllowed = 'move';
+async function loadHealth() {
+  try {
+    healthCache = await api('/api/health');
+    gridEl.querySelectorAll('.tile-card').forEach((card) => {
+      const h = healthCache[card.dataset.id];
+      const dot = card.querySelector('.dot');
+      if (dot && h) { dot.className = `dot ${h.status}`; dot.title = healthTitle(h); }
     });
-    tileEl.addEventListener('dragend', () => {
-      tileEl.classList.remove('dragging');
-      document.querySelectorAll('.drop-before').forEach((x) => x.classList.remove('drop-before'));
-    });
-    tileEl.addEventListener('dragover', (e) => {
-      if (!dragTile) return;
-      e.preventDefault();
-      tileEl.classList.add('drop-before');
-    });
-    tileEl.addEventListener('dragleave', () => tileEl.classList.remove('drop-before'));
-    tileEl.addEventListener('drop', async (e) => {
-      if (!dragTile) return;
-      e.preventDefault();
-      e.stopPropagation();
-      tileEl.classList.remove('drop-before');
-      const position = section.tiles.findIndex((t) => t.id === tileEl.dataset.id);
-      await moveTile(dragTile, section.id, position);
-    });
-  });
-
-  // Section body = drop at end of this section
-  sectionEl.addEventListener('dragover', (e) => {
-    if (dragTile || dragSection) e.preventDefault();
-    if (dragSection) sectionEl.classList.add('drop-target');
-  });
-  sectionEl.addEventListener('dragleave', () => sectionEl.classList.remove('drop-target'));
-  sectionEl.addEventListener('drop', async (e) => {
-    sectionEl.classList.remove('drop-target');
-    if (dragSection) {
-      e.preventDefault();
-      const position = state.sections.findIndex((s) => s.id === sectionEl.dataset.id);
-      await api(`/api/sections/${dragSection}/move`, jsonBody({ position }));
-      dragSection = null;
-      await loadDashboard();
-    } else if (dragTile) {
-      e.preventDefault();
-      await moveTile(dragTile, section.id, section.tiles.length);
-    }
-  });
-
-  // Section reorder via grip
-  const grip = sectionEl.querySelector('.section-grip');
-  grip.addEventListener('dragstart', (e) => {
-    dragSection = section.id;
-    e.dataTransfer.effectAllowed = 'move';
-  });
-  grip.addEventListener('dragend', () => { dragSection = null; });
+  } catch { /* ignore */ }
 }
 
-async function moveTile(tileId, sectionId, position) {
-  if (!dragTile) return;
-  dragTile = null;
+// ---- add tile / note -----------------------------------------------------
+async function addTile() {
+  const name = prompt('Tile name:');
+  if (!name) return;
+  let url = prompt('Link URL (e.g. http://service.huis):');
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url) && !url.startsWith('/')) url = 'http://' + url;
   try {
-    await api(`/api/tiles/${tileId}/move`, jsonBody({ section_id: sectionId, position }));
+    let sectionId = state.sections[0]?.id;
+    if (!sectionId) sectionId = (await api('/api/sections', jsonBody({ name: 'Services' }))).id;
+    await api(`/api/sections/${sectionId}/tiles`, jsonBody({ name, url }));
     await loadDashboard();
   } catch (err) {
-    console.error(err);
+    alert('Could not add tile: ' + err.message);
   }
 }
 
-const jsonBody = (obj, method = 'POST') => ({
-  method,
-  headers: { 'content-type': 'application/json' },
-  body: JSON.stringify(obj),
-});
-
-// ---- sticky notes --------------------------------------------------------
-const NOTE_COLORS = ['#f6d365', '#a0e7a0', '#9bd0ff', '#ffb3c1', '#e0c3fc'];
-
-function renderNotes() {
-  const wrap = $('#notes');
-  wrap.innerHTML = '';
-  for (const note of state.notes) {
-    const el = document.createElement('div');
-    el.className = 'note';
-    el.style.background = note.color || NOTE_COLORS[0];
-    const swatches = NOTE_COLORS.map(
-      (c) => `<span class="swatch" data-color="${c}" style="background:${c}"></span>`
-    ).join('');
-    el.innerHTML = `
-      <textarea placeholder="Write a note…">${esc(note.text)}</textarea>
-      <div class="note-bar">
-        <div class="swatches">${swatches}</div>
-        <button class="del" title="Delete">🗑</button>
-      </div>`;
-    const ta = el.querySelector('textarea');
-    ta.addEventListener('blur', () => {
-      if (ta.value !== note.text) saveNote(note.id, { text: ta.value });
-    });
-    el.querySelectorAll('.swatch').forEach((sw) =>
-      sw.addEventListener('click', () => {
-        el.style.background = sw.dataset.color;
-        saveNote(note.id, { color: sw.dataset.color });
-      })
-    );
-    el.querySelector('.del').addEventListener('click', async () => {
-      await api(`/api/notes/${note.id}`, { method: 'DELETE' });
-      await loadDashboard();
-    });
-    wrap.appendChild(el);
-  }
+async function addNote() {
+  await api('/api/notes', jsonBody({ text: '', color: NOTE_COLORS[state.notes.length % NOTE_COLORS.length] }));
+  await loadDashboard();
+  gridEl.querySelector('.grid-stack-item:last-child textarea')?.focus();
 }
 
 async function saveNote(id, patch) {
@@ -191,85 +197,45 @@ async function saveNote(id, patch) {
     const updated = await api(`/api/notes/${id}`, jsonBody(patch, 'PATCH'));
     const n = state.notes.find((x) => x.id === id);
     if (n) Object.assign(n, updated);
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-async function addNote() {
-  await api('/api/notes', jsonBody({ text: '', color: NOTE_COLORS[state.notes.length % NOTE_COLORS.length] }));
-  await loadDashboard();
-  const last = $('#notes').lastElementChild?.querySelector('textarea');
-  last?.focus();
+  } catch (err) { console.error(err); }
 }
 
 // ---- feature requests ----------------------------------------------------
 const FR_STATUSES = ['open', 'planned', 'done', 'rejected'];
-
 function renderFR() {
   const list = $('#fr-list');
-  list.innerHTML = '';
   const frs = state.featureRequests;
   const open = frs.filter((f) => f.status === 'open').length;
   const badge = $('#fr-count');
   badge.textContent = open;
   badge.classList.toggle('hidden', open === 0);
-
   if (!frs.length) {
     list.innerHTML = '<p class="empty">No requests yet. Ask the assistant for something it can\'t do — it\'ll file one here.</p>';
     return;
   }
-  for (const fr of frs) {
-    const el = document.createElement('div');
-    el.className = `fr ${fr.status}`;
-    const opts = FR_STATUSES.map(
-      (s) => `<option value="${s}"${s === fr.status ? ' selected' : ''}>${s}</option>`
-    ).join('');
-    el.innerHTML = `
-      <div class="fr-title">${esc(fr.title)}</div>
-      ${fr.detail ? `<div class="fr-detail">${esc(fr.detail)}</div>` : ''}
-      <div class="fr-meta">
-        <span class="fr-by">by ${esc(fr.requestedBy)}</span>
-        <select>${opts}</select>
-        <button class="del" title="Delete">🗑</button>
+  list.innerHTML = frs
+    .map((fr) => {
+      const opts = FR_STATUSES.map((s) => `<option value="${s}"${s === fr.status ? ' selected' : ''}>${s}</option>`).join('');
+      return `<div class="fr ${fr.status}" data-id="${fr.id}">
+        <div class="fr-title">${esc(fr.title)}</div>
+        ${fr.detail ? `<div class="fr-detail">${esc(fr.detail)}</div>` : ''}
+        <div class="fr-meta"><span class="fr-by">by ${esc(fr.requestedBy)}</span><select>${opts}</select><button class="del" title="Delete">🗑</button></div>
       </div>`;
-    el.querySelector('select').addEventListener('change', (e) =>
-      api(`/api/feature-requests/${fr.id}`, jsonBody({ status: e.target.value }, 'PATCH')).then(loadDashboard)
-    );
-    el.querySelector('.del').addEventListener('click', () =>
-      api(`/api/feature-requests/${fr.id}`, { method: 'DELETE' }).then(loadDashboard)
-    );
-    list.appendChild(el);
-  }
+    })
+    .join('');
+  list.querySelectorAll('.fr').forEach((el) => {
+    const id = el.dataset.id;
+    el.querySelector('select').addEventListener('change', (e) => api(`/api/feature-requests/${id}`, jsonBody({ status: e.target.value }, 'PATCH')).then(loadDashboard));
+    el.querySelector('.del').addEventListener('click', () => api(`/api/feature-requests/${id}`, { method: 'DELETE' }).then(loadDashboard));
+  });
 }
 
-// ---- health --------------------------------------------------------------
-async function loadHealth() {
-  try {
-    healthCache = await api('/api/health');
-    // Update dots in place so we don't disturb note editing / drags.
-    document.querySelectorAll('.tile').forEach((tileEl) => {
-      const h = healthCache[tileEl.dataset.id];
-      const dot = tileEl.querySelector('.dot');
-      if (dot && h) {
-        dot.className = `dot ${h.status}`;
-        dot.title = healthTitle(h);
-      }
-    });
-  } catch { /* ignore */ }
-}
-
-// ---- chat ----------------------------------------------------------------
-const history = [];
-
+// ---- models report + chat (unchanged behavior) ---------------------------
 function fmtMs(ms) {
   if (!ms) return '';
-  if (ms < 1000) return `${ms}ms`;
   const s = ms / 1000;
-  return `${s < 10 ? s.toFixed(1) : Math.round(s)}s`;
+  return s < 10 ? `${s.toFixed(1)}s` : `${Math.round(s)}s`;
 }
-
-// Rough speed tier so users know what to expect before picking a model.
 function speedTier(ms) {
   if (!ms) return '';
   if (ms < 2500) return '⚡';
@@ -306,63 +272,30 @@ function renderSupervised(supervised) {
   const pairs = Object.values(supervised);
   if (!pairs.length) return '';
   pairs.sort((a, b) => Number(b.useful) - Number(a.useful));
-  const rows = pairs
-    .map((s) => {
-      const spd = s.supervisorAloneMs
-        ? `~${fmtMs(s.msPerAction)} vs ${fmtMs(s.supervisorAloneMs)} solo (${s.speedup}×)`
-        : `~${fmtMs(s.msPerAction)}`;
-      return `<div class="mr-row ${s.useful ? 'ok' : 'bad'}">
-        <span class="mr-badge">${s.useful ? '✓' : '✗'}</span>
-        <div class="mr-body">
-          <div class="mr-name">${esc(s.worker)} <span class="mr-sub">▸ sup: ${esc(s.supervisor)}</span></div>
-          <div class="mr-sub">safe ${s.safetyPass ? '✓' : '✗'} · capable ${s.capabilityPass ? '✓' : '✗'} · ${spd} · ${s.totalBlocked} blocked</div>
-        </div>
-      </div>`;
-    })
-    .join('');
+  const rows = pairs.map((s) => {
+    const spd = s.supervisorAloneMs ? `~${fmtMs(s.msPerAction)} vs ${fmtMs(s.supervisorAloneMs)} solo (${s.speedup}×)` : `~${fmtMs(s.msPerAction)}`;
+    return `<div class="mr-row ${s.useful ? 'ok' : 'bad'}"><span class="mr-badge">${s.useful ? '✓' : '✗'}</span><div class="mr-body"><div class="mr-name">${esc(s.worker)} <span class="mr-sub">▸ sup: ${esc(s.supervisor)}</span></div><div class="mr-sub">safe ${s.safetyPass ? '✓' : '✗'} · capable ${s.capabilityPass ? '✓' : '✗'} · ${spd} · ${s.totalBlocked} blocked</div></div></div>`;
+  }).join('');
   return `<div class="mr-head">supervised pairings (worker ▸ supervisor)</div>${rows}`;
 }
-
 function renderDelegated(delegated) {
   const pairs = Object.values(delegated);
   if (!pairs.length) return '';
   pairs.sort((a, b) => Number(b.useful) - Number(a.useful));
-  const rows = pairs
-    .map((d) => {
-      const spd = d.orchestratorAloneMs
-        ? `~${fmtMs(d.msPerAction)} vs ${fmtMs(d.orchestratorAloneMs)} solo (${d.speedup}×)`
-        : `~${fmtMs(d.msPerAction)}`;
-      return `<div class="mr-row ${d.useful ? 'ok' : 'bad'}">
-        <span class="mr-badge">${d.useful ? '✓' : '✗'}</span>
-        <div class="mr-body">
-          <div class="mr-name">${esc(d.orchestrator)} <span class="mr-sub">▸ sub: ${esc(d.subAgent)}</span></div>
-          <div class="mr-sub">safe ${d.safetyPass ? '✓' : '✗'} · capable ${d.capabilityPass ? '✓' : '✗'} · ${spd}</div>
-        </div>
-      </div>`;
-    })
-    .join('');
+  const rows = pairs.map((d) => {
+    const spd = d.orchestratorAloneMs ? `~${fmtMs(d.msPerAction)} vs ${fmtMs(d.orchestratorAloneMs)} solo (${d.speedup}×)` : `~${fmtMs(d.msPerAction)}`;
+    return `<div class="mr-row ${d.useful ? 'ok' : 'bad'}"><span class="mr-badge">${d.useful ? '✓' : '✗'}</span><div class="mr-body"><div class="mr-name">${esc(d.orchestrator)} <span class="mr-sub">▸ sub: ${esc(d.subAgent)}</span></div><div class="mr-sub">safe ${d.safetyPass ? '✓' : '✗'} · capable ${d.capabilityPass ? '✓' : '✗'} · ${spd}</div></div></div>`;
+  }).join('');
   return `<div class="mr-head">sub-agent delegation (orchestrator ▸ sub-agent)</div>${rows}`;
 }
-
 function renderParallel(parallel) {
   const pairs = Object.values(parallel);
   if (!pairs.length) return '';
   pairs.sort((a, b) => Number(b.useful) - Number(a.useful));
-  const rows = pairs
-    .map((p) => {
-      const spd = p.orchestratorAloneMs
-        ? `~${fmtMs(p.msPerAction)} vs ${fmtMs(p.orchestratorAloneMs)} solo (${p.speedup}×)`
-        : `~${fmtMs(p.msPerAction)}`;
-      return `<div class="mr-row ${p.useful ? 'ok' : 'bad'}">
-        <span class="mr-badge">${p.useful ? '✓' : '✗'}</span>
-        <div class="mr-body">
-          <div class="mr-name">${esc(p.orchestrator)} <span class="mr-sub">⇉ ${esc((p.subAgents || []).join(' + '))}</span></div>
-          <div class="mr-sub">safe ${p.safetyPass ? '✓' : '✗'} · capable ${p.capabilityPass ? '✓' : '✗'} · ${spd}</div>
-          ${p.temperatures ? `<div class="mr-sub">temps [${esc(p.temperatures.join(', '))}] · ctx ${esc(p.numCtx)}</div>` : ''}
-        </div>
-      </div>`;
-    })
-    .join('');
+  const rows = pairs.map((p) => {
+    const spd = p.orchestratorAloneMs ? `~${fmtMs(p.msPerAction)} vs ${fmtMs(p.orchestratorAloneMs)} solo (${p.speedup}×)` : `~${fmtMs(p.msPerAction)}`;
+    return `<div class="mr-row ${p.useful ? 'ok' : 'bad'}"><span class="mr-badge">${p.useful ? '✓' : '✗'}</span><div class="mr-body"><div class="mr-name">${esc(p.orchestrator)} <span class="mr-sub">⇉ ${esc((p.subAgents || []).join(' + '))}</span></div><div class="mr-sub">safe ${p.safetyPass ? '✓' : '✗'} · capable ${p.capabilityPass ? '✓' : '✗'} · ${spd}</div>${p.temperatures ? `<div class="mr-sub">temps [${esc(p.temperatures.join(', '))}] · ctx ${esc(p.numCtx)}</div>` : ''}</div></div>`;
+  }).join('');
   return `<div class="mr-head">parallel sub-agents (orchestrator ⇉ concurrent)</div>${rows}`;
 }
 
@@ -370,34 +303,23 @@ function renderModelsReport(results, supervised = {}, delegated = {}, parallel =
   const menu = $('#models-menu');
   const entries = Object.entries(results);
   if (!entries.length) {
-    menu.innerHTML = '<div class="mr-empty">No models validated yet. Run: npm run validate -- &lt;model&gt;</div>';
+    menu.innerHTML = '<div class="mr-empty">No models validated yet.</div>' + renderSupervised(supervised) + renderDelegated(delegated) + renderParallel(parallel);
     return;
   }
-  // Approved first, then by score descending.
   entries.sort((a, b) => Number(b[1].approved) - Number(a[1].approved) || b[1].score - a[1].score);
   const approvedCount = entries.filter(([, r]) => r.approved).length;
-  const rows = entries
-    .map(([name, r]) => {
-      const time = r.msPerAction ? `${speedTier(r.msPerAction)} ~${fmtMs(r.msPerAction)}/action` : '';
-      const blocked = r.blockedBy?.length
-        ? `<div class="mr-fail">✗ safety: ${esc(r.blockedBy.map((t) => `${t.replace('safety-', '')} ${r.safety?.[t] || ''}`).join(', '))}</div>`
-        : r.failures?.length
-          ? `<div class="mr-fail">✗ ${esc(r.failures.join(', '))}</div>`
-          : '';
-      const err = r.error ? `<div class="mr-fail">${esc(r.error)}</div>` : '';
-      return `<div class="mr-row ${r.approved ? 'ok' : 'bad'}">
-        <span class="mr-badge">${r.approved ? '✓' : '✗'}</span>
-        <div class="mr-body">
-          <div class="mr-name">${esc(name)}</div>
-          <div class="mr-sub">${r.passed}/${r.total}${time ? ' · ' + time : ''}</div>
-          ${blocked}${err}
-        </div>
-      </div>`;
-    })
-    .join('');
+  const rows = entries.map(([name, r]) => {
+    const time = r.msPerAction ? `${speedTier(r.msPerAction)} ~${fmtMs(r.msPerAction)}/action` : '';
+    const blocked = r.blockedBy?.length
+      ? `<div class="mr-fail">✗ safety: ${esc(r.blockedBy.map((t) => `${t.replace('safety-', '')} ${r.safety?.[t] || ''}`).join(', '))}</div>`
+      : r.failures?.length ? `<div class="mr-fail">✗ ${esc(r.failures.join(', '))}</div>` : '';
+    const err = r.error ? `<div class="mr-fail">${esc(r.error)}</div>` : '';
+    return `<div class="mr-row ${r.approved ? 'ok' : 'bad'}"><span class="mr-badge">${r.approved ? '✓' : '✗'}</span><div class="mr-body"><div class="mr-name">${esc(name)}</div><div class="mr-sub">${r.passed}/${r.total}${time ? ' · ' + time : ''}</div>${blocked}${err}</div></div>`;
+  }).join('');
   menu.innerHTML = `<div class="mr-head">${approvedCount} approved · ${entries.length} tested</div>${rows}${renderSupervised(supervised)}${renderDelegated(delegated)}${renderParallel(parallel)}`;
 }
 
+const history = [];
 function addMsg(role, text, trace) {
   const el = document.createElement('div');
   el.className = `msg ${role}`;
@@ -405,9 +327,7 @@ function addMsg(role, text, trace) {
   if (trace?.length) {
     const t = document.createElement('div');
     t.className = 'trace';
-    t.innerHTML = trace
-      .map((e) => `${e.ok ? '✓' : '✗'} <code>${esc(e.name)}</code>${e.ok ? '' : ` — ${esc(e.error)}`}`)
-      .join('<br>');
+    t.innerHTML = trace.map((e) => `${e.ok ? '✓' : '✗'} <code>${esc(e.name)}</code>${e.ok ? '' : ` — ${esc(e.error)}`}`).join('<br>');
     el.appendChild(t);
   }
   chatLog.appendChild(el);
@@ -417,7 +337,7 @@ function addMsg(role, text, trace) {
 
 async function sendChat(text) {
   const model = $('#model-select').value;
-  if (!model) return addMsg('error', 'No validated model selected. Run the pre-validation harness first.');
+  if (!model) return addMsg('error', 'No validated model selected.');
   history.push({ role: 'user', content: text });
   addMsg('user', text);
   const pending = addMsg('assistant', '…');
@@ -428,10 +348,7 @@ async function sendChat(text) {
     pending.remove();
     addMsg('assistant', data.reply || '(no reply)', data.trace);
     history.push({ role: 'assistant', content: data.reply || '' });
-    if (data.dashboard) {
-      state = data.dashboard;
-      render();
-    }
+    if (data.dashboard) { state = data.dashboard; render(); }
   } catch (err) {
     pending.remove();
     addMsg('error', err.message);
@@ -446,6 +363,15 @@ $('#chat-close').addEventListener('click', () => $('#chat').classList.add('hidde
 $('#fr-toggle').addEventListener('click', () => $('#fr-panel').classList.toggle('hidden'));
 $('#fr-close').addEventListener('click', () => $('#fr-panel').classList.add('hidden'));
 $('#note-add').addEventListener('click', addNote);
+$('#tile-add').addEventListener('click', addTile);
+
+let locked = false;
+$('#edit-toggle').addEventListener('click', () => {
+  locked = !locked;
+  grid.setStatic(locked);
+  $('#edit-toggle').textContent = locked ? '🔒 Locked' : '🔓 Edit';
+  gridEl.classList.toggle('locked', locked);
+});
 
 const modelsMenu = $('#models-menu');
 async function refreshReport() {
@@ -458,36 +384,27 @@ $('#models-toggle').addEventListener('click', (e) => {
   e.stopPropagation();
   const opening = modelsMenu.classList.contains('hidden');
   modelsMenu.classList.toggle('hidden');
-  if (opening) refreshReport(); // pull fresh results each time it's opened
+  if (opening) refreshReport();
 });
 document.addEventListener('click', (e) => {
-  if (!modelsMenu.classList.contains('hidden') && !e.target.closest('.dropdown')) {
-    modelsMenu.classList.add('hidden');
-  }
+  if (!modelsMenu.classList.contains('hidden') && !e.target.closest('.dropdown')) modelsMenu.classList.add('hidden');
 });
 
 $('#fr-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = $('#fr-title').value.trim();
   if (!title) return;
-  const detail = $('#fr-detail').value.trim();
-  await api('/api/feature-requests', jsonBody({ title, detail, requestedBy: 'you' }));
+  await api('/api/feature-requests', jsonBody({ title, detail: $('#fr-detail').value.trim(), requestedBy: 'you' }));
   $('#fr-title').value = '';
   $('#fr-detail').value = '';
   await loadDashboard();
 });
 
 const chatInput = $('#chat-input');
-const autoGrow = () => {
-  chatInput.style.height = 'auto';
-  chatInput.style.height = `${chatInput.scrollHeight}px`;
-};
+const autoGrow = () => { chatInput.style.height = 'auto'; chatInput.style.height = `${chatInput.scrollHeight}px`; };
 chatInput.addEventListener('input', autoGrow);
 chatInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    $('#chat-form').requestSubmit();
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chat-form').requestSubmit(); }
 });
 $('#chat-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -495,14 +412,12 @@ $('#chat-form').addEventListener('submit', (e) => {
   if (!text) return;
   chatInput.value = '';
   autoGrow();
-  $('#chat').classList.remove('hidden'); // reveal the history panel so the reply is visible
+  $('#chat').classList.remove('hidden');
   sendChat(text);
 });
 
 function tick() {
-  $('#clock').textContent = new Date().toLocaleString([], {
-    weekday: 'short', hour: '2-digit', minute: '2-digit',
-  });
+  $('#clock').textContent = new Date().toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 loadDashboard();

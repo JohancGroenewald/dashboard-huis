@@ -57,6 +57,18 @@ function normalizeHealth(h) {
   };
 }
 
+// Grid layout for a card: { x, y, w, h } in grid cells. Empty = auto-place.
+function normalizeLayout(raw) {
+  if (!isPlainObject(raw)) return {};
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.round(v)) : undefined);
+  const out = {};
+  for (const k of ['x', 'y', 'w', 'h']) {
+    const n = num(raw[k]);
+    if (n !== undefined) out[k] = n;
+  }
+  return out;
+}
+
 function normalizeTile(raw) {
   if (!isPlainObject(raw)) fail('tile must be an object');
   return {
@@ -67,6 +79,7 @@ function normalizeTile(raw) {
     icon: checkString(raw.icon, 'tile.icon', { required: false, max: 40 }),
     color: checkString(raw.color, 'tile.color', { required: false, max: 30 }),
     health: normalizeHealth(raw.health),
+    layout: normalizeLayout(raw.layout),
   };
 }
 
@@ -87,6 +100,7 @@ function normalizeNote(raw) {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     text: checkString(raw.text, 'note.text', { max: 2000 }),
     color: checkString(raw.color, 'note.color', { required: false, max: 30 }),
+    layout: normalizeLayout(raw.layout),
     createdAt: raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updatedAt || new Date().toISOString(),
   };
@@ -272,6 +286,20 @@ export class Store {
 
   replaceState(state) {
     this.state = normalizeState(state);
+    return this.#commit();
+  }
+
+  // Persist grid positions for many cards (tiles or notes) in one write.
+  // items: [{ id, x, y, w, h }]
+  setLayouts(items) {
+    if (!Array.isArray(items)) fail('items must be an array');
+    const tiles = new Map();
+    for (const s of this.state.sections) for (const t of s.tiles) tiles.set(t.id, t);
+    const notes = new Map(this.state.notes.map((n) => [n.id, n]));
+    for (const it of items) {
+      const target = tiles.get(it.id) || notes.get(it.id);
+      if (target) target.layout = normalizeLayout(it);
+    }
     return this.#commit();
   }
 

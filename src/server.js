@@ -49,6 +49,9 @@ app.post('/api/tiles/:id/move', wrap((req, res) =>
   res.json(store.moveTile(req.params.id, req.body.section_id, req.body.position))
 ));
 
+// Persist grid layout (drag/resize) for many cards at once.
+app.post('/api/layout', wrap((req, res) => res.json(store.setLayouts(req.body.items || []))));
+
 // ---- sticky notes --------------------------------------------------------
 app.post('/api/notes', wrap((req, res) => res.status(201).json(store.addNote(req.body))));
 app.patch('/api/notes/:id', wrap((req, res) => res.json(store.updateNote(req.params.id, req.body))));
