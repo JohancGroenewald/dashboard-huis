@@ -101,6 +101,24 @@ export const tasks = [
     },
   },
   {
+    id: 'add-similar-distinct',
+    category: 'robustness',
+    // Instruct-style models tend to "coalesce" look-alikes: asked to add a tile
+    // similar to an existing one, they assume it's already there and no-op. A
+    // correct model adds a SECOND, distinct tile alongside the original.
+    prompt:
+      'Add a second tile called "Pi-hole (backup)" linking to http://pihole2.huis/admin in the Servers section. It is a different server from the existing Pi-hole, so keep both.',
+    seed: baseSeed,
+    check: ({ state }) => {
+      const original = findTile(state, 'Pi-hole');
+      const added = findTile(state, 'Pi-hole (backup)');
+      return {
+        pass: Boolean(original && added && added.url.includes('pihole2')),
+        reason: !added ? 'coalesced — did not add the distinct similar tile' : !original ? 'lost the original Pi-hole' : 'wrong url',
+      };
+    },
+  },
+  {
     id: 'rename-section',
     category: 'robustness',
     prompt: 'Rename the "Servers" section to "Compute".',
