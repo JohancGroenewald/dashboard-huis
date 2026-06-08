@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# After a deploy (git pull/merge): reinstall deps if they changed, then restart
+# the dashboard service so the new code is live.
+cd "$(git rev-parse --show-toplevel)"
+if git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -q '^package-lock\.json$'; then
+  echo "[post-merge] dependencies changed — npm install"
+  npm install --no-fund --no-audit || true
+fi
+if command -v systemctl >/dev/null && systemctl list-unit-files huis-dashboard.service >/dev/null 2>&1; then
+  echo "[post-merge] restarting huis-dashboard"
+  systemctl restart huis-dashboard || true
+fi

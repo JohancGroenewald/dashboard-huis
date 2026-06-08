@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Lint all filetypes + enforce the 500-line limit before allowing a commit.
+set -e
+cd "$(git rev-parse --show-toplevel)"
+echo "[pre-commit] linting…"
+npm run --silent lint

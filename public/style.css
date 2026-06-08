@@ -245,7 +245,7 @@ body {
 .row { display: flex; gap: 8px; align-items: flex-end; max-width: 100%; }
 .row.user { justify-content: flex-end; }
 .row .avatar { width: 27px; height: 27px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--border); display: grid; place-items: center; font-size: 14px; flex: none; }
-.bubble { padding: 10px 13px; border-radius: 14px; max-width: 80%; white-space: pre-wrap; word-wrap: break-word; line-height: 1.5; }
+.bubble { padding: 10px 13px; border-radius: 14px; max-width: 80%; white-space: pre-wrap; overflow-wrap: break-word; line-height: 1.5; }
 .row.user .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 5px; }
 .row.assistant .bubble { background: var(--panel-2); border: 1px solid var(--border); border-bottom-left-radius: 5px; white-space: normal; }
 .row.assistant .bubble strong { font-weight: 700; }

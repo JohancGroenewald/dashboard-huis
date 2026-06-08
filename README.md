@@ -24,6 +24,19 @@ Config via env vars (all optional):
 | `DASH_HEALTH_INTERVAL` | `30000` | health-check interval (ms) |
 | `DASH_MAX_BACKUPS` | `25` | dashboard snapshots to keep |
 
+## Development
+
+```bash
+npm install        # also enables git hooks (core.hooksPath=.githooks)
+npm run lint       # eslint (js) + stylelint (css) + htmlhint + json + 500-line check
+```
+
+- **pre-commit** hook runs `npm run lint` (blocks the commit on any error).
+- **post-merge** hook restarts `huis-dashboard` after a `git pull` (and reinstalls
+  deps if `package-lock.json` changed) — so a deploy goes live automatically.
+- No source file may exceed **500 lines** (`scripts/check-loc.mjs`); the browser
+  UI is split into ES modules under `public/js/`.
+
 ## Run as a service + HTTPS
 
 Runs under systemd (`deploy/huis-dashboard.service`), serving HTTP on 8080 and

@@ -1,0 +1,46 @@
+// Feature-request queue panel.
+import { $, api, jsonBody, esc } from './util.js';
+import { state, onRender, loadDashboard } from './store.js';
+
+const FR_STATUSES = ['open', 'planned', 'done', 'rejected'];
+
+function renderFR() {
+  const list = $('#fr-list');
+  const frs = state.featureRequests;
+  const open = frs.filter((f) => f.status === 'open').length;
+  const badge = $('#fr-count');
+  badge.textContent = open;
+  badge.classList.toggle('hidden', open === 0);
+  if (!frs.length) {
+    list.innerHTML = '<p class="empty">No requests yet. Ask the assistant for something it can\'t do — it\'ll file one here.</p>';
+    return;
+  }
+  list.innerHTML = frs
+    .map((fr) => {
+      const opts = FR_STATUSES.map((s) => `<option value="${s}"${s === fr.status ? ' selected' : ''}>${s}</option>`).join('');
+      return `<div class="fr ${fr.status}" data-id="${fr.id}">
+        <div class="fr-title">${esc(fr.title)}</div>
+        ${fr.detail ? `<div class="fr-detail">${esc(fr.detail)}</div>` : ''}
+        <div class="fr-meta"><span class="fr-by">by ${esc(fr.requestedBy)}</span><select>${opts}</select><button class="del" title="Delete">🗑</button></div>
+      </div>`;
+    })
+    .join('');
+  list.querySelectorAll('.fr').forEach((el) => {
+    const id = el.dataset.id;
+    el.querySelector('select').addEventListener('change', (e) => api(`/api/feature-requests/${id}`, jsonBody({ status: e.target.value }, 'PATCH')).then(loadDashboard));
+    el.querySelector('.del').addEventListener('click', () => api(`/api/feature-requests/${id}`, { method: 'DELETE' }).then(loadDashboard));
+  });
+}
+
+onRender(renderFR);
+$('#fr-toggle').addEventListener('click', () => $('#fr-panel').classList.toggle('hidden'));
+$('#fr-close').addEventListener('click', () => $('#fr-panel').classList.add('hidden'));
+$('#fr-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const title = $('#fr-title').value.trim();
+  if (!title) return;
+  await api('/api/feature-requests', jsonBody({ title, detail: $('#fr-detail').value.trim(), requestedBy: 'you' }));
+  $('#fr-title').value = '';
+  $('#fr-detail').value = '';
+  await loadDashboard();
+});

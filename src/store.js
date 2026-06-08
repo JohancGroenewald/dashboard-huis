@@ -279,7 +279,8 @@ export class Store {
     const { section, index, tile } = this.#tile(tileId);
     const dest = this.#section(toSectionId);
     section.tiles.splice(index, 1);
-    const clamped = Math.max(0, Math.min(Number(toIndex) ?? dest.tiles.length, dest.tiles.length));
+    const pos = toIndex == null ? dest.tiles.length : Number(toIndex);
+    const clamped = Math.max(0, Math.min(pos, dest.tiles.length));
     dest.tiles.splice(clamped, 0, tile);
     this.#commit();
     return structuredClone(tile);
