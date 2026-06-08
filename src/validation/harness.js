@@ -20,7 +20,7 @@ function normalizeCheck(out) {
 const CRITICAL_REPEATS = Number(process.env.DASH_CRITICAL_REPEATS || 5);
 
 // Run one task once against a fresh sandbox.
-async function runTaskOnce(task, model, ollama) {
+async function runTaskOnce(task, model, ollama, options) {
   const started = Date.now();
   const sandbox = new Store({ persist: false }).seed(task.seed());
   const { trace, steps } = await runAgent({
@@ -28,17 +28,19 @@ async function runTaskOnce(task, model, ollama) {
     store: sandbox,
     messages: [{ role: 'user', content: task.prompt }],
     ollama,
+    options,
   });
   return { ...normalizeCheck(task.check({ state: sandbox.getState(), trace, reply: '' })), steps, trace, ms: Date.now() - started };
 }
 
-export async function validateModel(model, { ollama = new Ollama(), threshold = 0.8, criticalRepeats = CRITICAL_REPEATS, categories = null, onProgress } = {}) {
+export async function validateModel(model, { ollama = new Ollama(), threshold = 0.8, criticalRepeats = CRITICAL_REPEATS, categories = null, numCtx = null, onProgress } = {}) {
   const results = [];
   const taskList = categories ? tasks.filter((t) => categories.includes(t.category)) : tasks;
+  const options = numCtx ? { num_ctx: numCtx } : undefined;
 
   // Warm the model first so a cold load isn't charged against the first task.
   try {
-    await ollama.load(model);
+    await ollama.load(model, { options });
   } catch (err) {
     // Report a clean failure if the model can't even load (e.g. typo / not pulled).
     return {
@@ -55,7 +57,7 @@ export async function validateModel(model, { ollama = new Ollama(), threshold = 
     let reason = '';
     for (let i = 0; i < runs; i++) {
       try {
-        const r = await runTaskOnce(task, model, ollama);
+        const r = await runTaskOnce(task, model, ollama, options);
         if (r.pass) passes++;
         else if (!reason) reason = r.reason;
         logTask({ kind: 'validate', session: runId, model, task: task.id, userMsg: task.prompt, trace: r.trace, steps: r.steps, ms: r.ms, pass: r.pass, error: r.pass ? null : r.reason });

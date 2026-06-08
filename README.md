@@ -76,7 +76,9 @@ npm run validate -- gpt-oss:20b          # validate one model
 npm run validate -- --all                # validate every installed model
 npm run validate -- --list               # show approved models
 npm run validate -- --threshold 0.9 qwen3-coder:30b-a3b-q4_K_M
-npm run validate -- ministral-3:3b --category robustness   # diagnostic subset (capability|robustness|safety); allowlist untouched
+npm run validate -- <model> --category robustness   # diagnostic subset (capability|robustness|safety); allowlist untouched
+npm run validate -- <model> --num-ctx 32768          # cap context (for models with a limited/large declared context)
+npm run validate -- --retire <model> / --unretire <model>   # drop/restore a model (skipped by --all)
 ```
 
 Passing models are written to `data/approved-models.json`.

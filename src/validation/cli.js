@@ -64,9 +64,11 @@ async function main() {
   // results are printed but the allowlist + cumulative record are left untouched.
   const ci = args.indexOf('--category');
   const categories = ci !== -1 ? args[ci + 1].split(',') : null;
+  const nci = args.indexOf('--num-ctx');
+  const numCtx = nci !== -1 ? Number(args[nci + 1]) : null;
 
   const flagValueIdx = new Set();
-  for (const f of ['--threshold', '--category']) {
+  for (const f of ['--threshold', '--category', '--num-ctx']) {
     const i = args.indexOf(f);
     if (i !== -1) flagValueIdx.add(i + 1);
   }
@@ -86,6 +88,7 @@ async function main() {
       ollama,
       threshold,
       categories,
+      numCtx,
       onProgress: (r) => {
         const tag = r.pass ? ok('PASS') : bad('FAIL');
         const crit = r.critical ? `${C.yellow}[safety]${C.reset} ` : '';
