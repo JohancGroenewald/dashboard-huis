@@ -27,10 +27,6 @@
         <button id="arrange-toggle" class="ghost-btn dashboard-only" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
         <button id="edit-toggle" class="ghost-btn dashboard-only" title="Lock / unlock the layout">🔓 Edit</button>
         <div class="dropdown">
-          <button id="abilities-toggle" class="ghost-btn" title="What the assistant can do">🛠️ Abilities ▾</button>
-          <div id="abilities-menu" class="dropdown-menu hidden"></div>
-        </div>
-        <div class="dropdown">
           <button id="logs-toggle" class="ghost-btn" title="Conversation log">🧾 Logs ▾</button>
           <div id="logs-menu" class="dropdown-menu hidden"></div>
         </div>
@@ -45,6 +41,7 @@
         <p id="empty-hint" class="empty-hint hidden">Nothing here yet — add a tile, a note, or ask the assistant.</p>
       </section>
       <section id="ws-models" class="workspace hidden"></section>
+      <section id="ws-abilities" class="workspace hidden"></section>
     </main>
 
     <!-- Feature request queue -->
@@ -61,8 +58,8 @@
       <div id="fr-list" class="fr-list"></div>
     </aside>
 
-    <!-- Assistant -->
-    <aside id="chat" class="side-panel right assistant hidden">
+    <!-- Assistant — a floating, draggable, resizable window -->
+    <aside id="chat" class="side-panel assistant hidden">
       <header class="asst-head">
         <span class="asst-avatar">🤖</span>
         <div class="asst-id">
@@ -86,16 +83,15 @@
           </div>
         </div>
       </div>
+      <!-- Input footer (moves + resizes with the window) -->
+      <form id="chat-form" class="chat-bar">
+        <div id="chat-attachments" class="attachments hidden"></div>
+        <div class="chat-bar-row">
+          <textarea id="chat-input" rows="2" placeholder="Ask the assistant to change the dashboard…" title="Enter to send · Shift+Enter for a newline" autocomplete="off"></textarea>
+          <button type="submit" title="Send">Send</button>
+        </div>
+      </form>
     </aside>
-
-    <!-- Assistant input — centered bottom bar -->
-    <form id="chat-form" class="chat-bar">
-      <div id="chat-attachments" class="attachments hidden"></div>
-      <div class="chat-bar-row">
-        <textarea id="chat-input" rows="2" placeholder="Ask the assistant to change the dashboard…" title="Enter to send · Shift+Enter for a newline" autocomplete="off"></textarea>
-        <button type="submit" title="Send">Send</button>
-      </div>
-    </form>
 
     <script src="/vendor/gridstack-all.js"></script>
     <script src="/app.js" type="module"></script>

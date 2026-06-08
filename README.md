@@ -178,9 +178,9 @@ POST   /api/agent/chat               {model, messages[]}   (allowlisted models o
 - **Workspaces** — top-level tabs, each its own board of sections + notes
   (e.g. Home, Media, Work). New content lands in the active workspace. The
   agent manages them too (`add_workspace`, `switch_workspace`,
-  `move_to_workspace`, …). A separate **🧪 Models** system tab shows the gate
-  outcomes. ＋ to add, double-click a tab to rename, hover ✕ to delete (empty
-  workspaces only).
+  `move_to_workspace`, …). Separate **🧪 Models** and **🛠️ Abilities** system
+  tabs show the gate outcomes and the agent's tool surface. ＋ to add,
+  double-click a tab to rename, hover ✕ to delete (empty workspaces only).
 - **Tiles & sections** — service links grouped into sections, with optional
   health checks.
 - **Drag-and-drop** — reorder tiles within a section, move tiles between
@@ -189,5 +189,6 @@ POST   /api/agent/chat               {model, messages[]}   (allowlisted models o
 - **Feature-request queue** — file requests (🗒️ Requests). The agent also files
   them via the `request_feature` tool when asked for something it can't do, so
   the queue is fed *by the models* as well as by you.
-- **Assistant** — chat panel driven by an allowlisted model; Enter sends,
+- **Assistant** — a floating, draggable (by its header), resizable window
+  driven by an allowlisted model; geometry persists across reloads. Enter sends,
   Shift+Enter for a newline.

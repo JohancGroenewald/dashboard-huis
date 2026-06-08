@@ -7,6 +7,7 @@ import './js/fr.js';
 import './js/logs.js';
 import { loadModels } from './js/chat.js';
 import { loadModelsReport } from './js/models.js';
+import { loadAbilities } from './js/abilities.js';
 import { registerSystemWorkspace, initWorkspaces } from './js/workspace.js';
 
 function tick() {
@@ -14,8 +15,9 @@ function tick() {
 }
 
 // Content workspaces come from the dashboard state (rendered by workspace.js).
-// Models is a SYSTEM workspace: its own panel, re-fetched each time it's opened.
+// Models + Abilities are SYSTEM workspaces: their own panels, re-fetched on open.
 registerSystemWorkspace({ id: 'models', label: '🧪 Models', onActivate: loadModelsReport });
+registerSystemWorkspace({ id: 'abilities', label: '🛠️ Abilities', onActivate: loadAbilities });
 initWorkspaces();
 
 loadDashboard();

@@ -198,28 +198,6 @@ async function sendChat(text) {
   }
 }
 
-const abilitiesMenu = $('#abilities-menu');
-let abilitiesLoaded = false;
-
-async function loadAbilities() {
-  try {
-    const tools = await api('/api/abilities');
-    abilitiesMenu.innerHTML =
-      `<div class="mr-head">${tools.length} agent abilities</div>` +
-      tools
-        .map(
-          (t) => `<div class="ab-item">
-            <div class="ab-name">${esc(t.name)}</div>
-            <div class="ab-desc">${esc(t.description)}</div>
-            ${t.params.length ? `<div class="ab-params">${t.params.map((p) => `<span class="ab-param${t.required.includes(p) ? ' req' : ''}">${esc(p)}</span>`).join('')}</div>` : ''}
-          </div>`
-        )
-        .join('');
-  } catch {
-    abilitiesMenu.innerHTML = '<div class="mr-empty">offline</div>';
-  }
-}
-
 // ---- wiring ----
 $('#chat-toggle').addEventListener('click', () => $('#chat').classList.toggle('hidden'));
 $('#chat-close').addEventListener('click', () => $('#chat').classList.add('hidden'));
@@ -232,19 +210,65 @@ $('#model-btn').addEventListener('click', (e) => {
   if (opening) loadModels(); // refresh so the list reflects current approvals/retirements
 });
 
-const closeOtherDropdowns = (keep) =>
-  document.querySelectorAll('.topbar .dropdown-menu').forEach((m) => { if (m.id !== keep) m.classList.add('hidden'); });
-$('#abilities-toggle').addEventListener('click', (e) => {
-  e.stopPropagation();
-  closeOtherDropdowns('abilities-menu');
-  const opening = abilitiesMenu.classList.contains('hidden');
-  abilitiesMenu.classList.toggle('hidden');
-  if (opening && !abilitiesLoaded) { loadAbilities(); abilitiesLoaded = true; }
-});
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.model-picker')) modelMenu.classList.add('hidden');
-  if (!e.target.closest('.dropdown')) abilitiesMenu.classList.add('hidden');
 });
+
+// ---- draggable / resizable assistant window ----
+// Drag by the header; resize via the native bottom-right grip (CSS resize:both).
+// Geometry is clamped into the viewport and persisted across reloads.
+function initAssistantWindow() {
+  const win = $('#chat');
+  const head = win.querySelector('.asst-head');
+  const KEY = 'dash-asst-geom';
+
+  const apply = ({ left, top, w, h }) => {
+    const cw = Math.min(w, window.innerWidth);
+    const ch = Math.min(h, window.innerHeight);
+    win.style.width = `${cw}px`;
+    win.style.height = `${ch}px`;
+    win.style.left = `${Math.max(0, Math.min(left, window.innerWidth - 80))}px`;
+    win.style.top = `${Math.max(0, Math.min(top, window.innerHeight - 40))}px`;
+    win.style.right = 'auto';
+  };
+  const save = () => {
+    const r = win.getBoundingClientRect();
+    localStorage.setItem(KEY, JSON.stringify({ left: r.left, top: r.top, w: r.width, h: r.height }));
+  };
+  try { const g = JSON.parse(localStorage.getItem(KEY) || 'null'); if (g) apply(g); } catch { /* ignore */ }
+
+  let drag = null;
+  head.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button, .model-picker')) return; // controls aren't drag handles
+    const r = win.getBoundingClientRect();
+    apply({ left: r.left, top: r.top, w: r.width, h: r.height }); // pin to pixels first
+    drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height };
+    head.setPointerCapture(e.pointerId);
+    win.classList.add('dragging');
+  });
+  head.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    apply({ left: drag.left + (e.clientX - drag.x), top: drag.top + (e.clientY - drag.y), w: drag.w, h: drag.h });
+  });
+  const endDrag = (e) => {
+    if (!drag) return;
+    drag = null;
+    win.classList.remove('dragging');
+    try { head.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    save();
+  };
+  head.addEventListener('pointerup', endDrag);
+  head.addEventListener('pointercancel', endDrag);
+
+  // Persist size changes from the native resize grip (debounced; skip when hidden).
+  let rt;
+  new ResizeObserver(() => {
+    if (win.classList.contains('hidden') || drag) return;
+    clearTimeout(rt);
+    rt = setTimeout(save, 300);
+  }).observe(win);
+}
+initAssistantWindow();
 
 const chatInput = $('#chat-input');
 const autoGrow = () => { chatInput.style.height = 'auto'; chatInput.style.height = `${chatInput.scrollHeight}px`; };
