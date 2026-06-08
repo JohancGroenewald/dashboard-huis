@@ -9,10 +9,16 @@ let rendering = false; // suppress layout-persist while we rebuild programmatica
 let persistTimer = null;
 let healthCache = {};
 let locked = false;
+// Auto-arrange = Gridstack gravity (float off): cards compact up to fill gaps.
+let autoArrange = localStorage.getItem('dash-autoarrange') !== '0';
+
+function arrangeLabel() {
+  $('#arrange-toggle').textContent = `🧲 Arrange: ${autoArrange ? 'on' : 'off'}`;
+}
 
 function initGrid() {
   grid = GridStack.init(
-    { column: 12, cellHeight: 92, margin: 8, float: false, handle: '.card-grip', animate: true },
+    { column: 12, cellHeight: 92, margin: 8, float: !autoArrange, handle: '.card-grip', animate: true },
     gridEl
   );
   grid.on('change', persistLayout);
@@ -219,8 +225,17 @@ async function saveNote(id, patch) {
 }
 
 onRender(renderGrid);
+arrangeLabel();
 $('#section-add').addEventListener('click', addSection);
 $('#note-add').addEventListener('click', addNote);
+$('#arrange-toggle').addEventListener('click', () => {
+  autoArrange = !autoArrange;
+  localStorage.setItem('dash-autoarrange', autoArrange ? '1' : '0');
+  arrangeLabel();
+  if (!grid) return;
+  grid.float(!autoArrange);
+  if (autoArrange) { grid.compact(); persistLayout(); } // tidy now + save
+});
 $('#edit-toggle').addEventListener('click', () => {
   locked = !locked;
   grid.setStatic(locked);
