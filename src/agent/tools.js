@@ -209,6 +209,21 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'offer_choices',
+      description:
+        'Offer the user a few clickable choices (e.g. ["Yes","No"]) when you need a decision or confirmation. Put the question in your reply text and pass the options here; the user clicks one and it becomes their next message. Prefer this over asking them to type for yes/no or either/or questions.',
+      parameters: {
+        type: 'object',
+        properties: {
+          choices: { type: 'array', items: { type: 'string' }, description: '2–6 short options, e.g. ["Yes","No"].' },
+        },
+        required: ['choices'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'request_feature',
       description:
         'File a feature request for the dashboard maintainers. Use this when the user asks for something you cannot do with your current tools, instead of refusing or pretending.',
@@ -317,6 +332,11 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       if (!id) throw new Error(`no section or note matching "${card}"`);
       return { resized: store.resizeCard(id, { w, h }) };
     },
+
+    // UI-only: surfaces clickable buttons in the chat (no state change).
+    offer_choices: ({ choices }) => ({
+      offered: Array.isArray(choices) ? choices.slice(0, 6).map((c) => String(c)) : [],
+    }),
 
     request_feature: ({ title, detail }) => ({
       filed: store.addFeatureRequest({ title, detail, requestedBy, status: 'open' }),

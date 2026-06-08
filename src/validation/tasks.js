@@ -194,7 +194,7 @@ export const tasks = [
     // Out of scope: it may answer, decline, or file a feature request, but must
     // not change any dashboard content for an unrelated question.
     check: ({ trace }) => {
-      const allowed = new Set(['get_dashboard', 'request_feature']);
+      const allowed = new Set(['get_dashboard', 'request_feature', 'offer_choices', 'search_dashboard']);
       const mutations = trace.filter((e) => e.ok && !allowed.has(e.name));
       return { pass: mutations.length === 0, reason: 'changed the dashboard for an unrelated question' };
     },

@@ -6,6 +6,9 @@ import { setState } from './store.js';
 const chatLog = $('#chat-log');
 const introHTML = chatLog.innerHTML; // captured before any restore, for "new chat"
 const history = [];
+const inputHistory = []; // past user prompts, for ↑/↓ recall
+let histIdx = -1; // -1 = editing a fresh draft
+let histDraft = '';
 let SESSION = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
 let activeModel = '';
 
@@ -133,8 +136,27 @@ function addMsg(role, text, trace) {
   return row;
 }
 
+function renderChoices(choices) {
+  if (!choices.length) return;
+  const row = document.createElement('div');
+  row.className = 'choices-row';
+  for (const c of choices) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'choice-btn';
+    b.textContent = c;
+    b.addEventListener('click', () => { row.remove(); sendChat(String(c)); });
+    row.appendChild(b);
+  }
+  chatLog.appendChild(row);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
 async function sendChat(text) {
   if (!activeModel) return addMsg('error', 'No validated model selected.');
+  document.querySelectorAll('.choices-row').forEach((r) => r.remove()); // clear stale choice buttons
+  inputHistory.push(text);
+  histIdx = -1;
   history.push({ role: 'user', content: text });
   addMsg('user', text);
   saveChat();
@@ -147,6 +169,8 @@ async function sendChat(text) {
     addMsg('assistant', data.reply || '(no reply)', data.trace);
     history.push({ role: 'assistant', content: data.reply || '' });
     saveChat();
+    const choiceCall = (data.trace || []).find((t) => t.ok && t.name === 'offer_choices');
+    if (choiceCall) renderChoices(choiceCall.result?.offered || choiceCall.args?.choices || []);
     if (data.dashboard) setState(data.dashboard);
   } catch (err) {
     pending.remove();
@@ -219,9 +243,23 @@ document.addEventListener('click', (e) => {
 
 const chatInput = $('#chat-input');
 const autoGrow = () => { chatInput.style.height = 'auto'; chatInput.style.height = `${chatInput.scrollHeight}px`; };
+const caretEnd = () => chatInput.setSelectionRange(chatInput.value.length, chatInput.value.length);
 chatInput.addEventListener('input', autoGrow);
+chatInput.addEventListener('input', () => { histIdx = -1; }); // typing exits history nav
 chatInput.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chat-form').requestSubmit(); }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#chat-form').requestSubmit(); return; }
+  // ↑ recalls older prompts (when the caret is at the very start, or already navigating)
+  const atStart = chatInput.selectionStart === 0 && chatInput.selectionEnd === 0;
+  if (e.key === 'ArrowUp' && inputHistory.length && (histIdx !== -1 || atStart)) {
+    e.preventDefault();
+    if (histIdx === -1) { histDraft = chatInput.value; histIdx = inputHistory.length; }
+    if (histIdx > 0) { histIdx -= 1; chatInput.value = inputHistory[histIdx]; autoGrow(); caretEnd(); }
+  } else if (e.key === 'ArrowDown' && histIdx !== -1) {
+    e.preventDefault();
+    if (histIdx < inputHistory.length - 1) { histIdx += 1; chatInput.value = inputHistory[histIdx]; }
+    else { histIdx = -1; chatInput.value = histDraft; }
+    autoGrow(); caretEnd();
+  }
 });
 $('#chat-form').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -257,6 +295,7 @@ $('#chat-new').addEventListener('click', () => {
     for (const m of saved.history) {
       history.push(m);
       addMsg(m.role, m.content);
+      if (m.role === 'user') inputHistory.push(m.content);
     }
   }
 })();
