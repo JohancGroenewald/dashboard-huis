@@ -4,14 +4,20 @@ import { $, api, jsonBody, esc, fmtMs, speedTier, mdToHtml } from './util.js';
 import { setState } from './store.js';
 
 const chatLog = $('#chat-log');
+const introHTML = chatLog.innerHTML; // captured before any restore, for "new chat"
 const history = [];
-const SESSION = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+let SESSION = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
 let activeModel = '';
 
 function setModel(m, ms) {
   activeModel = m;
+  if (m) localStorage.setItem('dash-model', m); // remember the picked driver
   $('#model-btn-label').innerHTML = m ? `${esc(m)}${ms ? ` <span class="pill-badge">${speedTier(ms)} ~${fmtMs(ms)}</span>` : ''}` : 'no models';
   $('#model-menu').classList.add('hidden');
+}
+
+function saveChat() {
+  try { localStorage.setItem('dash-chat', JSON.stringify({ session: SESSION, history })); } catch { /* quota */ }
 }
 
 export async function loadModels() {
@@ -32,7 +38,11 @@ export async function loadModels() {
       menu.querySelectorAll('.mm-item').forEach((it) =>
         it.addEventListener('click', () => setModel(it.dataset.model, details?.[it.dataset.model]?.msPerAction))
       );
-      if (!activeModel || !approved.includes(activeModel)) setModel(approved[0], details?.[approved[0]]?.msPerAction);
+      const saved = localStorage.getItem('dash-model');
+      const pick = activeModel && approved.includes(activeModel) ? activeModel
+        : saved && approved.includes(saved) ? saved
+        : approved[0];
+      setModel(pick, details?.[pick]?.msPerAction);
     }
     renderModelsReport(results || {}, supervised || {}, delegated || {}, parallel || {});
   } catch {
@@ -127,6 +137,7 @@ async function sendChat(text) {
   if (!activeModel) return addMsg('error', 'No validated model selected.');
   history.push({ role: 'user', content: text });
   addMsg('user', text);
+  saveChat();
   const pending = addMsg('assistant', '…');
   const btn = $('#chat-form button');
   btn.disabled = true;
@@ -135,6 +146,7 @@ async function sendChat(text) {
     pending.remove();
     addMsg('assistant', data.reply || '(no reply)', data.trace);
     history.push({ role: 'assistant', content: data.reply || '' });
+    saveChat();
     if (data.dashboard) setState(data.dashboard);
   } catch (err) {
     pending.remove();
@@ -220,6 +232,31 @@ $('#chat-form').addEventListener('submit', (e) => {
   $('#chat').classList.remove('hidden');
   sendChat(text);
 });
-document.querySelectorAll('.suggestion').forEach((b) =>
-  b.addEventListener('click', () => { chatInput.value = b.textContent; autoGrow(); chatInput.focus(); })
-);
+function wireSuggestions() {
+  document.querySelectorAll('.suggestion').forEach((b) =>
+    b.addEventListener('click', () => { chatInput.value = b.textContent; autoGrow(); chatInput.focus(); })
+  );
+}
+wireSuggestions();
+
+// New conversation: clear history + transcript, start a fresh session.
+$('#chat-new').addEventListener('click', () => {
+  history.length = 0;
+  SESSION = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+  localStorage.removeItem('dash-chat');
+  chatLog.innerHTML = introHTML;
+  wireSuggestions();
+});
+
+// Restore a persisted conversation (same session, so new turns keep grouping).
+(function restoreChat() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('dash-chat') || '{}'); } catch { /* corrupt */ }
+  if (saved.session) SESSION = saved.session;
+  if (Array.isArray(saved.history) && saved.history.length) {
+    for (const m of saved.history) {
+      history.push(m);
+      addMsg(m.role, m.content);
+    }
+  }
+})();
