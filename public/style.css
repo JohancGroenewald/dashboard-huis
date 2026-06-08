@@ -55,6 +55,11 @@ body {
 }
 .ghost-btn:hover { border-color: var(--accent); }
 .ghost-btn:disabled { opacity: 0.4; cursor: default; }
+.ghost-btn.hidden { display: none; }
+.hid-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 8px; font-size: 13px; }
+.hid-item + .hid-item { border-top: 1px solid var(--border-soft); }
+.hid-show { background: var(--panel-2); border: 1px solid var(--border); color: var(--accent-2); border-radius: 6px; padding: 2px 8px; cursor: pointer; font-size: 12px; }
+.hid-show:hover { border-color: var(--accent); }
 .ghost-btn:active, .chat-toggle:active { transform: translateY(1px); }
 .chat-toggle { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .chat-toggle:hover { background: var(--accent-2); }
@@ -157,10 +162,15 @@ body {
   flex: 1; width: 100%; background: transparent; border: 0; resize: none;
   color: inherit; font: inherit; outline: none; margin-top: 8px;
 }
-.note-card .card-grip, .note-card .card-del { color: rgba(0, 0, 0, 0.45); }
-.note-card .card-del:hover { color: #a11; }
-.note-card .swatches { display: flex; gap: 5px; }
-.note-card .swatch { width: 15px; height: 15px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0, 0, 0, 0.25); }
+.note-card .card-grip { color: rgba(0, 0, 0, 0.45); }
+.note-bar { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.note-bar .swatches, .note-bar .tswatches { display: flex; gap: 4px; }
+.note-bar .swatch { width: 14px; height: 14px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0, 0, 0, 0.25); }
+.note-bar .tswatch { width: 15px; height: 15px; font-size: 12px; font-weight: 700; line-height: 15px; text-align: center; cursor: pointer; }
+.note-spacer { flex: 1; }
+.note-bar button { background: none; border: 0; cursor: pointer; color: rgba(0, 0, 0, 0.5); font-size: 12px; padding: 0 1px; }
+.note-bar button:hover { color: #000; }
+.note-bar .note-del:hover { color: #a11; }
 
 /* Section group card */
 .section-card { padding: 10px; }
@@ -168,8 +178,8 @@ body {
 .section-card:hover .card-grip { opacity: 0.85; }
 .sec-head { display: flex; align-items: center; gap: 8px; padding: 0 2px 8px; border-bottom: 1px solid var(--border-soft); margin-bottom: 9px; }
 .sec-name { flex: 1; font-weight: 650; font-size: 14.5px; cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sec-add, .sec-del { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 4px; border-radius: 6px; }
-.sec-add:hover { color: var(--accent); }
+.sec-add, .sec-del, .sec-attach { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; padding: 0 4px; border-radius: 6px; }
+.sec-add:hover, .sec-attach:hover { color: var(--accent); }
 .sec-del:hover { color: var(--down); }
 .sec-tiles { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; align-content: start; border-radius: 8px; }
 .sec-tiles.drop { outline: 2px dashed var(--accent); outline-offset: -2px; }
@@ -183,9 +193,12 @@ body {
 .tile-chip:active { transform: scale(0.99); }
 .tile-chip .tile-icon { font-size: 20px; width: 26px; text-align: center; flex: none; }
 .tile-chip .tile-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.chip-del { position: absolute; top: 3px; right: 4px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; opacity: 0; transition: opacity 0.15s; }
-.tile-chip:hover .chip-del { opacity: 0.85; }
+.chip-del, .chip-attach { position: absolute; top: 3px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; opacity: 0; transition: opacity 0.15s; }
+.chip-del { right: 4px; }
+.chip-attach { right: 20px; }
+.tile-chip:hover .chip-del, .tile-chip:hover .chip-attach { opacity: 0.85; }
 .chip-del:hover { color: var(--down); opacity: 1; }
+.chip-attach:hover { color: var(--accent); opacity: 1; }
 
 /* Gridstack resize handle */
 .grid-stack-item > .ui-resizable-se {
@@ -292,10 +305,16 @@ body {
 /* Centered bottom input bar */
 .chat-bar {
   position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
-  width: min(680px, 94vw); display: flex; gap: 8px; align-items: stretch;
+  width: min(680px, 94vw); display: flex; flex-direction: column; gap: 8px;
   background: var(--panel); border: 1px solid var(--border); border-radius: 14px;
   padding: 10px; box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55); z-index: 45;
 }
+.chat-bar-row { display: flex; gap: 8px; align-items: stretch; }
+.attachments { display: flex; flex-wrap: wrap; gap: 6px; }
+.attachments.hidden { display: none; }
+.attach-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--panel-2); border: 1px solid var(--accent); color: var(--accent-2); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: 12px; }
+.attach-x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 12px; }
+.attach-x:hover { color: var(--down); }
 .chat-bar textarea {
   flex: 1; box-sizing: border-box; min-height: 88px; height: 88px; max-height: 280px;
   background: var(--panel-2); border: 1px solid var(--border); color: var(--text);

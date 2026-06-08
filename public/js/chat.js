@@ -9,6 +9,26 @@ const history = [];
 const inputHistory = []; // past user prompts, for ↑/↓ recall
 let histIdx = -1; // -1 = editing a fresh draft
 let histDraft = '';
+const attachments = []; // items the user attached as context for the next prompt
+
+function renderAttachments() {
+  const box = $('#chat-attachments');
+  box.classList.toggle('hidden', attachments.length === 0);
+  box.innerHTML = attachments
+    .map((a, i) => `<span class="attach-chip">📎 ${esc(a.type)}: ${esc(a.label)}<button type="button" class="attach-x" data-i="${i}">✕</button></span>`)
+    .join('');
+  box.querySelectorAll('.attach-x').forEach((b) =>
+    b.addEventListener('click', () => { attachments.splice(Number(b.dataset.i), 1); renderAttachments(); })
+  );
+}
+
+document.addEventListener('attach-item', (e) => {
+  const a = e.detail;
+  if (!attachments.some((x) => x.id === a.id)) attachments.push(a);
+  renderAttachments();
+  $('#chat').classList.remove('hidden');
+  $('#chat-input').focus();
+});
 let SESSION = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
 let activeModel = '';
 
@@ -174,8 +194,15 @@ async function sendChat(text) {
   document.querySelectorAll('.choices-row, .followups-row').forEach((r) => r.remove()); // clear stale chips
   inputHistory.push(text);
   histIdx = -1;
-  history.push({ role: 'user', content: text });
-  addMsg('user', text);
+  let content = text;
+  if (attachments.length) {
+    // Hand the model the exact ids so it acts on the referenced items, no guessing.
+    content = attachments.map((a) => `[${a.type} "${a.label}" id:${a.id}]`).join(' ') + `\n${text}`;
+    attachments.length = 0;
+    renderAttachments();
+  }
+  history.push({ role: 'user', content });
+  addMsg('user', content);
   saveChat();
   const pending = addMsg('assistant', '…');
   const btn = $('#chat-form button');

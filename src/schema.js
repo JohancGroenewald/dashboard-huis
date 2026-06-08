@@ -108,6 +108,8 @@ export function normalizeNote(raw) {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     text: checkString(raw.text, 'note.text', { required: false, max: 2000 }),
     color: checkString(raw.color, 'note.color', { required: false, max: 30 }),
+    textColor: checkString(raw.textColor, 'note.textColor', { required: false, max: 30 }),
+    hidden: Boolean(raw.hidden),
     layout: normalizeLayout(raw.layout),
     createdAt: raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updatedAt || new Date().toISOString(),

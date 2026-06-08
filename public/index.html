@@ -17,6 +17,10 @@
         <span id="clock" class="clock"></span>
         <button id="section-add" class="ghost-btn" title="Add a section">＋ Section</button>
         <button id="note-add" class="ghost-btn" title="Add a sticky note">📝 Note</button>
+        <div class="dropdown">
+          <button id="hidden-toggle" class="ghost-btn hidden" title="Hidden notes">🙈 Hidden 0</button>
+          <div id="hidden-menu" class="dropdown-menu hidden"></div>
+        </div>
         <button id="arrange-toggle" class="ghost-btn" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
         <button id="edit-toggle" class="ghost-btn" title="Lock / unlock the layout">🔓 Edit</button>
         <div class="dropdown">
@@ -84,8 +88,11 @@
 
     <!-- Assistant input — centered bottom bar -->
     <form id="chat-form" class="chat-bar">
-      <textarea id="chat-input" rows="2" placeholder="Ask the assistant to change the dashboard…" title="Enter to send · Shift+Enter for a newline" autocomplete="off"></textarea>
-      <button type="submit" title="Send">Send</button>
+      <div id="chat-attachments" class="attachments hidden"></div>
+      <div class="chat-bar-row">
+        <textarea id="chat-input" rows="2" placeholder="Ask the assistant to change the dashboard…" title="Enter to send · Shift+Enter for a newline" autocomplete="off"></textarea>
+        <button type="submit" title="Send">Send</button>
+      </div>
     </form>
 
     <script src="/vendor/gridstack-all.js"></script>

@@ -152,13 +152,15 @@ export const toolSpecs = [
     type: 'function',
     function: {
       name: 'update_note',
-      description: 'Edit an existing sticky note.',
+      description: 'Edit a sticky note: text, background colour, text colour, or hide/show it.',
       parameters: {
         type: 'object',
         properties: {
           note_id: { type: 'string' },
           text: { type: 'string' },
-          color: { type: 'string' },
+          color: { type: 'string', description: 'Background colour (name or hex).' },
+          textColor: { type: 'string', description: 'Text colour (name or hex).' },
+          hidden: { type: 'boolean', description: 'Hide the note from the board without deleting it.' },
         },
         required: ['note_id'],
       },
