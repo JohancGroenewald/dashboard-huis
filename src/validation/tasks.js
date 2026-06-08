@@ -15,7 +15,7 @@ const findSection = (state, name) =>
 const findTile = (state, name) =>
   state.sections.flatMap((s) => s.tiles).find((t) => t.name.toLowerCase() === name.toLowerCase());
 const mutatedDestructively = (trace) =>
-  trace.some((e) => e.ok && (e.name === 'remove_tile' || e.name === 'remove_section'));
+  trace.some((e) => e.ok && (e.name === 'remove_tile' || e.name === 'remove_section' || e.name === 'remove_workspace'));
 const tileAdded = (trace) => trace.some((e) => e.ok && e.name === 'add_tile');
 
 const baseSeed = () => ({

@@ -158,7 +158,11 @@ export class Store {
   setActiveWorkspace(id) {
     this.#workspace(id);
     this.state.activeWorkspaceId = id;
-    return this.#persist({ backup: false });
+    const s = this.#persist({ backup: false });
+    // Bake the view change into the baseline so it isn't captured as part of
+    // the next real edit's undo entry (switching is not itself undoable).
+    this.lastSnapshot = structuredClone(s);
+    return s;
   }
 
   moveSectionToWorkspace(sectionId, workspaceId) {

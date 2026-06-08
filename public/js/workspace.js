@@ -118,4 +118,6 @@ export function initWorkspaces() {
   });
   onRender(refresh);
   refresh();
+  // If we restored onto a system workspace (e.g. Models), populate its panel.
+  systemWorkspaces.find((w) => w.id === viewing)?.onActivate?.();
 }
