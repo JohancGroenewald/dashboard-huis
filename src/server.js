@@ -40,6 +40,15 @@ const wrap = (fn) => async (req, res) => {
 // ---- dashboard state -----------------------------------------------------
 app.get('/api/dashboard', (req, res) => res.json(store.getState()));
 
+// ---- workspaces ----------------------------------------------------------
+app.post('/api/workspaces', wrap((req, res) => res.status(201).json(store.addWorkspace(req.body))));
+app.patch('/api/workspaces/:id', wrap((req, res) => res.json(store.renameWorkspace(req.params.id, req.body.name))));
+app.delete('/api/workspaces/:id', wrap((req, res) => res.json(store.removeWorkspace(req.params.id))));
+// Switch the active workspace; returns the full state so the board can refresh.
+app.post('/api/workspaces/:id/activate', wrap((req, res) => res.json(store.setActiveWorkspace(req.params.id))));
+app.post('/api/sections/:id/workspace', wrap((req, res) => res.json(store.moveSectionToWorkspace(req.params.id, req.body.workspaceId))));
+app.post('/api/notes/:id/workspace', wrap((req, res) => res.json(store.moveNoteToWorkspace(req.params.id, req.body.workspaceId))));
+
 app.post('/api/sections', wrap((req, res) => res.status(201).json(store.addSection(req.body))));
 app.patch('/api/sections/:id', wrap((req, res) => res.json(store.updateSection(req.params.id, req.body))));
 app.delete('/api/sections/:id', wrap((req, res) => res.json(store.removeSection(req.params.id))));
@@ -136,6 +145,7 @@ app.get('/api/models', wrap(async (req, res) => {
 const MUTATING = new Set([
   'add_tile', 'add_section', 'add_note', 'update_tile', 'update_note', 'rename_section',
   'remove_tile', 'remove_section', 'remove_note', 'move_tile', 'move_section', 'resize_card',
+  'add_workspace', 'rename_workspace', 'remove_workspace', 'switch_workspace', 'move_to_workspace',
 ]);
 function followupsFromTrace(trace = []) {
   const sf = [...trace].reverse().find((t) => t.ok && t.name === 'suggest_followups');
@@ -146,6 +156,11 @@ function followupsFromTrace(trace = []) {
     case 'add_section': return ['Add a tile to it', 'Rename the section', 'Add another section'];
     case 'add_note': return ['Change its colour', 'Make it bigger', 'Add another note'];
     case 'resize_card': return ['Make it bigger', 'Make it smaller', 'Move it'];
+    case 'add_workspace': return ['Switch to it', 'Add a section to it', 'Rename it'];
+    case 'switch_workspace': return ['Add a section', 'Add a tile', 'Add a note'];
+    case 'move_to_workspace': return ['Switch to that workspace', 'Move another', 'Undo that'];
+    case 'rename_workspace': return ['Switch to it', 'Undo that'];
+    case 'remove_workspace':
     case 'remove_tile':
     case 'remove_section':
     case 'remove_note': return ['Undo that', 'Add something new'];

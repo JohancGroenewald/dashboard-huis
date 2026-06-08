@@ -7,16 +7,15 @@ import './js/fr.js';
 import './js/logs.js';
 import { loadModels } from './js/chat.js';
 import { loadModelsReport } from './js/models.js';
-import { registerWorkspace, initWorkspaces } from './js/workspace.js';
+import { registerSystemWorkspace, initWorkspaces } from './js/workspace.js';
 
 function tick() {
   $('#clock').textContent = new Date().toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-// Workspaces (tab order = registration order). The Models tab re-fetches its
-// report each time it's opened, so it always reflects the latest gate runs.
-registerWorkspace({ id: 'dashboard', label: '🏠 Dashboard' });
-registerWorkspace({ id: 'models', label: '🧪 Models', onActivate: loadModelsReport });
+// Content workspaces come from the dashboard state (rendered by workspace.js).
+// Models is a SYSTEM workspace: its own panel, re-fetched each time it's opened.
+registerSystemWorkspace({ id: 'models', label: '🧪 Models', onActivate: loadModelsReport });
 initWorkspaces();
 
 loadDashboard();

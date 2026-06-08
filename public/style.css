@@ -45,10 +45,16 @@ body {
 .clock { color: var(--muted); font-variant-numeric: tabular-nums; margin-right: 4px; }
 
 /* ---- Workspace tabs ---- */
-.ws-tabs { display: flex; gap: 4px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; }
-.ws-tab { border: 0; background: transparent; color: var(--muted); padding: 6px 12px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 550; transition: background 0.15s, color 0.15s; }
+.ws-tabs { display: flex; align-items: center; gap: 3px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; padding: 3px; flex-wrap: wrap; }
+.ws-tab { display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--muted); padding: 6px 10px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 550; transition: background 0.15s, color 0.15s; }
 .ws-tab:hover { color: var(--text); }
 .ws-tab.active { background: var(--accent); color: #fff; }
+.ws-x { opacity: 0; font-size: 11px; color: inherit; border-radius: 4px; padding: 0 3px; line-height: 1.4; transition: opacity 0.15s, background 0.15s; }
+.ws-tab:hover .ws-x { opacity: 0.55; }
+.ws-x:hover { opacity: 1; background: rgba(255, 255, 255, 0.2); }
+.ws-add { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 4px 8px; border-radius: 7px; }
+.ws-add:hover { color: var(--text); background: rgba(255, 255, 255, 0.07); }
+.ws-system { margin-left: 4px; }
 body[data-ws="models"] .dashboard-only { display: none; }
 .workspace.hidden { display: none; }
 

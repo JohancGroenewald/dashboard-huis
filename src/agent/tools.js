@@ -9,8 +9,74 @@ export const toolSpecs = [
     function: {
       name: 'get_dashboard',
       description:
-        'Read the current dashboard: its title and every section and tile with their ids. Call this first to learn the ids you need for other tools.',
+        'Read the current dashboard: its workspaces (with the active one), and every section, tile, and note with their ids and which workspace they belong to. Call this first to learn the ids you need for other tools.',
       parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_workspace',
+      description: 'Create a new workspace — a separate tabbed board with its own sections and notes. Does not switch to it; use switch_workspace for that.',
+      parameters: {
+        type: 'object',
+        properties: { name: { type: 'string', description: 'Workspace name, e.g. "Media Room".' } },
+        required: ['name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'rename_workspace',
+      description: 'Rename an existing workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspace: { type: 'string', description: 'Workspace id or current name.' },
+          name: { type: 'string', description: 'New workspace name.' },
+        },
+        required: ['workspace', 'name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_workspace',
+      description: 'Delete a workspace. Only works if it has no sections or notes (move or delete those first) and it is not the last workspace.',
+      parameters: {
+        type: 'object',
+        properties: { workspace: { type: 'string', description: 'Workspace id or name.' } },
+        required: ['workspace'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'switch_workspace',
+      description: 'Make a workspace the active one — the board shows it and new sections/notes land in it.',
+      parameters: {
+        type: 'object',
+        properties: { workspace: { type: 'string', description: 'Workspace id or name to switch to.' } },
+        required: ['workspace'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'move_to_workspace',
+      description: 'Move a section (with its tiles) or a sticky note into a different workspace.',
+      parameters: {
+        type: 'object',
+        properties: {
+          item: { type: 'string', description: 'A section id or name, or a note id, to move.' },
+          workspace: { type: 'string', description: 'Destination workspace id or name.' },
+        },
+        required: ['item', 'workspace'],
+      },
     },
   },
   {
@@ -276,15 +342,31 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
     throw new Error(`no section matching "${ref}"`);
   };
 
+  // Resolve a workspace by id first, then by case-insensitive name.
+  const resolveWorkspace = (ref) => {
+    const { workspaces } = store.getState();
+    const byId = workspaces.find((w) => w.id === ref);
+    if (byId) return byId;
+    const matches = workspaces.filter((w) => w.name.toLowerCase() === String(ref).toLowerCase());
+    if (matches.length === 1) return matches[0];
+    if (matches.length > 1) {
+      throw new Error(`"${ref}" is ambiguous: ${matches.length} workspaces share that name. Use the workspace id — one of: ${matches.map((w) => w.id).join(', ')}`);
+    }
+    throw new Error(`no workspace matching "${ref}"`);
+  };
+
   return {
     get_dashboard: () => {
       const s = store.getState();
       // layout = { x, y, w, h } grid cells (w×h is the card's size). Empty = auto.
       return {
         title: s.title,
+        activeWorkspaceId: s.activeWorkspaceId,
+        workspaces: s.workspaces.map((w) => ({ id: w.id, name: w.name, active: w.id === s.activeWorkspaceId })),
         sections: s.sections.map((sec) => ({
           id: sec.id,
           name: sec.name,
+          workspaceId: sec.workspaceId,
           layout: sec.layout,
           tiles: sec.tiles.map((t) => ({
             id: t.id,
@@ -293,9 +375,34 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
             ...(t.description ? { description: t.description } : {}),
           })),
         })),
-        notes: s.notes.map((n) => ({ id: n.id, text: n.text, color: n.color, layout: n.layout })),
+        notes: s.notes.map((n) => ({ id: n.id, text: n.text, color: n.color, workspaceId: n.workspaceId, layout: n.layout })),
         featureRequests: s.featureRequests.map((f) => ({ id: f.id, title: f.title, status: f.status })),
       };
+    },
+
+    add_workspace: ({ name }) => ({ added: store.addWorkspace({ name }) }),
+
+    rename_workspace: ({ workspace, name }) => ({
+      updated: store.renameWorkspace(resolveWorkspace(workspace).id, name),
+    }),
+
+    remove_workspace: ({ workspace }) => ({ removed: store.removeWorkspace(resolveWorkspace(workspace).id) }),
+
+    switch_workspace: ({ workspace }) => {
+      const w = resolveWorkspace(workspace);
+      store.setActiveWorkspace(w.id);
+      return { activeWorkspace: { id: w.id, name: w.name } };
+    },
+
+    move_to_workspace: ({ item, workspace }) => {
+      const ws = resolveWorkspace(workspace);
+      const s = store.getState();
+      const section = s.sections.find((x) => x.id === item) ||
+        s.sections.find((x) => x.name.toLowerCase() === String(item).toLowerCase());
+      if (section) return { moved: store.moveSectionToWorkspace(section.id, ws.id) };
+      const note = s.notes.find((n) => n.id === item);
+      if (note) return { moved: store.moveNoteToWorkspace(note.id, ws.id) };
+      throw new Error(`no section or note matching "${item}"`);
     },
 
     add_section: ({ name }) => ({ added: store.addSection({ name }) }),

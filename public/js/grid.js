@@ -106,15 +106,19 @@ function renderGrid() {
   rendering = true;
   grid.removeAll(true);
 
-  $('#empty-hint').classList.toggle('hidden', state.sections.length + state.notes.length > 0);
+  // Only the active workspace's cards are on the board.
+  const ws = state.activeWorkspaceId;
+  const sections = state.sections.filter((s) => s.workspaceId === ws);
+  const notes = state.notes.filter((n) => n.workspaceId === ws);
+  $('#empty-hint').classList.toggle('hidden', sections.length + notes.length > 0);
 
-  for (const section of state.sections) {
+  for (const section of sections) {
     const el = widgetEl(section.id, section.layout || {}, 4, 4, sectionInner(section));
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireSection(el, section);
   }
-  for (const note of state.notes) {
+  for (const note of notes) {
     if (note.hidden) continue;
     const el = widgetEl(note.id, note.layout || {}, 3, 3, noteInner(note));
     gridEl.appendChild(el);
@@ -132,7 +136,7 @@ function attachItem(type, id, label) {
 
 // Hidden-notes topbar dropdown: list each with an "unhide" action.
 function renderHidden() {
-  const hidden = state.notes.filter((n) => n.hidden);
+  const hidden = state.notes.filter((n) => n.hidden && n.workspaceId === state.activeWorkspaceId);
   const btn = $('#hidden-toggle');
   btn.classList.toggle('hidden', hidden.length === 0);
   btn.textContent = `🙈 Hidden ${hidden.length}`;

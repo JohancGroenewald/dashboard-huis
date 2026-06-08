@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {
   fail, checkString, normalizeState, normalizeSection, normalizeTile, normalizeNote,
-  normalizeFeatureRequest, normalizeLayout, defaultState, colorName,
+  normalizeFeatureRequest, normalizeWorkspace, normalizeLayout, defaultState, colorName,
 } from './schema.js';
 
 export class Store {
@@ -127,8 +127,58 @@ export class Store {
     return this.#commit().title;
   }
 
+  // ---- workspaces -------------------------------------------------------
+  addWorkspace({ name }) {
+    const workspace = normalizeWorkspace({ name });
+    this.state.workspaces.push(workspace);
+    this.#commit();
+    return workspace;
+  }
+
+  renameWorkspace(id, name) {
+    const w = this.#workspace(id);
+    w.name = checkString(name, 'workspace.name', { max: 120 });
+    this.#commit();
+    return structuredClone(w);
+  }
+
+  removeWorkspace(id) {
+    const w = this.#workspace(id);
+    if (this.state.workspaces.length <= 1) fail('cannot remove the last workspace');
+    const used = this.state.sections.some((s) => s.workspaceId === id) || this.state.notes.some((n) => n.workspaceId === id);
+    if (used) fail(`workspace "${w.name}" is not empty — move or delete its sections and notes first`);
+    this.state.workspaces = this.state.workspaces.filter((x) => x.id !== id);
+    if (this.state.activeWorkspaceId === id) this.state.activeWorkspaceId = this.state.workspaces[0].id;
+    this.#commit();
+    return structuredClone(w);
+  }
+
+  // View-state only: which workspace the board shows / new content lands in.
+  // Persisted, but NOT in undo history (and no backup churn on tab switches).
+  setActiveWorkspace(id) {
+    this.#workspace(id);
+    this.state.activeWorkspaceId = id;
+    return this.#persist({ backup: false });
+  }
+
+  moveSectionToWorkspace(sectionId, workspaceId) {
+    this.#workspace(workspaceId);
+    const s = this.#section(sectionId);
+    s.workspaceId = workspaceId;
+    this.#commit();
+    return structuredClone(s);
+  }
+
+  moveNoteToWorkspace(noteId, workspaceId) {
+    this.#workspace(workspaceId);
+    const n = this.#note(noteId);
+    n.workspaceId = workspaceId;
+    this.#commit();
+    return structuredClone(n);
+  }
+
   addSection({ name }) {
-    const section = normalizeSection({ name, tiles: [] });
+    const section = normalizeSection({ name, tiles: [], workspaceId: this.state.activeWorkspaceId });
     this.state.sections.push(section);
     this.#commit();
     return section;
@@ -226,7 +276,7 @@ export class Store {
 
   // ---- sticky notes -----------------------------------------------------
   addNote(note) {
-    const n = normalizeNote(note);
+    const n = normalizeNote({ ...note, workspaceId: note.workspaceId || this.state.activeWorkspaceId });
     this.state.notes.push(n);
     this.#commit();
     return n;
@@ -291,6 +341,12 @@ export class Store {
     return s;
   }
 
+  #workspace(id) {
+    const w = this.state.workspaces.find((x) => x.id === id);
+    if (!w) fail(`workspace not found: ${id}`);
+    return w;
+  }
+
   #tile(tileId) {
     for (const section of this.state.sections) {
       const index = section.tiles.findIndex((t) => t.id === tileId);
@@ -311,11 +367,13 @@ export class Store {
     return s;
   }
 
-  // Validate the whole tree and write it atomically with a backup (no history).
-  #persist() {
+  // Validate the whole tree and write it atomically. A backup is taken first
+  // (skipped for view-only writes like switching the active workspace, so
+  // tab-flipping doesn't churn the backup directory).
+  #persist({ backup = true } = {}) {
     this.state = normalizeState(this.state);
     if (this.persist) {
-      this.#backup();
+      if (backup) this.#backup();
       const tmp = `${this.filePath}.tmp`;
       fs.writeFileSync(tmp, JSON.stringify(this.state, null, 2));
       fs.renameSync(tmp, this.filePath);

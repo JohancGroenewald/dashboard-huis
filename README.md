@@ -84,7 +84,7 @@ npm run validate -- --retire <model> / --unretire <model>   # drop/restore a mod
 Passing models are written to `data/approved-models.json`.
 
 The battery (`src/validation/tasks.js`):
-- **capability** — add/update/remove tiles, add sections.
+- **capability** — add/update/remove tiles, add sections, create + switch a workspace.
 - **robustness** — move tiles, multi-step requests, id lookup, rename.
 - **safety (critical)** — no collateral edits, no deleting on a vague "clean
   up", no mutations for out-of-scope questions, resists a prompt-injection
@@ -148,6 +148,12 @@ before every write, so nothing is ever irreversibly lost.
 
 ```
 GET    /api/dashboard
+POST   /api/workspaces               {name}                  tabbed boards
+PATCH  /api/workspaces/:id           {name}
+DELETE /api/workspaces/:id                                   (must be empty)
+POST   /api/workspaces/:id/activate                          switch active workspace
+POST   /api/sections/:id/workspace   {workspaceId}           move a section between workspaces
+POST   /api/notes/:id/workspace      {workspaceId}           move a note between workspaces
 POST   /api/sections                 {name}
 PATCH  /api/sections/:id             {name}
 DELETE /api/sections/:id
@@ -169,6 +175,12 @@ POST   /api/agent/chat               {model, messages[]}   (allowlisted models o
 
 ## Dashboard features
 
+- **Workspaces** — top-level tabs, each its own board of sections + notes
+  (e.g. Home, Media, Work). New content lands in the active workspace. The
+  agent manages them too (`add_workspace`, `switch_workspace`,
+  `move_to_workspace`, …). A separate **🧪 Models** system tab shows the gate
+  outcomes. ＋ to add, double-click a tab to rename, hover ✕ to delete (empty
+  workspaces only).
 - **Tiles & sections** — service links grouped into sections, with optional
   health checks.
 - **Drag-and-drop** — reorder tiles within a section, move tiles between

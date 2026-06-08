@@ -3,7 +3,7 @@
 // them. `state` is a live binding, so importers always read the current value.
 import { $, api } from './util.js';
 
-export let state = { title: 'Dashboard', sections: [], notes: [], featureRequests: [] };
+export let state = { title: 'Dashboard', workspaces: [], activeWorkspaceId: null, sections: [], notes: [], featureRequests: [] };
 
 const renderers = [];
 export function onRender(fn) {
@@ -23,4 +23,9 @@ export function setState(next) {
 
 export async function loadDashboard() {
   setState(await api('/api/dashboard'));
+}
+
+// Switch the active workspace server-side, then re-render with the new state.
+export async function switchWorkspace(id) {
+  setState(await api(`/api/workspaces/${id}/activate`, { method: 'POST' }));
 }

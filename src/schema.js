@@ -90,6 +90,14 @@ export function normalizeTile(raw) {
   };
 }
 
+export function normalizeWorkspace(raw) {
+  if (!isPlainObject(raw)) fail('workspace must be an object');
+  return {
+    id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
+    name: checkString(raw.name, 'workspace.name', { max: 120 }),
+  };
+}
+
 export function normalizeSection(raw) {
   if (!isPlainObject(raw)) fail('section must be an object');
   const tiles = raw.tiles ?? [];
@@ -97,6 +105,7 @@ export function normalizeSection(raw) {
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     name: checkString(raw.name, 'section.name', { max: 120 }),
+    workspaceId: checkString(raw.workspaceId, 'section.workspaceId', { required: false, max: 100 }),
     layout: normalizeLayout(raw.layout),
     tiles: tiles.map(normalizeTile),
   };
@@ -109,6 +118,7 @@ export function normalizeNote(raw) {
     text: checkString(raw.text, 'note.text', { required: false, max: 2000 }),
     color: checkString(raw.color, 'note.color', { required: false, max: 30 }),
     textColor: checkString(raw.textColor, 'note.textColor', { required: false, max: 30 }),
+    workspaceId: checkString(raw.workspaceId, 'note.workspaceId', { required: false, max: 100 }),
     hidden: Boolean(raw.hidden),
     layout: normalizeLayout(raw.layout),
     createdAt: raw.createdAt || new Date().toISOString(),
@@ -141,19 +151,34 @@ export function normalizeState(raw) {
   if (!Array.isArray(notes)) fail('"notes" must be an array');
   const featureRequests = raw.featureRequests ?? [];
   if (!Array.isArray(featureRequests)) fail('"featureRequests" must be an array');
+  const rawWorkspaces = raw.workspaces ?? [];
+  if (!Array.isArray(rawWorkspaces)) fail('"workspaces" must be an array');
+  const title = checkString(raw.title || 'Dashboard', 'title', { max: 120 });
   const state = {
-    title: checkString(raw.title || 'Dashboard', 'title', { max: 120 }),
+    title,
+    workspaces: rawWorkspaces.map(normalizeWorkspace),
     sections: sections.map(normalizeSection),
     notes: notes.map(normalizeNote),
     featureRequests: featureRequests.map(normalizeFeatureRequest),
     updatedAt: new Date().toISOString(),
   };
+  // There is always at least one workspace; older dashboards (no workspaces)
+  // are migrated into a single default one named after the dashboard.
+  if (!state.workspaces.length) state.workspaces = [{ id: crypto.randomUUID(), name: title }];
+  const wsIds = new Set(state.workspaces.map((w) => w.id));
+  const fallbackWs = state.workspaces[0].id;
+  // Every section/note belongs to a workspace; unknown/missing → the default.
+  for (const s of state.sections) if (!wsIds.has(s.workspaceId)) s.workspaceId = fallbackWs;
+  for (const n of state.notes) if (!wsIds.has(n.workspaceId)) n.workspaceId = fallbackWs;
+  state.activeWorkspaceId = wsIds.has(raw.activeWorkspaceId) ? raw.activeWorkspaceId : fallbackWs;
+
   // Enforce unique ids across the whole tree.
   const ids = new Set();
   const claim = (id) => {
     if (ids.has(id)) fail(`duplicate id: ${id}`);
     ids.add(id);
   };
+  for (const w of state.workspaces) claim(w.id);
   for (const s of state.sections) {
     claim(s.id);
     for (const t of s.tiles) claim(t.id);
