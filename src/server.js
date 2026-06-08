@@ -11,7 +11,7 @@ import { Ollama } from './ollama.js';
 import { runAgent } from './agent/agent.js';
 import { toolSpecs } from './agent/tools.js';
 import { logTurn, query } from './chatlog.js';
-import { listApproved, isApproved, listResults, listSupervised, listDelegated, listParallel } from './validation/registry.js';
+import { listApproved, isApproved, listResults, listSupervised, listDelegated, listParallel, listRetired } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
 
@@ -127,6 +127,7 @@ app.get('/api/models', wrap(async (req, res) => {
     supervised: listSupervised(), // failed-model + trusted-supervisor pairings
     delegated: listDelegated(), // trusted-orchestrator ▸ untrusted-sub-agent pairings
     parallel: listParallel(), // orchestrator ⇉ N concurrent sub-agents
+    retired: listRetired(), // models we've retired as unreliable
   });
 }));
 

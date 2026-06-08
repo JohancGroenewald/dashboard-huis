@@ -11,7 +11,7 @@
 // failure blocks approval until the model's history is reset and re-earned.
 import { Ollama } from '../ollama.js';
 import { validateModel } from './harness.js';
-import { approve, revoke, recordResult, resetHistory, listApproved } from './registry.js';
+import { approve, revoke, recordResult, resetHistory, retire, unretire, listRetired, isRetired, listApproved } from './registry.js';
 
 const C = { gray: '\x1b[90m', green: '\x1b[32m', red: '\x1b[31m', yellow: '\x1b[33m', bold: '\x1b[1m', reset: '\x1b[0m' };
 const ok = (s) => `${C.green}${s}${C.reset}`;
@@ -30,15 +30,29 @@ async function main() {
     return;
   }
 
+  if (args.includes('--retire')) {
+    for (const m of args.filter((a) => !a.startsWith('--'))) { retire(m); console.log(`retired ${m} (removed from allowlist/report; --all will skip it)`); }
+    return;
+  }
+  if (args.includes('--unretire')) {
+    for (const m of args.filter((a) => !a.startsWith('--'))) { unretire(m); console.log(`un-retired ${m}`); }
+    return;
+  }
+
   if (args.includes('--list')) {
     const approved = listApproved();
     const names = Object.keys(approved);
-    if (!names.length) return console.log('No approved models yet.');
-    console.log(`${C.bold}Approved models:${C.reset}`);
-    for (const n of names) {
-      const m = approved[n];
-      console.log(`  ${ok('✓')} ${n}  ${C.gray}score ${m.score} (${m.passed}/${m.total}) · ${m.approvedAt}${C.reset}`);
+    if (names.length) {
+      console.log(`${C.bold}Approved models:${C.reset}`);
+      for (const n of names) {
+        const m = approved[n];
+        console.log(`  ${ok('✓')} ${n}  ${C.gray}score ${m.score} (${m.passed}/${m.total}) · ${m.approvedAt}${C.reset}`);
+      }
+    } else {
+      console.log('No approved models yet.');
     }
+    const retired = listRetired();
+    if (retired.length) console.log(`${C.gray}Retired (skipped by --all): ${retired.join(', ')}${C.reset}`);
     return;
   }
 
@@ -57,7 +71,7 @@ async function main() {
     if (i !== -1) flagValueIdx.add(i + 1);
   }
   let models = args.filter((a, i) => !a.startsWith('--') && !flagValueIdx.has(i));
-  if (args.includes('--all')) models = await ollama.listModels();
+  if (args.includes('--all')) models = (await ollama.listModels()).filter((m) => !isRetired(m));
   if (!models.length) {
     console.error('Usage: npm run validate -- <model> | --all | --list | --reset <m> | [--category robustness]');
     process.exit(1);

@@ -14,9 +14,10 @@ function read() {
       supervised: data.supervised || {},
       delegated: data.delegated || {},
       parallel: data.parallel || {},
+      retired: data.retired || [],
     };
   } catch {
-    return { models: {}, results: {}, safety: {}, supervised: {}, delegated: {}, parallel: {} };
+    return { models: {}, results: {}, safety: {}, supervised: {}, delegated: {}, parallel: {}, retired: [] };
   }
 }
 
@@ -179,4 +180,29 @@ export function resetHistory(model) {
   delete data.results[model];
   delete data.models[model];
   write(data);
+}
+
+// Retire a model: drop it from the allowlist + report + history, and remember
+// it so `validate --all` skips it. Reversible with unretire().
+export function retire(model) {
+  const data = read();
+  if (!data.retired.includes(model)) data.retired.push(model);
+  delete data.models[model];
+  delete data.results[model];
+  delete data.safety[model];
+  write(data);
+}
+
+export function unretire(model) {
+  const data = read();
+  data.retired = data.retired.filter((m) => m !== model);
+  write(data);
+}
+
+export function listRetired() {
+  return read().retired;
+}
+
+export function isRetired(model) {
+  return read().retired.includes(model);
 }
