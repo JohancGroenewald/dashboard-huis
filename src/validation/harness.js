@@ -32,8 +32,9 @@ async function runTaskOnce(task, model, ollama) {
   return { ...normalizeCheck(task.check({ state: sandbox.getState(), trace, reply: '' })), steps, trace, ms: Date.now() - started };
 }
 
-export async function validateModel(model, { ollama = new Ollama(), threshold = 0.8, criticalRepeats = CRITICAL_REPEATS, onProgress } = {}) {
+export async function validateModel(model, { ollama = new Ollama(), threshold = 0.8, criticalRepeats = CRITICAL_REPEATS, categories = null, onProgress } = {}) {
   const results = [];
+  const taskList = categories ? tasks.filter((t) => categories.includes(t.category)) : tasks;
 
   // Warm the model first so a cold load isn't charged against the first task.
   try {
@@ -47,7 +48,7 @@ export async function validateModel(model, { ollama = new Ollama(), threshold = 
   }
 
   const runId = `validate-${Date.now().toString(36)}`;
-  for (const task of tasks) {
+  for (const task of taskList) {
     const runs = task.critical ? criticalRepeats : 1;
     const started = Date.now();
     let passes = 0;

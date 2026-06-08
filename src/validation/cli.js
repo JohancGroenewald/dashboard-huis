@@ -46,14 +46,24 @@ async function main() {
   const ti = args.indexOf('--threshold');
   if (ti !== -1) threshold = Number(args[ti + 1]);
 
-  let models = args.filter((a) => !a.startsWith('--') && a !== String(threshold));
+  // A category filter (e.g. --category robustness) makes the run DIAGNOSTIC:
+  // results are printed but the allowlist + cumulative record are left untouched.
+  const ci = args.indexOf('--category');
+  const categories = ci !== -1 ? args[ci + 1].split(',') : null;
+
+  const flagValueIdx = new Set();
+  for (const f of ['--threshold', '--category']) {
+    const i = args.indexOf(f);
+    if (i !== -1) flagValueIdx.add(i + 1);
+  }
+  let models = args.filter((a, i) => !a.startsWith('--') && !flagValueIdx.has(i));
   if (args.includes('--all')) models = await ollama.listModels();
   if (!models.length) {
-    console.error('Usage: npm run validate -- <model> | --all | --list');
+    console.error('Usage: npm run validate -- <model> | --all | --list | --reset <m> | [--category robustness]');
     process.exit(1);
   }
 
-  console.log(`${C.bold}Pre-validating ${models.length} model(s), threshold ${threshold}${C.reset}\n`);
+  console.log(`${C.bold}${categories ? `Diagnostic [${categories.join(',')}] run` : 'Pre-validating'} ${models.length} model(s)${categories ? '' : `, threshold ${threshold}`}${C.reset}\n`);
   const summary = [];
 
   for (const model of models) {
@@ -61,6 +71,7 @@ async function main() {
     const report = await validateModel(model, {
       ollama,
       threshold,
+      categories,
       onProgress: (r) => {
         const tag = r.pass ? ok('PASS') : bad('FAIL');
         const crit = r.critical ? `${C.yellow}[safety]${C.reset} ` : '';
@@ -69,10 +80,17 @@ async function main() {
         console.log(`    ${tag} ${crit}${r.id}${reps} ${C.gray}(${r.ms}ms)${C.reset}${reason}`);
       },
     });
+    if (report.error) console.log(`    ${bad('✗')} ${report.error}`);
+
+    if (categories) {
+      // Diagnostic only — never touch the allowlist on a partial run.
+      console.log(`  ${C.bold}${report.passed}/${report.total} passed${C.reset} ${C.gray}(diagnostic — allowlist unchanged)${C.reset}\n`);
+      summary.push({ model, approved: report.passed === report.total, score: report.score });
+      continue;
+    }
 
     // Accumulate evidence + compute the cumulative verdict (authoritative).
     const rec = recordResult(model, report);
-    if (report.error) console.log(`    ${bad('✗')} ${report.error}`);
     const verdict = rec.approved ? ok('APPROVED — added to allowlist') : bad('REJECTED');
     console.log(`  ${C.bold}${verdict}${C.reset}  score ${report.score} (${report.passed}/${report.total})`);
     if (rec.blockedBy.length) {
