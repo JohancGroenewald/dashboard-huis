@@ -189,7 +189,13 @@ app.post('/api/agent/chat', wrap(async (req, res) => {
   }
 }));
 
-app.use(express.static(config.publicDir));
+// no-cache + ETag: the browser always revalidates, so updated JS/CSS/HTML load
+// immediately (a 304 when unchanged) — no more stale modules / hard-refreshing.
+app.use(express.static(config.publicDir, {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res) => res.setHeader('Cache-Control', 'no-cache'),
+}));
 
 // Always serve HTTP; also serve HTTPS when a cert+key from the internal CA exist.
 http.createServer(app).listen(config.port, config.host, () =>
