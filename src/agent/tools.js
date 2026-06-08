@@ -277,6 +277,22 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'undo',
+      description: 'Undo the last dashboard change (revert the most recent mutation). Call it again to step further back. Use this when the user asks to undo, revert, or take back the last change.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'redo',
+      description: 'Re-apply the change that was just undone.',
+      parameters: { type: 'object', properties: {}, required: [] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'suggest_followups',
       description:
         'Optionally offer 2–4 short follow-up actions the user might want next (e.g. "Add another tile", "Make it wider"). Shown as dismissable chips under your reply; clicking one pre-fills their input to edit and send. Use sparingly, only when there are obvious next steps.',
@@ -446,6 +462,16 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
     remove_note: ({ note_id }) => ({ removed: store.removeNote(note_id) }),
 
     search_dashboard: ({ query }) => ({ matches: store.search(query) }),
+
+    undo: () => {
+      const s = store.undo();
+      return s ? { undone: true, canUndo: store.canUndo(), canRedo: store.canRedo() } : { undone: false, reason: 'nothing to undo' };
+    },
+
+    redo: () => {
+      const s = store.redo();
+      return s ? { redone: true, canUndo: store.canUndo(), canRedo: store.canRedo() } : { redone: false, reason: 'nothing to redo' };
+    },
 
     resize_card: ({ card, w, h }) => {
       const s = store.getState();

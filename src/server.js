@@ -146,6 +146,7 @@ const MUTATING = new Set([
   'add_tile', 'add_section', 'add_note', 'update_tile', 'update_note', 'rename_section',
   'remove_tile', 'remove_section', 'remove_note', 'move_tile', 'move_section', 'resize_card',
   'add_workspace', 'rename_workspace', 'remove_workspace', 'switch_workspace', 'move_to_workspace',
+  'undo', 'redo',
 ]);
 function followupsFromTrace(trace = []) {
   const sf = [...trace].reverse().find((t) => t.ok && t.name === 'suggest_followups');
@@ -156,6 +157,8 @@ function followupsFromTrace(trace = []) {
     case 'add_section': return ['Add a tile to it', 'Rename the section', 'Add another section'];
     case 'add_note': return ['Change its colour', 'Make it bigger', 'Add another note'];
     case 'resize_card': return ['Make it bigger', 'Make it smaller', 'Move it'];
+    case 'undo': return ['Redo that', 'Make another change'];
+    case 'redo': return ['Undo that', 'Make another change'];
     case 'add_workspace': return ['Switch to it', 'Add a section to it', 'Rename it'];
     case 'switch_workspace': return ['Add a section', 'Add a tile', 'Add a note'];
     case 'move_to_workspace': return ['Switch to that workspace', 'Move another', 'Undo that'];

@@ -108,6 +108,27 @@ function addMsg(role, text, trace) {
   return row;
 }
 
+// Animated "thinking" placeholder while the model works. Shows bouncing dots,
+// and after a few seconds an elapsed timer (a cold model load can take a while),
+// so the user can tell it's busy rather than stuck. Returns { remove }.
+function startThinking() {
+  $('#chat-log .intro')?.remove();
+  const row = document.createElement('div');
+  row.className = 'row assistant';
+  row.innerHTML = '<div class="avatar">🤖</div><div class="bubble thinking"><span class="dots"><span></span><span></span><span></span></span><span class="think-time"></span></div>';
+  chatLog.appendChild(row);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  const t0 = Date.now();
+  const timeEl = row.querySelector('.think-time');
+  const timer = setInterval(() => {
+    const s = Math.round((Date.now() - t0) / 1000);
+    if (s < 3) return;
+    timeEl.textContent = s >= 12 ? `${s}s · a cold model can take a while…` : `${s}s`;
+    chatLog.scrollTop = chatLog.scrollHeight;
+  }, 1000);
+  return { remove: () => { clearInterval(timer); row.remove(); } };
+}
+
 function renderChoices(choices) {
   if (!choices.length) return;
   const row = document.createElement('div');
@@ -156,7 +177,7 @@ async function sendChat(text) {
   history.push({ role: 'user', content });
   addMsg('user', content);
   saveChat();
-  const pending = addMsg('assistant', '…');
+  const pending = startThinking();
   const btn = $('#chat-form button');
   btn.disabled = true;
   try {

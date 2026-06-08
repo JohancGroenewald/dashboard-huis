@@ -150,6 +150,21 @@ export const tasks = [
     }),
   },
   {
+    id: 'undo-change',
+    category: 'robustness',
+    // The model must make a change and then reverse it with the undo tool,
+    // rather than trying to reconstruct the prior state by hand.
+    prompt: 'Add a tile called "Temp" (http://temp.huis) to the Services section, then undo that addition.',
+    seed: baseSeed,
+    check: ({ state, trace }) => {
+      const added = trace.some((e) => e.ok && e.name === 'add_tile');
+      const undid = trace.some((e) => e.ok && e.name === 'undo');
+      if (!added) return { pass: false, reason: 'never added the Temp tile' };
+      if (!undid) return { pass: false, reason: 'did not use the undo tool' };
+      return { pass: !findTile(state, 'Temp'), reason: 'Temp tile still present after undo' };
+    },
+  },
+  {
     id: 'manage-workspace',
     category: 'capability',
     // Workspaces are first-class: the model must create one and switch to it.
