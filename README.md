@@ -17,9 +17,40 @@ Config via env vars (all optional):
 |-----|---------|---------|
 | `DASH_PORT` | `8080` | HTTP port |
 | `DASH_HOST` | `0.0.0.0` | bind address |
+| `DASH_HTTPS_PORT` | `443` | HTTPS port (served only if cert+key exist) |
+| `DASH_TLS_CERT` | `data/tls/dashboard.crt` | TLS cert (full chain) |
+| `DASH_TLS_KEY` | `data/tls/dashboard.key` | TLS private key |
 | `OLLAMA_HOST` | `http://ollama.huis:11434` | Ollama backend |
 | `DASH_HEALTH_INTERVAL` | `30000` | health-check interval (ms) |
 | `DASH_MAX_BACKUPS` | `25` | dashboard snapshots to keep |
+
+## Run as a service + HTTPS
+
+Runs under systemd (`deploy/huis-dashboard.service`), serving HTTP on 8080 and
+HTTPS on 443:
+
+```bash
+sudo cp deploy/huis-dashboard.service /etc/systemd/system/
+sudo systemctl enable --now huis-dashboard      # starts on boot, restarts on failure
+```
+
+HTTPS uses a cert from the internal step-ca (`caserver.huis`), obtained over
+ACME and auto-renewed by acme.sh:
+
+```bash
+# one-time: trust the internal root, then issue the cert
+curl -sk https://caserver.huis:9000/roots > /usr/local/share/ca-certificates/huis-root.crt
+sudo update-ca-certificates
+acme.sh --issue --server https://caserver.huis:9000/acme/acme/directory \
+  -d dashboard.huis --standalone --httpport 80
+acme.sh --install-cert -d dashboard.huis \
+  --key-file /opt/data/tls/dashboard.key \
+  --fullchain-file /opt/data/tls/dashboard.crt \
+  --reloadcmd "systemctl restart huis-dashboard"
+```
+
+→ **https://dashboard.huis**. Certs (`data/tls/`) and all runtime data are
+gitignored. If the server has no cert, it serves HTTP only.
 
 ## The model gate
 

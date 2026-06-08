@@ -1,0 +1,18 @@
+[Unit]
+Description=Huis Dashboard (LAN dashboard + Ollama agent)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt
+# Absolute node path (fnm-managed). Update if the Node version changes.
+ExecStart=/root/.local/share/fnm/node-versions/v24.16.0/installation/bin/node /opt/src/server.js
+Restart=on-failure
+RestartSec=3
+User=root
+# Serve HTTP on 8080 and HTTPS on 443 (cert in /opt/data/tls)
+Environment=NODE_ENV=production
+
+[Install]
+WantedBy=multi-user.target

@@ -2,6 +2,8 @@
 // health, and the agent endpoint (gated by the model allowlist).
 import express from 'express';
 import fs from 'node:fs';
+import http from 'node:http';
+import https from 'node:https';
 import { config, paths } from './config.js';
 import { Store } from './store.js';
 import { HealthMonitor } from './health.js';
@@ -108,11 +110,22 @@ app.post('/api/agent/chat', wrap(async (req, res) => {
 
 app.use(express.static(config.publicDir));
 
-app.listen(config.port, config.host, () => {
-  console.log(`Huis dashboard → http://${config.host}:${config.port}`);
-  console.log(`Ollama backend → ${config.ollamaHost}`);
-  const approved = Object.keys(listApproved());
-  console.log(approved.length
-    ? `Approved agent models: ${approved.join(', ')}`
-    : 'No approved agent models yet — run: npm run validate -- --all');
-});
+// Always serve HTTP; also serve HTTPS when a cert+key from the internal CA exist.
+http.createServer(app).listen(config.port, config.host, () =>
+  console.log(`Huis dashboard → http://${config.host}:${config.port}`)
+);
+
+if (fs.existsSync(config.tlsCert) && fs.existsSync(config.tlsKey)) {
+  const creds = { cert: fs.readFileSync(config.tlsCert), key: fs.readFileSync(config.tlsKey) };
+  https.createServer(creds, app).listen(config.httpsPort, config.host, () =>
+    console.log(`Huis dashboard → https://${config.host}:${config.httpsPort}`)
+  );
+} else {
+  console.log(`HTTPS disabled (no cert at ${config.tlsCert})`);
+}
+
+console.log(`Ollama backend → ${config.ollamaHost}`);
+const approved = Object.keys(listApproved());
+console.log(approved.length
+  ? `Approved agent models: ${approved.join(', ')}`
+  : 'No approved agent models yet — run: npm run validate -- --all');

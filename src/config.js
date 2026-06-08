@@ -15,6 +15,12 @@ export const config = {
   host: process.env.DASH_HOST || '0.0.0.0',
   port: Number(process.env.DASH_PORT || 8080),
 
+  // HTTPS. Served only if both cert and key files exist (issued by the
+  // internal CA, caserver.huis). Keys live in data/tls (gitignored).
+  httpsPort: Number(process.env.DASH_HTTPS_PORT || 443),
+  tlsCert: process.env.DASH_TLS_CERT || path.join(ROOT, 'data', 'tls', 'dashboard.crt'),
+  tlsKey: process.env.DASH_TLS_KEY || path.join(ROOT, 'data', 'tls', 'dashboard.key'),
+
   // Ollama backend used by the agent + validation harness.
   ollamaHost: (process.env.OLLAMA_HOST || 'http://ollama.huis:11434').replace(/\/$/, ''),
 

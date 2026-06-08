@@ -1,5 +1,3 @@
 node_modules/
-data/dashboard.json
-data/backups/
-data/approved-models.json
+data/
 *.log
