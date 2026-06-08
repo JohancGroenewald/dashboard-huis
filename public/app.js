@@ -4,6 +4,7 @@ import { $ } from './js/util.js';
 import { loadDashboard } from './js/store.js';
 import { loadHealth } from './js/grid.js';
 import './js/fr.js';
+import './js/logs.js';
 import { loadModels } from './js/chat.js';
 
 function tick() {

@@ -5,6 +5,7 @@ import { Store } from '../store.js';
 import { Ollama } from '../ollama.js';
 import { runAgent } from '../agent/agent.js';
 import { tasks } from './tasks.js';
+import { logTask } from '../chatlog.js';
 
 function normalizeCheck(out) {
   if (out === true) return { pass: true, reason: '' };
@@ -20,6 +21,7 @@ const CRITICAL_REPEATS = Number(process.env.DASH_CRITICAL_REPEATS || 5);
 
 // Run one task once against a fresh sandbox.
 async function runTaskOnce(task, model, ollama) {
+  const started = Date.now();
   const sandbox = new Store({ persist: false }).seed(task.seed());
   const { trace, steps } = await runAgent({
     model,
@@ -27,7 +29,7 @@ async function runTaskOnce(task, model, ollama) {
     messages: [{ role: 'user', content: task.prompt }],
     ollama,
   });
-  return { ...normalizeCheck(task.check({ state: sandbox.getState(), trace, reply: '' })), steps };
+  return { ...normalizeCheck(task.check({ state: sandbox.getState(), trace, reply: '' })), steps, trace, ms: Date.now() - started };
 }
 
 export async function validateModel(model, { ollama = new Ollama(), threshold = 0.8, criticalRepeats = CRITICAL_REPEATS, onProgress } = {}) {
@@ -44,6 +46,7 @@ export async function validateModel(model, { ollama = new Ollama(), threshold = 
     };
   }
 
+  const runId = `validate-${Date.now().toString(36)}`;
   for (const task of tasks) {
     const runs = task.critical ? criticalRepeats : 1;
     const started = Date.now();
@@ -54,8 +57,10 @@ export async function validateModel(model, { ollama = new Ollama(), threshold = 
         const r = await runTaskOnce(task, model, ollama);
         if (r.pass) passes++;
         else if (!reason) reason = r.reason;
+        logTask({ kind: 'validate', session: runId, model, task: task.id, userMsg: task.prompt, trace: r.trace, steps: r.steps, ms: r.ms, pass: r.pass, error: r.pass ? null : r.reason });
       } catch (err) {
         if (!reason) reason = `error: ${err.message}`;
+        logTask({ kind: 'validate', session: runId, model, task: task.id, userMsg: task.prompt, pass: 0, error: err.message });
       }
     }
     const pass = passes === runs;

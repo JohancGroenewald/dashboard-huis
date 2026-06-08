@@ -181,16 +181,18 @@ $('#chat-close').addEventListener('click', () => $('#chat').classList.add('hidde
 const modelMenu = $('#model-menu');
 $('#model-btn').addEventListener('click', (e) => { e.stopPropagation(); modelMenu.classList.toggle('hidden'); });
 
+const closeOtherDropdowns = (keep) =>
+  document.querySelectorAll('.topbar .dropdown-menu').forEach((m) => { if (m.id !== keep) m.classList.add('hidden'); });
 $('#models-toggle').addEventListener('click', (e) => {
   e.stopPropagation();
-  abilitiesMenu.classList.add('hidden');
+  closeOtherDropdowns('models-menu');
   const opening = modelsMenu.classList.contains('hidden');
   modelsMenu.classList.toggle('hidden');
   if (opening) refreshReport();
 });
 $('#abilities-toggle').addEventListener('click', (e) => {
   e.stopPropagation();
-  modelsMenu.classList.add('hidden');
+  closeOtherDropdowns('abilities-menu');
   const opening = abilitiesMenu.classList.contains('hidden');
   abilitiesMenu.classList.toggle('hidden');
   if (opening && !abilitiesLoaded) { loadAbilities(); abilitiesLoaded = true; }

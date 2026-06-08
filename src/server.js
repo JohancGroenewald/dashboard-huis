@@ -10,7 +10,7 @@ import { HealthMonitor } from './health.js';
 import { Ollama } from './ollama.js';
 import { runAgent } from './agent/agent.js';
 import { toolSpecs } from './agent/tools.js';
-import { logTurn } from './chatlog.js';
+import { logTurn, query } from './chatlog.js';
 import { listApproved, isApproved, listResults, listSupervised, listDelegated, listParallel } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -82,6 +82,25 @@ app.get('/api/abilities', (req, res) =>
     }))
   )
 );
+
+// ---- conversation log ----------------------------------------------------
+app.get('/api/logs', wrap((req, res) => {
+  const limit = Math.min(Number(req.query.limit) || 40, 200);
+  const where = [];
+  const params = [];
+  if (req.query.kind) { where.push('kind = ?'); params.push(req.query.kind); }
+  if (req.query.model) { where.push('model = ?'); params.push(req.query.model); }
+  let sql = 'SELECT id, ts, kind, model, task, user_msg, reply, trace, steps, ms, pass, error FROM chat_log';
+  if (where.length) sql += ` WHERE ${where.join(' AND ')}`;
+  sql += ' ORDER BY id DESC LIMIT ?';
+  params.push(limit);
+  const rows = query(sql, params).map((r) => {
+    let trace = [];
+    try { trace = JSON.parse(r.trace || '[]'); } catch { /* ignore */ }
+    return { ...r, trace };
+  });
+  res.json(rows);
+}));
 
 // ---- models & agent ------------------------------------------------------
 app.get('/api/models', wrap(async (req, res) => {
