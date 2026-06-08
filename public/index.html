@@ -10,26 +10,25 @@
   </head>
   <body>
     <header class="topbar">
-      <h1 id="title">Dashboard</h1>
+      <div class="topbar-left">
+        <h1 id="title">Dashboard</h1>
+        <nav id="ws-tabs" class="ws-tabs"></nav>
+      </div>
       <div class="topbar-right">
-        <button id="undo-btn" class="ghost-btn" title="Undo (Ctrl+Z)">↶</button>
-        <button id="redo-btn" class="ghost-btn" title="Redo (Ctrl+Shift+Z)">↷</button>
+        <button id="undo-btn" class="ghost-btn dashboard-only" title="Undo (Ctrl+Z)">↶</button>
+        <button id="redo-btn" class="ghost-btn dashboard-only" title="Redo (Ctrl+Shift+Z)">↷</button>
         <span id="clock" class="clock"></span>
-        <button id="section-add" class="ghost-btn" title="Add a section">＋ Section</button>
-        <button id="note-add" class="ghost-btn" title="Add a sticky note">📝 Note</button>
-        <div class="dropdown">
+        <button id="section-add" class="ghost-btn dashboard-only" title="Add a section">＋ Section</button>
+        <button id="note-add" class="ghost-btn dashboard-only" title="Add a sticky note">📝 Note</button>
+        <div class="dropdown dashboard-only">
           <button id="hidden-toggle" class="ghost-btn hidden" title="Hidden notes">🙈 Hidden 0</button>
           <div id="hidden-menu" class="dropdown-menu hidden"></div>
         </div>
-        <button id="arrange-toggle" class="ghost-btn" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
-        <button id="edit-toggle" class="ghost-btn" title="Lock / unlock the layout">🔓 Edit</button>
+        <button id="arrange-toggle" class="ghost-btn dashboard-only" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
+        <button id="edit-toggle" class="ghost-btn dashboard-only" title="Lock / unlock the layout">🔓 Edit</button>
         <div class="dropdown">
           <button id="abilities-toggle" class="ghost-btn" title="What the assistant can do">🛠️ Abilities ▾</button>
           <div id="abilities-menu" class="dropdown-menu hidden"></div>
-        </div>
-        <div class="dropdown">
-          <button id="models-toggle" class="ghost-btn" title="Validated & tested models">🧪 Models ▾</button>
-          <div id="models-menu" class="dropdown-menu hidden"></div>
         </div>
         <div class="dropdown">
           <button id="logs-toggle" class="ghost-btn" title="Conversation log">🧾 Logs ▾</button>
@@ -41,8 +40,11 @@
     </header>
 
     <main class="board-wrap">
-      <div id="board" class="grid-stack"></div>
-      <p id="empty-hint" class="empty-hint hidden">Nothing here yet — add a tile, a note, or ask the assistant.</p>
+      <section id="ws-dashboard" class="workspace">
+        <div id="board" class="grid-stack"></div>
+        <p id="empty-hint" class="empty-hint hidden">Nothing here yet — add a tile, a note, or ask the assistant.</p>
+      </section>
+      <section id="ws-models" class="workspace hidden"></section>
     </main>
 
     <!-- Feature request queue -->

@@ -44,7 +44,7 @@ function saveChat() {
 
 export async function loadModels() {
   try {
-    const { approved, details, results, supervised, delegated, parallel } = await api('/api/models');
+    const { approved, details } = await api('/api/models');
     const menu = $('#model-menu');
     if (!approved.length) {
       menu.innerHTML = '<div class="mm-empty">No validated models. Run the gate first.</div>';
@@ -69,68 +69,18 @@ export async function loadModels() {
         : approved[0];
       setModel(pick, details?.[pick]?.msPerAction);
     }
-    renderModelsReport(results || {}, supervised || {}, delegated || {}, parallel || {});
   } catch {
     setModel('', null);
     $('#model-btn-label').textContent = 'offline';
   }
 }
 
-function pairRow(useful, name, sub) {
-  return `<div class="mr-row ${useful ? 'ok' : 'bad'}"><span class="mr-badge">${useful ? '✓' : '✗'}</span><div class="mr-body">${name}${sub}</div></div>`;
-}
-function renderSupervised(supervised) {
-  const pairs = Object.values(supervised);
-  if (!pairs.length) return '';
-  pairs.sort((a, b) => Number(b.useful) - Number(a.useful));
-  const rows = pairs.map((s) => {
-    const spd = s.supervisorAloneMs ? `~${fmtMs(s.msPerAction)} vs ${fmtMs(s.supervisorAloneMs)} solo (${s.speedup}×)` : `~${fmtMs(s.msPerAction)}`;
-    return pairRow(s.useful, `<div class="mr-name">${esc(s.worker)} <span class="mr-sub">▸ sup: ${esc(s.supervisor)}</span></div>`, `<div class="mr-sub">safe ${s.safetyPass ? '✓' : '✗'} · capable ${s.capabilityPass ? '✓' : '✗'} · ${spd} · ${s.totalBlocked} blocked</div>`);
-  }).join('');
-  return `<div class="mr-head">supervised pairings (worker ▸ supervisor)</div>${rows}`;
-}
-function renderDelegated(delegated) {
-  const pairs = Object.values(delegated);
-  if (!pairs.length) return '';
-  pairs.sort((a, b) => Number(b.useful) - Number(a.useful));
-  const rows = pairs.map((d) => {
-    const spd = d.orchestratorAloneMs ? `~${fmtMs(d.msPerAction)} vs ${fmtMs(d.orchestratorAloneMs)} solo (${d.speedup}×)` : `~${fmtMs(d.msPerAction)}`;
-    return pairRow(d.useful, `<div class="mr-name">${esc(d.orchestrator)} <span class="mr-sub">▸ sub: ${esc(d.subAgent)}</span></div>`, `<div class="mr-sub">safe ${d.safetyPass ? '✓' : '✗'} · capable ${d.capabilityPass ? '✓' : '✗'} · ${spd}</div>`);
-  }).join('');
-  return `<div class="mr-head">sub-agent delegation (orchestrator ▸ sub-agent)</div>${rows}`;
-}
-function renderParallel(parallel) {
-  const pairs = Object.values(parallel);
-  if (!pairs.length) return '';
-  pairs.sort((a, b) => Number(b.useful) - Number(a.useful));
-  const rows = pairs.map((p) => {
-    const spd = p.orchestratorAloneMs ? `~${fmtMs(p.msPerAction)} vs ${fmtMs(p.orchestratorAloneMs)} solo (${p.speedup}×)` : `~${fmtMs(p.msPerAction)}`;
-    const cfg = p.temperatures ? `<div class="mr-sub">temps [${esc(p.temperatures.join(', '))}] · ctx ${esc(p.numCtx)}</div>` : '';
-    return pairRow(p.useful, `<div class="mr-name">${esc(p.orchestrator)} <span class="mr-sub">⇉ ${esc((p.subAgents || []).join(' + '))}</span></div>`, `<div class="mr-sub">safe ${p.safetyPass ? '✓' : '✗'} · capable ${p.capabilityPass ? '✓' : '✗'} · ${spd}</div>${cfg}`);
-  }).join('');
-  return `<div class="mr-head">parallel sub-agents (orchestrator ⇉ concurrent)</div>${rows}`;
-}
-
-function renderModelsReport(results, supervised = {}, delegated = {}, parallel = {}) {
-  const menu = $('#models-menu');
-  const extras = renderSupervised(supervised) + renderDelegated(delegated) + renderParallel(parallel);
-  const entries = Object.entries(results);
-  if (!entries.length) {
-    menu.innerHTML = '<div class="mr-empty">No models validated yet.</div>' + extras;
-    return;
-  }
-  entries.sort((a, b) => Number(b[1].approved) - Number(a[1].approved) || b[1].score - a[1].score);
-  const approvedCount = entries.filter(([, r]) => r.approved).length;
-  const rows = entries.map(([name, r]) => {
-    const time = r.msPerAction ? `${speedTier(r.msPerAction)} ~${fmtMs(r.msPerAction)}/action` : '';
-    const blocked = r.blockedBy?.length
-      ? `<div class="mr-fail">✗ safety: ${esc(r.blockedBy.map((t) => `${t.replace('safety-', '')} ${r.safety?.[t] || ''}`).join(', '))}</div>`
-      : r.failures?.length ? `<div class="mr-fail">✗ ${esc(r.failures.join(', '))}</div>` : '';
-    const err = r.error ? `<div class="mr-fail">${esc(r.error)}</div>` : '';
-    return `<div class="mr-row ${r.approved ? 'ok' : 'bad'}"><span class="mr-badge">${r.approved ? '✓' : '✗'}</span><div class="mr-body"><div class="mr-name">${esc(name)}</div><div class="mr-sub">${r.passed}/${r.total}${time ? ' · ' + time : ''}</div>${blocked}${err}</div></div>`;
-  }).join('');
-  menu.innerHTML = `<div class="mr-head">${approvedCount} approved · ${entries.length} tested</div>${rows}${extras}`;
-}
+// The Models workspace dispatches this when an approved tile is clicked.
+document.addEventListener('select-model', (e) => {
+  setModel(e.detail.model, e.detail.ms);
+  $('#chat').classList.remove('hidden');
+  $('#chat-input').focus();
+});
 
 function addMsg(role, text, trace) {
   $('#chat-log .intro')?.remove();
@@ -227,16 +177,8 @@ async function sendChat(text) {
   }
 }
 
-const modelsMenu = $('#models-menu');
 const abilitiesMenu = $('#abilities-menu');
 let abilitiesLoaded = false;
-
-async function refreshReport() {
-  try {
-    const { results, supervised, delegated, parallel } = await api('/api/models');
-    renderModelsReport(results || {}, supervised || {}, delegated || {}, parallel || {});
-  } catch { /* ignore */ }
-}
 
 async function loadAbilities() {
   try {
@@ -271,13 +213,6 @@ $('#model-btn').addEventListener('click', (e) => {
 
 const closeOtherDropdowns = (keep) =>
   document.querySelectorAll('.topbar .dropdown-menu').forEach((m) => { if (m.id !== keep) m.classList.add('hidden'); });
-$('#models-toggle').addEventListener('click', (e) => {
-  e.stopPropagation();
-  closeOtherDropdowns('models-menu');
-  const opening = modelsMenu.classList.contains('hidden');
-  modelsMenu.classList.toggle('hidden');
-  if (opening) refreshReport();
-});
 $('#abilities-toggle').addEventListener('click', (e) => {
   e.stopPropagation();
   closeOtherDropdowns('abilities-menu');
@@ -287,10 +222,7 @@ $('#abilities-toggle').addEventListener('click', (e) => {
 });
 document.addEventListener('click', (e) => {
   if (!e.target.closest('.model-picker')) modelMenu.classList.add('hidden');
-  if (!e.target.closest('.dropdown')) {
-    modelsMenu.classList.add('hidden');
-    abilitiesMenu.classList.add('hidden');
-  }
+  if (!e.target.closest('.dropdown')) abilitiesMenu.classList.add('hidden');
 });
 
 const chatInput = $('#chat-input');
