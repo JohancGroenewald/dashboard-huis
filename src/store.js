@@ -7,196 +7,24 @@
 // lost. The same class runs in memory-only mode for the validation sandbox.
 import fs from 'node:fs';
 import path from 'node:path';
-import crypto from 'node:crypto';
-
-const HEALTH_TYPES = new Set(['http', 'tcp', 'none']);
-
-function fail(msg) {
-  const e = new Error(msg);
-  e.code = 'EVALIDATION';
-  throw e;
-}
-
-function isPlainObject(v) {
-  return v !== null && typeof v === 'object' && !Array.isArray(v);
-}
-
-function checkString(val, field, { required = true, max = 2000 } = {}) {
-  if (val === undefined || val === null || val === '') {
-    if (required) fail(`"${field}" is required`);
-    return '';
-  }
-  if (typeof val !== 'string') fail(`"${field}" must be a string`);
-  if (val.length > max) fail(`"${field}" exceeds ${max} characters`);
-  return val;
-}
-
-function checkUrl(val, field, { required = true } = {}) {
-  const s = checkString(val, field, { required });
-  if (!s) return '';
-  try {
-    // Accept http(s) and root-relative paths (e.g. /grafana).
-    if (s.startsWith('/')) return s;
-    const u = new URL(s);
-    if (!['http:', 'https:'].includes(u.protocol)) fail(`"${field}" must be http(s) or a /path`);
-    return s;
-  } catch {
-    fail(`"${field}" is not a valid URL`);
-  }
-}
-
-function normalizeHealth(h) {
-  if (h === undefined || h === null) return { enabled: false, type: 'http', target: '' };
-  if (!isPlainObject(h)) fail('"health" must be an object');
-  const type = h.type ?? 'http';
-  if (!HEALTH_TYPES.has(type)) fail(`"health.type" must be one of ${[...HEALTH_TYPES].join(', ')}`);
-  return {
-    enabled: Boolean(h.enabled),
-    type,
-    target: h.target ? checkUrl(h.target, 'health.target') : '',
-  };
-}
-
-// Map the note palette hexes to colour words so "green note" is searchable.
-const NOTE_COLOR_NAMES = {
-  '#f6d365': 'yellow',
-  '#a0e7a0': 'green',
-  '#9bd0ff': 'blue',
-  '#ffb3c1': 'pink',
-  '#e0c3fc': 'purple',
-};
-function colorName(c) {
-  if (!c) return '';
-  const lc = String(c).toLowerCase();
-  return NOTE_COLOR_NAMES[lc] || lc.replace('#', '');
-}
-
-// Grid layout for a card: { x, y, w, h } in grid cells. Empty = auto-place.
-function normalizeLayout(raw) {
-  if (!isPlainObject(raw)) return {};
-  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.round(v)) : undefined);
-  const out = {};
-  for (const k of ['x', 'y', 'w', 'h']) {
-    const n = num(raw[k]);
-    if (n !== undefined) out[k] = n;
-  }
-  return out;
-}
-
-function normalizeTile(raw) {
-  if (!isPlainObject(raw)) fail('tile must be an object');
-  return {
-    id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    name: checkString(raw.name, 'tile.name', { max: 120 }),
-    url: checkUrl(raw.url, 'tile.url'),
-    description: checkString(raw.description, 'tile.description', { required: false, max: 500 }),
-    icon: checkString(raw.icon, 'tile.icon', { required: false, max: 40 }),
-    color: checkString(raw.color, 'tile.color', { required: false, max: 30 }),
-    health: normalizeHealth(raw.health),
-    layout: normalizeLayout(raw.layout),
-  };
-}
-
-function normalizeSection(raw) {
-  if (!isPlainObject(raw)) fail('section must be an object');
-  const tiles = raw.tiles ?? [];
-  if (!Array.isArray(tiles)) fail('"section.tiles" must be an array');
-  return {
-    id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    name: checkString(raw.name, 'section.name', { max: 120 }),
-    layout: normalizeLayout(raw.layout),
-    tiles: tiles.map(normalizeTile),
-  };
-}
-
-function normalizeNote(raw) {
-  if (!isPlainObject(raw)) fail('note must be an object');
-  return {
-    id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    text: checkString(raw.text, 'note.text', { required: false, max: 2000 }),
-    color: checkString(raw.color, 'note.color', { required: false, max: 30 }),
-    layout: normalizeLayout(raw.layout),
-    createdAt: raw.createdAt || new Date().toISOString(),
-    updatedAt: raw.updatedAt || new Date().toISOString(),
-  };
-}
-
-const FR_STATUS = new Set(['open', 'planned', 'done', 'rejected']);
-
-function normalizeFeatureRequest(raw) {
-  if (!isPlainObject(raw)) fail('feature request must be an object');
-  const status = raw.status ?? 'open';
-  if (!FR_STATUS.has(status)) fail(`"status" must be one of ${[...FR_STATUS].join(', ')}`);
-  return {
-    id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    title: checkString(raw.title, 'featureRequest.title', { max: 200 }),
-    detail: checkString(raw.detail, 'featureRequest.detail', { required: false, max: 2000 }),
-    requestedBy: checkString(raw.requestedBy, 'featureRequest.requestedBy', { required: false, max: 120 }) || 'unknown',
-    status,
-    createdAt: raw.createdAt || new Date().toISOString(),
-  };
-}
-
-// Validate + normalize a full state object. Returns a clean copy; throws on bad input.
-export function normalizeState(raw) {
-  if (!isPlainObject(raw)) fail('state must be an object');
-  const sections = raw.sections ?? [];
-  if (!Array.isArray(sections)) fail('"sections" must be an array');
-  const notes = raw.notes ?? [];
-  if (!Array.isArray(notes)) fail('"notes" must be an array');
-  const featureRequests = raw.featureRequests ?? [];
-  if (!Array.isArray(featureRequests)) fail('"featureRequests" must be an array');
-  const state = {
-    title: checkString(raw.title || 'Dashboard', 'title', { max: 120 }),
-    sections: sections.map(normalizeSection),
-    notes: notes.map(normalizeNote),
-    featureRequests: featureRequests.map(normalizeFeatureRequest),
-    updatedAt: new Date().toISOString(),
-  };
-  // Enforce unique ids across the whole tree.
-  const ids = new Set();
-  const claim = (id) => {
-    if (ids.has(id)) fail(`duplicate id: ${id}`);
-    ids.add(id);
-  };
-  for (const s of state.sections) {
-    claim(s.id);
-    for (const t of s.tiles) claim(t.id);
-  }
-  for (const n of state.notes) claim(n.id);
-  for (const fr of state.featureRequests) claim(fr.id);
-  return state;
-}
-
-function defaultState() {
-  return normalizeState({
-    title: 'Huis',
-    sections: [
-      {
-        name: 'Infrastructure',
-        tiles: [
-          {
-            name: 'Ollama',
-            url: 'http://ollama.huis:11434',
-            description: 'Local LLM server',
-            icon: '🧠',
-            health: { enabled: true, type: 'http', target: 'http://ollama.huis:11434/api/version' },
-          },
-        ],
-      },
-      { name: 'Services', tiles: [] },
-    ],
-  });
-}
+import {
+  fail, checkString, normalizeState, normalizeSection, normalizeTile, normalizeNote,
+  normalizeFeatureRequest, normalizeLayout, defaultState, colorName,
+} from './schema.js';
 
 export class Store {
   // persist=false → memory-only (used by the validation sandbox).
-  constructor({ filePath = null, backupsDir = null, maxBackups = 25, persist = true } = {}) {
+  constructor({ filePath = null, backupsDir = null, maxBackups = 25, persist = true, maxHistory = 50 } = {}) {
     this.filePath = filePath;
     this.backupsDir = backupsDir;
     this.maxBackups = maxBackups;
     this.persist = persist && Boolean(filePath);
     this.state = null;
+    // In-memory undo/redo of whole-state snapshots (this process only).
+    this.undoStack = [];
+    this.redoStack = [];
+    this.lastSnapshot = null;
+    this.maxHistory = maxHistory;
   }
 
   load() {
@@ -209,19 +37,48 @@ export class Store {
         fs.renameSync(this.filePath, bad);
         console.error(`[store] ${this.filePath} was invalid (${err.message}); moved to ${bad}`);
         this.state = defaultState();
-        this.#commit();
+        this.#persist();
       }
     } else {
       this.state = defaultState();
-      if (this.persist) this.#commit();
+      if (this.persist) this.#persist();
     }
+    this.lastSnapshot = structuredClone(this.state);
     return this;
   }
 
   // Seed an in-memory store with an explicit state (validation sandbox).
   seed(state) {
     this.state = normalizeState(state);
+    this.lastSnapshot = structuredClone(this.state);
     return this;
+  }
+
+  // ---- undo / redo ------------------------------------------------------
+  undo() {
+    if (!this.undoStack.length) return null;
+    this.redoStack.push(structuredClone(this.state));
+    this.state = this.undoStack.pop();
+    const s = this.#persist();
+    this.lastSnapshot = structuredClone(s);
+    return s;
+  }
+
+  redo() {
+    if (!this.redoStack.length) return null;
+    this.undoStack.push(structuredClone(this.state));
+    this.state = this.redoStack.pop();
+    const s = this.#persist();
+    this.lastSnapshot = structuredClone(s);
+    return s;
+  }
+
+  canUndo() {
+    return this.undoStack.length > 0;
+  }
+
+  canRedo() {
+    return this.redoStack.length > 0;
   }
 
   getState() {
@@ -442,8 +299,20 @@ export class Store {
     fail(`tile not found: ${tileId}`);
   }
 
+  // A normal mutation: record the pre-change snapshot for undo, then persist.
   #commit() {
-    // Revalidate the whole tree, then persist atomically with a backup.
+    if (this.lastSnapshot) {
+      this.undoStack.push(this.lastSnapshot);
+      if (this.undoStack.length > this.maxHistory) this.undoStack.shift();
+      this.redoStack = []; // a fresh change invalidates the redo branch
+    }
+    const s = this.#persist();
+    this.lastSnapshot = structuredClone(s);
+    return s;
+  }
+
+  // Validate the whole tree and write it atomically with a backup (no history).
+  #persist() {
     this.state = normalizeState(this.state);
     if (this.persist) {
       this.#backup();

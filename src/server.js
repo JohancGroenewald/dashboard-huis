@@ -56,6 +56,16 @@ app.post('/api/tiles/:id/move', wrap((req, res) =>
 // Persist grid layout (drag/resize) for many cards at once.
 app.post('/api/layout', wrap((req, res) => res.json(store.setLayouts(req.body.items || []))));
 
+// Undo / redo the last dashboard change(s).
+app.post('/api/undo', wrap((req, res) => {
+  const dashboard = store.undo() || store.getState();
+  res.json({ dashboard, canUndo: store.canUndo(), canRedo: store.canRedo() });
+}));
+app.post('/api/redo', wrap((req, res) => {
+  const dashboard = store.redo() || store.getState();
+  res.json({ dashboard, canUndo: store.canUndo(), canRedo: store.canRedo() });
+}));
+
 // ---- sticky notes --------------------------------------------------------
 app.post('/api/notes', wrap((req, res) => res.status(201).json(store.addNote(req.body))));
 app.patch('/api/notes/:id', wrap((req, res) => res.json(store.updateNote(req.params.id, req.body))));

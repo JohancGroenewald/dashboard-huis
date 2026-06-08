@@ -54,6 +54,7 @@ body {
   transition: border-color 0.15s, background 0.15s, transform 0.05s;
 }
 .ghost-btn:hover { border-color: var(--accent); }
+.ghost-btn:disabled { opacity: 0.4; cursor: default; }
 .ghost-btn:active, .chat-toggle:active { transform: translateY(1px); }
 .chat-toggle { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .chat-toggle:hover { background: var(--accent-2); }

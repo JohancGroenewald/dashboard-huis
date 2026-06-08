@@ -1,7 +1,7 @@
 // Gridstack grid: section group cards + sticky-note cards, drag/resize with
 // persisted layout, tile chips (click/delete/drag-between-sections), health.
 import { $, api, jsonBody, esc, NOTE_COLORS } from './util.js';
-import { state, onRender, loadDashboard } from './store.js';
+import { state, onRender, loadDashboard, setState } from './store.js';
 
 const gridEl = $('#board');
 let grid;
@@ -223,6 +223,26 @@ async function saveNote(id, patch) {
     if (n) Object.assign(n, updated);
   } catch (err) { console.error(err); }
 }
+
+// ---- undo / redo ----
+async function history(path) {
+  try {
+    const { dashboard, canUndo, canRedo } = await api(path, { method: 'POST' });
+    setState(dashboard);
+    $('#undo-btn').disabled = !canUndo;
+    $('#redo-btn').disabled = !canRedo;
+  } catch (err) { console.error(err); }
+}
+$('#undo-btn').addEventListener('click', () => history('/api/undo'));
+$('#redo-btn').addEventListener('click', () => history('/api/redo'));
+document.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey)) return;
+  const t = e.target;
+  if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return; // let inputs do their own undo
+  const k = e.key.toLowerCase();
+  if (k === 'z' && !e.shiftKey) { e.preventDefault(); history('/api/undo'); }
+  else if ((k === 'z' && e.shiftKey) || k === 'y') { e.preventDefault(); history('/api/redo'); }
+});
 
 onRender(renderGrid);
 arrangeLabel();
