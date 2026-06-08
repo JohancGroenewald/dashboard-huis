@@ -36,7 +36,6 @@ function setModel(m, ms) {
   activeModel = m;
   if (m) localStorage.setItem('dash-model', m); // remember the picked driver
   $('#model-btn-label').innerHTML = m ? `${esc(m)}${ms ? ` <span class="pill-badge">${speedTier(ms)} ~${fmtMs(ms)}</span>` : ''}` : 'no models';
-  $('#model-menu').classList.add('hidden');
 }
 
 function saveChat() {
@@ -59,7 +58,10 @@ export async function loadModels() {
         })
         .join('');
       menu.querySelectorAll('.mm-item').forEach((it) =>
-        it.addEventListener('click', () => setModel(it.dataset.model, details?.[it.dataset.model]?.msPerAction))
+        it.addEventListener('click', () => {
+          setModel(it.dataset.model, details?.[it.dataset.model]?.msPerAction);
+          menu.classList.add('hidden');
+        })
       );
       const saved = localStorage.getItem('dash-model');
       const pick = activeModel && approved.includes(activeModel) ? activeModel
@@ -260,7 +262,12 @@ $('#chat-toggle').addEventListener('click', () => $('#chat').classList.toggle('h
 $('#chat-close').addEventListener('click', () => $('#chat').classList.add('hidden'));
 
 const modelMenu = $('#model-menu');
-$('#model-btn').addEventListener('click', (e) => { e.stopPropagation(); modelMenu.classList.toggle('hidden'); });
+$('#model-btn').addEventListener('click', (e) => {
+  e.stopPropagation();
+  const opening = modelMenu.classList.contains('hidden');
+  modelMenu.classList.toggle('hidden');
+  if (opening) loadModels(); // refresh so the list reflects current approvals/retirements
+});
 
 const closeOtherDropdowns = (keep) =>
   document.querySelectorAll('.topbar .dropdown-menu').forEach((m) => { if (m.id !== keep) m.classList.add('hidden'); });
