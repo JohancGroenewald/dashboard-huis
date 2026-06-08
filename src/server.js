@@ -55,6 +55,10 @@ app.delete('/api/sections/:id', wrap((req, res) => res.json(store.removeSection(
 
 app.post('/api/sections/:id/move', wrap((req, res) => res.json(store.moveSection(req.params.id, req.body.position))));
 
+// Collapse/expand: one section, or all in the active workspace.
+app.post('/api/sections/collapse', wrap((req, res) => res.json(store.setAllCollapsed(req.body.collapsed))));
+app.post('/api/sections/:id/collapse', wrap((req, res) => res.json(store.setSectionCollapsed(req.params.id, req.body.collapsed))));
+
 app.post('/api/sections/:id/tiles', wrap((req, res) => res.status(201).json(store.addTile(req.params.id, req.body))));
 app.patch('/api/tiles/:id', wrap((req, res) => res.json(store.updateTile(req.params.id, req.body))));
 app.delete('/api/tiles/:id', wrap((req, res) => res.json(store.removeTile(req.params.id))));

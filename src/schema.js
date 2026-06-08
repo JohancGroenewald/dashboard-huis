@@ -106,6 +106,7 @@ export function normalizeSection(raw) {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     name: checkString(raw.name, 'section.name', { max: 120 }),
     workspaceId: checkString(raw.workspaceId, 'section.workspaceId', { required: false, max: 100 }),
+    collapsed: Boolean(raw.collapsed),
     layout: normalizeLayout(raw.layout),
     tiles: tiles.map(normalizeTile),
   };

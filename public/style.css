@@ -224,6 +224,11 @@ body[data-ws="models"] .dashboard-only { display: none; }
 .sec-tiles { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; align-content: start; border-radius: 8px; }
 .sec-tiles.drop { outline: 2px dashed var(--accent); outline-offset: -2px; }
 .sec-empty { color: var(--muted); font-size: 12.5px; font-style: italic; grid-column: 1 / -1; padding: 16px 4px; text-align: center; }
+.sec-collapse { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; padding: 0 2px; line-height: 1; }
+.sec-collapse:hover { color: var(--text); }
+.sec-count { color: var(--muted); font-size: 11px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 0 7px; }
+.section-card.collapsed .sec-head { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.section-card.collapsed .sec-tiles { display: none; }
 .tile-chip {
   position: relative; display: flex; align-items: center; gap: 9px;
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;

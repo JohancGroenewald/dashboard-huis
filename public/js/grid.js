@@ -28,7 +28,12 @@ function persistLayout() {
   if (rendering) return;
   clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
-    const items = grid.save(false).map((n) => ({ id: n.id, x: n.x, y: n.y, w: n.w, h: n.h }));
+    const items = grid.save(false).map((n) => {
+      // A collapsed section is rendered at h=1; keep its real (expanded) height
+      // so it restores correctly when expanded.
+      const sec = state.sections.find((s) => s.id === n.id);
+      return { id: n.id, x: n.x, y: n.y, w: n.w, h: sec?.collapsed ? (sec.layout?.h || 4) : n.h };
+    });
     api('/api/layout', jsonBody({ items })).catch(() => {});
   }, 400);
 }
@@ -70,10 +75,13 @@ function tileChip(tile) {
 
 function sectionInner(section) {
   const tiles = section.tiles.map(tileChip).join('') || '<div class="sec-empty">No tiles — ＋ to add, or drop one here</div>';
-  return `<div class="card section-card" data-id="${section.id}">
+  const n = section.tiles.length;
+  return `<div class="card section-card${section.collapsed ? ' collapsed' : ''}" data-id="${section.id}">
     <div class="sec-head">
+      <button class="sec-collapse" title="${section.collapsed ? 'Expand' : 'Collapse'} section">${section.collapsed ? '▸' : '▾'}</button>
       <span class="card-grip" title="Drag section">⠿</span>
       <span class="sec-name" title="Click to rename">${esc(section.name)}</span>
+      ${section.collapsed && n ? `<span class="sec-count" title="${n} tile(s)">${n}</span>` : ''}
       <button class="sec-attach" title="Attach to chat">📎</button>
       <button class="sec-add" title="Add tile to this section">＋</button>
       <button class="sec-del" title="Delete section">✕</button>
@@ -112,8 +120,18 @@ function renderGrid() {
   const notes = state.notes.filter((n) => n.workspaceId === ws);
   $('#empty-hint').classList.toggle('hidden', sections.length + notes.length > 0);
 
+  const cab = $('#collapse-all');
+  if (cab) {
+    const allCollapsed = sections.length > 0 && sections.every((s) => s.collapsed);
+    cab.textContent = allCollapsed ? '⊞ Expand all' : '⊟ Collapse all';
+    cab.classList.toggle('hidden', sections.length === 0);
+  }
+
   for (const section of sections) {
-    const el = widgetEl(section.id, section.layout || {}, 4, 4, sectionInner(section));
+    // Collapsed sections render at a single header row; their stored layout.h
+    // (the expanded height) is preserved by persistLayout for when they reopen.
+    const layout = section.collapsed ? { ...(section.layout || {}), h: 1 } : (section.layout || {});
+    const el = widgetEl(section.id, layout, 4, 4, sectionInner(section));
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireSection(el, section);
@@ -153,6 +171,11 @@ function renderHidden() {
 }
 
 function wireSection(el, section) {
+  el.querySelector('.sec-collapse').addEventListener('click', async (e) => {
+    e.stopPropagation();
+    await api(`/api/sections/${section.id}/collapse`, jsonBody({ collapsed: !section.collapsed }));
+    await loadDashboard();
+  });
   el.querySelector('.sec-name').addEventListener('click', async () => {
     const name = prompt('Rename section:', section.name);
     if (name && name.trim() && name !== section.name) {
@@ -299,6 +322,12 @@ onRender(renderGrid);
 arrangeLabel();
 $('#section-add').addEventListener('click', addSection);
 $('#note-add').addEventListener('click', addNote);
+// Collapse all if any section is open, otherwise expand all (active workspace).
+$('#collapse-all').addEventListener('click', async () => {
+  const secs = state.sections.filter((s) => s.workspaceId === state.activeWorkspaceId);
+  const anyExpanded = secs.some((s) => !s.collapsed);
+  setState(await api('/api/sections/collapse', jsonBody({ collapsed: anyExpanded })));
+});
 $('#arrange-toggle').addEventListener('click', () => {
   autoArrange = !autoArrange;
   localStorage.setItem('dash-autoarrange', autoArrange ? '1' : '0');

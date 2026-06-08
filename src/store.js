@@ -203,6 +203,24 @@ export class Store {
     return structuredClone(removed);
   }
 
+  // Collapse/expand sections. View state: persisted so it survives reloads, but
+  // not undoable and no backup (like switching the active workspace) — so a
+  // "collapse all" doesn't spam history or the backup directory.
+  setSectionCollapsed(id, collapsed) {
+    const s = this.#section(id);
+    s.collapsed = Boolean(collapsed);
+    this.#persist({ backup: false });
+    this.lastSnapshot = structuredClone(this.state);
+    return structuredClone(s);
+  }
+
+  setAllCollapsed(collapsed, workspaceId = this.state.activeWorkspaceId) {
+    for (const s of this.state.sections) if (s.workspaceId === workspaceId) s.collapsed = Boolean(collapsed);
+    this.#persist({ backup: false });
+    this.lastSnapshot = structuredClone(this.state);
+    return this.getState();
+  }
+
   moveSection(id, toIndex) {
     const idx = this.state.sections.findIndex((s) => s.id === id);
     if (idx === -1) fail(`section not found: ${id}`);
