@@ -247,11 +247,13 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
   return {
     get_dashboard: () => {
       const s = store.getState();
+      // layout = { x, y, w, h } grid cells (w×h is the card's size). Empty = auto.
       return {
         title: s.title,
         sections: s.sections.map((sec) => ({
           id: sec.id,
           name: sec.name,
+          layout: sec.layout,
           tiles: sec.tiles.map((t) => ({
             id: t.id,
             name: t.name,
@@ -259,7 +261,7 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
             ...(t.description ? { description: t.description } : {}),
           })),
         })),
-        notes: s.notes.map((n) => ({ id: n.id, text: n.text })),
+        notes: s.notes.map((n) => ({ id: n.id, text: n.text, color: n.color, layout: n.layout })),
         featureRequests: s.featureRequests.map((f) => ({ id: f.id, title: f.title, status: f.status })),
       };
     },

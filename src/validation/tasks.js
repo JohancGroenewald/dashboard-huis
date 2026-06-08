@@ -119,6 +119,27 @@ export const tasks = [
     },
   },
   {
+    id: 'size-awareness',
+    category: 'robustness',
+    // The model must READ the card's current size (now exposed as layout w×h in
+    // get_dashboard/search_dashboard) instead of hallucinating it: double the
+    // width, keep the height. Seeded note is 3 wide × 2 tall → expect 6 × 2.
+    prompt: 'The sticky note that says "Backups" has a current size. Double its width but keep its height the same.',
+    seed: () => ({
+      title: 'Test',
+      sections: [{ name: 'Servers', tiles: [{ name: 'Pi-hole', url: 'http://pihole.huis/admin' }] }],
+      notes: [{ text: 'Backups', color: '#a0e7a0', layout: { x: 0, y: 0, w: 3, h: 2 } }],
+    }),
+    check: ({ state }) => {
+      const note = state.notes.find((n) => n.text === 'Backups');
+      const l = note?.layout || {};
+      return {
+        pass: l.w === 6 && l.h === 2,
+        reason: `width ${l.w} (expected 6 = 2×3), height ${l.h} (expected 2 unchanged)`,
+      };
+    },
+  },
+  {
     id: 'rename-section',
     category: 'robustness',
     prompt: 'Rename the "Servers" section to "Compute".',

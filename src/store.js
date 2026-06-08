@@ -236,7 +236,7 @@ export class Store {
     if (!tokens.length) return [];
     const items = [];
     for (const sec of this.state.sections) {
-      items.push({ type: 'section', id: sec.id, label: sec.name, _hay: `section ${sec.name}` });
+      items.push({ type: 'section', id: sec.id, label: sec.name, layout: sec.layout, _hay: `section ${sec.name}` });
       for (const t of sec.tiles) {
         items.push({
           type: 'tile', id: t.id, label: t.name, url: t.url, section: sec.name,
@@ -247,7 +247,7 @@ export class Store {
     for (const n of this.state.notes) {
       const color = colorName(n.color);
       items.push({
-        type: 'note', id: n.id, color, label: (n.text || '').slice(0, 50) || '(empty note)',
+        type: 'note', id: n.id, color, label: (n.text || '').slice(0, 50) || '(empty note)', layout: n.layout,
         _hay: `note ${color} ${n.text || ''}`,
       });
     }
