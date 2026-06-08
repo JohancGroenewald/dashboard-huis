@@ -99,7 +99,7 @@ function normalizeNote(raw) {
   if (!isPlainObject(raw)) fail('note must be an object');
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    text: checkString(raw.text, 'note.text', { max: 2000 }),
+    text: checkString(raw.text, 'note.text', { required: false, max: 2000 }),
     color: checkString(raw.color, 'note.color', { required: false, max: 30 }),
     layout: normalizeLayout(raw.layout),
     createdAt: raw.createdAt || new Date().toISOString(),
@@ -288,6 +288,15 @@ export class Store {
   replaceState(state) {
     this.state = normalizeState(state);
     return this.#commit();
+  }
+
+  // Resize/move a single card (section or note) by merging into its layout.
+  resizeCard(id, dims) {
+    const target = this.state.sections.find((s) => s.id === id) || this.state.notes.find((n) => n.id === id);
+    if (!target) fail(`card not found: ${id}`);
+    target.layout = normalizeLayout({ ...target.layout, ...dims });
+    this.#commit();
+    return structuredClone(target.layout);
   }
 
   // Persist grid positions for many cards (tiles or notes) in one write.

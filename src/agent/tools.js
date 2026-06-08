@@ -179,6 +179,23 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'resize_card',
+      description:
+        'Resize a card on the dashboard grid — a section or a sticky note — by setting its width and height in grid cells. The grid is 12 columns wide.',
+      parameters: {
+        type: 'object',
+        properties: {
+          card: { type: 'string', description: 'Section id or name, or a note id.' },
+          w: { type: 'integer', description: 'Width in grid columns (1–12).' },
+          h: { type: 'integer', description: 'Height in grid rows (1 or more).' },
+        },
+        required: ['card', 'w', 'h'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'request_feature',
       description:
         'File a feature request for the dashboard maintainers. Use this when the user asks for something you cannot do with your current tools, instead of refusing or pretending.',
@@ -273,6 +290,16 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
     update_note: ({ note_id, ...patch }) => ({ updated: store.updateNote(note_id, patch) }),
 
     remove_note: ({ note_id }) => ({ removed: store.removeNote(note_id) }),
+
+    resize_card: ({ card, w, h }) => {
+      const s = store.getState();
+      const sec =
+        s.sections.find((x) => x.id === card) ||
+        s.sections.find((x) => x.name.toLowerCase() === String(card).toLowerCase());
+      const id = sec ? sec.id : s.notes.find((n) => n.id === card)?.id;
+      if (!id) throw new Error(`no section or note matching "${card}"`);
+      return { resized: store.resizeCard(id, { w, h }) };
+    },
 
     request_feature: ({ title, detail }) => ({
       filed: store.addFeatureRequest({ title, detail, requestedBy, status: 'open' }),

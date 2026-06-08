@@ -9,6 +9,7 @@ import { Store } from './store.js';
 import { HealthMonitor } from './health.js';
 import { Ollama } from './ollama.js';
 import { runAgent } from './agent/agent.js';
+import { toolSpecs } from './agent/tools.js';
 import { listApproved, isApproved, listResults, listSupervised, listDelegated, listParallel } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -68,6 +69,18 @@ app.delete('/api/feature-requests/:id', wrap((req, res) => res.json(store.remove
 
 // ---- health --------------------------------------------------------------
 app.get('/api/health', (req, res) => res.json(health.getStatuses()));
+
+// ---- agent abilities (the tools the model can call) ----------------------
+app.get('/api/abilities', (req, res) =>
+  res.json(
+    toolSpecs.map((t) => ({
+      name: t.function.name,
+      description: t.function.description,
+      params: Object.keys(t.function.parameters?.properties || {}),
+      required: t.function.parameters?.required || [],
+    }))
+  )
+);
 
 // ---- models & agent ------------------------------------------------------
 app.get('/api/models', wrap(async (req, res) => {
