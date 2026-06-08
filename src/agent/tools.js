@@ -179,6 +179,19 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'search_dashboard',
+      description:
+        'Find dashboard items by a free-text query like "the green note", "grafana", or "monitoring". Matches names, note text, note colour, URLs, descriptions, and section. Returns ranked matches with their ids and type — use it to resolve a vague reference before updating, moving, resizing, or removing something, instead of guessing an id.',
+      parameters: {
+        type: 'object',
+        properties: { query: { type: 'string', description: 'What to look for, e.g. "green note".' } },
+        required: ['query'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'resize_card',
       description:
         'Resize a card on the dashboard grid — a section or a sticky note — by setting its width and height in grid cells. The grid is 12 columns wide.',
@@ -290,6 +303,8 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
     update_note: ({ note_id, ...patch }) => ({ updated: store.updateNote(note_id, patch) }),
 
     remove_note: ({ note_id }) => ({ removed: store.removeNote(note_id) }),
+
+    search_dashboard: ({ query }) => ({ matches: store.search(query) }),
 
     resize_card: ({ card, w, h }) => {
       const s = store.getState();

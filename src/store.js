@@ -57,6 +57,20 @@ function normalizeHealth(h) {
   };
 }
 
+// Map the note palette hexes to colour words so "green note" is searchable.
+const NOTE_COLOR_NAMES = {
+  '#f6d365': 'yellow',
+  '#a0e7a0': 'green',
+  '#9bd0ff': 'blue',
+  '#ffb3c1': 'pink',
+  '#e0c3fc': 'purple',
+};
+function colorName(c) {
+  if (!c) return '';
+  const lc = String(c).toLowerCase();
+  return NOTE_COLOR_NAMES[lc] || lc.replace('#', '');
+}
+
 // Grid layout for a card: { x, y, w, h } in grid cells. Empty = auto-place.
 function normalizeLayout(raw) {
   if (!isPlainObject(raw)) return {};
@@ -212,6 +226,42 @@ export class Store {
 
   getState() {
     return structuredClone(this.state);
+  }
+
+  // Free-text search across tiles, sections, and notes. Returns ranked matches
+  // (by number of query words found) with ids, so the agent can resolve fuzzy
+  // references like "the green note" or "grafana" before acting.
+  search(query) {
+    const tokens = String(query || '').toLowerCase().split(/\W+/).filter(Boolean);
+    if (!tokens.length) return [];
+    const items = [];
+    for (const sec of this.state.sections) {
+      items.push({ type: 'section', id: sec.id, label: sec.name, _hay: `section ${sec.name}` });
+      for (const t of sec.tiles) {
+        items.push({
+          type: 'tile', id: t.id, label: t.name, url: t.url, section: sec.name,
+          _hay: `tile ${t.name} ${t.description || ''} ${t.url} ${sec.name}`,
+        });
+      }
+    }
+    for (const n of this.state.notes) {
+      const color = colorName(n.color);
+      items.push({
+        type: 'note', id: n.id, color, label: (n.text || '').slice(0, 50) || '(empty note)',
+        _hay: `note ${color} ${n.text || ''}`,
+      });
+    }
+    return items
+      .map((it) => {
+        const hay = it._hay.toLowerCase();
+        let score = 0;
+        for (const tk of tokens) if (hay.includes(tk)) score++;
+        const { _hay, ...rest } = it;
+        return { ...rest, score };
+      })
+      .filter((m) => m.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
   }
 
   // ---- mutations --------------------------------------------------------
