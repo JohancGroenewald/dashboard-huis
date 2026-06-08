@@ -5,6 +5,7 @@ import { setState } from './store.js';
 
 const chatLog = $('#chat-log');
 const history = [];
+const SESSION = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
 let activeModel = '';
 
 function setModel(m, ms) {
@@ -130,7 +131,7 @@ async function sendChat(text) {
   const btn = $('#chat-form button');
   btn.disabled = true;
   try {
-    const data = await api('/api/agent/chat', jsonBody({ model: activeModel, messages: history }));
+    const data = await api('/api/agent/chat', jsonBody({ model: activeModel, messages: history, session: SESSION }));
     pending.remove();
     addMsg('assistant', data.reply || '(no reply)', data.trace);
     history.push({ role: 'assistant', content: data.reply || '' });

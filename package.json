@@ -19,7 +19,8 @@
     "lint:html": "htmlhint public/index.html",
     "lint:json": "node scripts/check-json.mjs",
     "check-loc": "node scripts/check-loc.mjs",
-    "prepare": "git config core.hooksPath .githooks || true"
+    "prepare": "git config core.hooksPath .githooks || true",
+    "logs": "node src/chatlog-cli.js"
   },
   "keywords": [],
   "author": "",

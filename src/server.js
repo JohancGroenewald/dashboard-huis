@@ -10,6 +10,7 @@ import { HealthMonitor } from './health.js';
 import { Ollama } from './ollama.js';
 import { runAgent } from './agent/agent.js';
 import { toolSpecs } from './agent/tools.js';
+import { logTurn } from './chatlog.js';
 import { listApproved, isApproved, listResults, listSupervised, listDelegated, listParallel } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -101,8 +102,9 @@ app.get('/api/models', wrap(async (req, res) => {
 }));
 
 // Chat with the agent. Refuses any model not on the validated allowlist.
+// Every turn is logged in full to data/chatlog.db (see `npm run logs`).
 app.post('/api/agent/chat', wrap(async (req, res) => {
-  const { model, messages } = req.body || {};
+  const { model, messages, session } = req.body || {};
   if (!model) return res.status(400).json({ error: 'model is required' });
   if (!Array.isArray(messages) || !messages.length) {
     return res.status(400).json({ error: 'messages[] is required' });
@@ -112,13 +114,21 @@ app.post('/api/agent/chat', wrap(async (req, res) => {
       error: `"${model}" has not passed pre-validation. Run: npm run validate -- "${model}"`,
     });
   }
-  const result = await runAgent({ model, store, messages, ollama });
-  res.json({
-    reply: result.reply,
-    trace: result.trace,
-    steps: result.steps,
-    dashboard: store.getState(), // so the UI can refresh after agent edits
-  });
+  const started = Date.now();
+  const userMsg = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+  try {
+    const result = await runAgent({ model, store, messages, ollama });
+    logTurn({ session, model, userMsg, messages, reply: result.reply, trace: result.trace, steps: result.steps, ms: Date.now() - started });
+    res.json({
+      reply: result.reply,
+      trace: result.trace,
+      steps: result.steps,
+      dashboard: store.getState(), // so the UI can refresh after agent edits
+    });
+  } catch (err) {
+    logTurn({ session, model, userMsg, messages, ms: Date.now() - started, error: err.message });
+    throw err;
+  }
 }));
 
 app.use(express.static(config.publicDir));
