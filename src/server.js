@@ -130,6 +130,33 @@ app.get('/api/models', wrap(async (req, res) => {
   });
 }));
 
+// Derive contextual follow-up chips from what the agent just did. Prefers the
+// model's own suggest_followups; otherwise maps the last action to next steps.
+const MUTATING = new Set([
+  'add_tile', 'add_section', 'add_note', 'update_tile', 'update_note', 'rename_section',
+  'remove_tile', 'remove_section', 'remove_note', 'move_tile', 'move_section', 'resize_card',
+]);
+function followupsFromTrace(trace = []) {
+  const sf = [...trace].reverse().find((t) => t.ok && t.name === 'suggest_followups');
+  if (sf) return (sf.result?.suggestions || sf.args?.suggestions || []).slice(0, 4);
+  const last = [...trace].reverse().find((t) => t.ok && MUTATING.has(t.name));
+  switch (last?.name) {
+    case 'add_tile': return ['Add another tile', 'Resize the section', 'Add a note'];
+    case 'add_section': return ['Add a tile to it', 'Rename the section', 'Add another section'];
+    case 'add_note': return ['Change its colour', 'Make it bigger', 'Add another note'];
+    case 'resize_card': return ['Make it bigger', 'Make it smaller', 'Move it'];
+    case 'remove_tile':
+    case 'remove_section':
+    case 'remove_note': return ['Undo that', 'Add something new'];
+    case 'update_tile':
+    case 'update_note':
+    case 'rename_section': return ['Undo that', 'Edit another'];
+    case 'move_tile':
+    case 'move_section': return ['Move another', 'Undo that'];
+    default: return ['Add a tile', 'Add a note'];
+  }
+}
+
 // Chat with the agent. Refuses any model not on the validated allowlist.
 // Every turn is logged in full to data/chatlog.db (see `npm run logs`).
 app.post('/api/agent/chat', wrap(async (req, res) => {
@@ -152,6 +179,7 @@ app.post('/api/agent/chat', wrap(async (req, res) => {
       reply: result.reply,
       trace: result.trace,
       steps: result.steps,
+      followups: followupsFromTrace(result.trace),
       dashboard: store.getState(), // so the UI can refresh after agent edits
     });
   } catch (err) {

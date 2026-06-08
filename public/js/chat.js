@@ -152,9 +152,26 @@ function renderChoices(choices) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+function renderFollowups(items) {
+  if (!items.length) return;
+  const row = document.createElement('div');
+  row.className = 'followups-row';
+  for (const s of items) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'followup-chip';
+    b.textContent = s;
+    // Pre-fill the composer (let the user tweak before sending).
+    b.addEventListener('click', () => { const i = $('#chat-input'); i.value = s; i.dispatchEvent(new Event('input')); i.focus(); });
+    row.appendChild(b);
+  }
+  chatLog.appendChild(row);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
 async function sendChat(text) {
   if (!activeModel) return addMsg('error', 'No validated model selected.');
-  document.querySelectorAll('.choices-row').forEach((r) => r.remove()); // clear stale choice buttons
+  document.querySelectorAll('.choices-row, .followups-row').forEach((r) => r.remove()); // clear stale chips
   inputHistory.push(text);
   histIdx = -1;
   history.push({ role: 'user', content: text });
@@ -171,6 +188,7 @@ async function sendChat(text) {
     saveChat();
     const choiceCall = (data.trace || []).find((t) => t.ok && t.name === 'offer_choices');
     if (choiceCall) renderChoices(choiceCall.result?.offered || choiceCall.args?.choices || []);
+    if (data.followups) renderFollowups(data.followups);
     if (data.dashboard) setState(data.dashboard);
   } catch (err) {
     pending.remove();

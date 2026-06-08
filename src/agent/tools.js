@@ -209,6 +209,21 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'suggest_followups',
+      description:
+        'Optionally offer 2–4 short follow-up actions the user might want next (e.g. "Add another tile", "Make it wider"). Shown as dismissable chips under your reply; clicking one pre-fills their input to edit and send. Use sparingly, only when there are obvious next steps.',
+      parameters: {
+        type: 'object',
+        properties: {
+          suggestions: { type: 'array', items: { type: 'string' }, description: '2–4 short next-step suggestions.' },
+        },
+        required: ['suggestions'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'offer_choices',
       description:
         'Offer the user a few clickable choices (e.g. ["Yes","No"]) when you need a decision or confirmation. Put the question in your reply text and pass the options here; the user clicks one and it becomes their next message. Prefer this over asking them to type for yes/no or either/or questions.',
@@ -333,9 +348,13 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       return { resized: store.resizeCard(id, { w, h }) };
     },
 
-    // UI-only: surfaces clickable buttons in the chat (no state change).
+    // UI-only: surface clickable buttons/chips in the chat (no state change).
     offer_choices: ({ choices }) => ({
       offered: Array.isArray(choices) ? choices.slice(0, 6).map((c) => String(c)) : [],
+    }),
+
+    suggest_followups: ({ suggestions }) => ({
+      suggestions: Array.isArray(suggestions) ? suggestions.slice(0, 4).map((s) => String(s)) : [],
     }),
 
     request_feature: ({ title, detail }) => ({
