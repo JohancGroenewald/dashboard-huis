@@ -143,6 +143,7 @@ function noteInner(note) {
   const style = `background:${esc(note.color || NOTE_COLORS[0])}${note.textColor ? `;color:${esc(note.textColor)}` : ''}${note.bold ? ';font-weight:700' : ''}`;
   return `<div class="card note-card" data-id="${note.id}" style="${style}">
     <span class="card-grip" title="Drag">⠿</span>
+    <button class="note-hide" title="Hide note">🙈</button>
     <textarea placeholder="Write a note…">${esc(note.text)}</textarea>
     <div class="note-bar">
       <div class="swatches">${bg}</div>
@@ -150,7 +151,6 @@ function noteInner(note) {
       <span class="note-spacer"></span>
       <button class="note-bold${note.bold ? ' on' : ''}" title="Bold text">B</button>
       <button class="note-attach" title="Attach to chat">📎</button>
-      <button class="note-hide" title="Hide note">🙈</button>
       <button class="note-del" title="Delete note">✕</button>
     </div>
   </div>`;
@@ -188,7 +188,7 @@ function renderGrid() {
       // Hidden notes leave a faint, dashed-outline placeholder at the note's own
       // size (same defaults as a real note) with the see-no-evil monkey — click
       // to restore.
-      const el = widgetEl(note.id, note.layout || {}, 3, 3, '<div class="note-ghost" title="Hidden note — click to show">🙈</div>');
+      const el = widgetEl(note.id, note.layout || {}, 3, 3, '<div class="note-ghost" title="Hidden note — click to show"><span class="ghost-eye">🙈</span></div>');
       gridEl.appendChild(el);
       grid.makeWidget(el);
       el.querySelector('.note-ghost').addEventListener('click', async () => {

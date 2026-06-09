@@ -103,7 +103,7 @@ body[data-ws="requests"] .dashboard-only { display: none; }
 }
 
 /* Hidden-note ghost placeholder */
-.note-ghost { height: 100%; border: 2px dashed var(--border); border-radius: var(--radius); cursor: pointer; opacity: 0.5; transition: opacity 0.15s, border-color 0.15s; display: flex; align-items: flex-end; justify-content: flex-end; padding: 0 26px 9px 0; font-size: 12px; line-height: 1; }
+.note-ghost { position: relative; height: 100%; border: 2px dashed var(--border); border-radius: var(--radius); cursor: pointer; opacity: 0.5; transition: opacity 0.15s, border-color 0.15s; }
 .note-ghost:hover { opacity: 0.95; border-color: var(--accent); }
 
 /* Requests workspace layout */
@@ -275,6 +275,9 @@ body[data-ws="requests"] .dashboard-only { display: none; }
 .note-bar .note-del:hover { color: #a11; }
 .note-bar .note-bold { font-weight: 700; }
 .note-bar .note-bold.on { color: #000; text-decoration: underline; }
+/* Hide control: fixed top-right on the note (and the same spot on the ghost). */
+.note-card .note-hide, .note-ghost .ghost-eye { position: absolute; top: 6px; right: 8px; font-size: 13px; line-height: 1; }
+.note-card .note-hide { background: none; border: 0; padding: 0; cursor: pointer; z-index: 2; }
 
 /* Section group card */
 .section-card { padding: 10px; }
