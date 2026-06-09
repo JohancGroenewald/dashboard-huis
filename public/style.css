@@ -326,19 +326,23 @@ body[data-ws="requests"] .dashboard-only { display: none; }
 .chip-del:hover { color: var(--down); opacity: 1; }
 .chip-attach:hover, .chip-bold:hover { color: var(--accent); opacity: 1; }
 
-/* Gridstack resize grip — diagonal lines in the bottom-right corner */
+/* Gridstack resize grip — two nested rounded chevrons pointing south-east */
 .grid-stack-item > .ui-resizable-se {
   width: 20px; height: 20px; right: 1px; bottom: 1px;
   background-image: none; opacity: 0.4; transition: opacity 0.15s;
 }
+.grid-stack-item > .ui-resizable-se::before,
 .grid-stack-item > .ui-resizable-se::after {
-  content: ''; position: absolute; right: 3px; bottom: 3px; width: 13px; height: 13px;
-  background: repeating-linear-gradient(-45deg, var(--muted) 0 1.5px, transparent 1.5px 4px);
-  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+  content: ''; position: absolute; right: 3px; bottom: 3px;
+  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  border-bottom-right-radius: 4px;
 }
+.grid-stack-item > .ui-resizable-se::after { width: 5px; height: 5px; }
+.grid-stack-item > .ui-resizable-se::before { width: 11px; height: 11px; }
 .grid-stack-item:hover > .ui-resizable-se { opacity: 0.85; }
 .grid-stack-item > .ui-resizable-se:hover { opacity: 1; }
-.grid-stack-item > .ui-resizable-se:hover::after { background: repeating-linear-gradient(-45deg, var(--accent-2) 0 1.5px, transparent 1.5px 4px); }
+.grid-stack-item > .ui-resizable-se:hover::before,
+.grid-stack-item > .ui-resizable-se:hover::after { border-color: var(--accent-2); }
 .grid-stack.locked .ui-resizable-handle { display: none !important; }
 
 /* ---- Side panels (chat + feature requests) ---- */
