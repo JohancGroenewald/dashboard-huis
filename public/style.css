@@ -333,6 +333,7 @@ body[data-ws="requests"] .dashboard-only { display: none; }
 .grid-stack-item > .ui-resizable-se {
   width: 26px; height: 26px; right: 0; bottom: 0;
   background-image: none; opacity: 0.45; transition: opacity 0.15s;
+  transform: none;
 }
 .grid-stack-item > .ui-resizable-se::before {
   content: ''; position: absolute; right: 5px; bottom: 5px;
