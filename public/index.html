@@ -14,24 +14,22 @@
         <h1 id="title">Dashboard</h1>
         <nav id="ws-tabs" class="ws-tabs"></nav>
       </div>
+      <div class="topbar-search">
+        <input id="search-input" type="search" placeholder="Search the dashboard…  (press /)" autocomplete="off" />
+        <div id="search-results" class="search-results hidden"></div>
+      </div>
       <div class="topbar-right">
         <button id="undo-btn" class="ghost-btn dashboard-only" title="Undo (Ctrl+Z)">↶</button>
         <button id="redo-btn" class="ghost-btn dashboard-only" title="Redo (Ctrl+Shift+Z)">↷</button>
         <span id="clock" class="clock"></span>
-        <button id="section-add" class="ghost-btn dashboard-only" title="Add a section">＋ Section</button>
-        <button id="note-add" class="ghost-btn dashboard-only" title="Add a sticky note">📝 Note</button>
-        <div class="dropdown dashboard-only">
-          <button id="hidden-toggle" class="ghost-btn hidden" title="Hidden notes">🙈 Hidden 0</button>
-          <div id="hidden-menu" class="dropdown-menu hidden"></div>
-        </div>
         <button id="collapse-all" class="ghost-btn dashboard-only" title="Collapse or expand all sections">⊟ Collapse all</button>
+        <button id="snap-toggle" class="ghost-btn dashboard-only" title="Show grid guides (cards always snap to the grid)">⊞ Grid: off</button>
         <button id="arrange-toggle" class="ghost-btn dashboard-only" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
         <button id="edit-toggle" class="ghost-btn dashboard-only" title="Lock / unlock the layout">🔓 Edit</button>
         <div class="dropdown">
           <button id="logs-toggle" class="ghost-btn" title="Conversation log">🧾 Logs ▾</button>
           <div id="logs-menu" class="dropdown-menu hidden"></div>
         </div>
-        <button id="fr-toggle" class="ghost-btn" title="Feature requests">🗒️ Requests<span id="fr-count" class="badge hidden">0</span></button>
         <button id="chat-toggle" class="chat-toggle" title="Open assistant">💬 Assistant</button>
       </div>
     </header>
@@ -39,25 +37,21 @@
     <main class="board-wrap">
       <section id="ws-dashboard" class="workspace">
         <div id="board" class="grid-stack"></div>
-        <p id="empty-hint" class="empty-hint hidden">Nothing here yet — add a tile, a note, or ask the assistant.</p>
+        <p id="empty-hint" class="empty-hint hidden">Nothing here yet — ask the assistant to add tiles, sections, or notes.</p>
       </section>
       <section id="ws-models" class="workspace hidden"></section>
       <section id="ws-abilities" class="workspace hidden"></section>
+      <section id="ws-requests" class="workspace hidden">
+        <div class="fr-wrap">
+          <form id="fr-form" class="fr-form">
+            <input id="fr-title" type="text" placeholder="Request a feature…" autocomplete="off" />
+            <textarea id="fr-detail" rows="2" placeholder="Details (optional)"></textarea>
+            <button type="submit">Add request</button>
+          </form>
+          <div id="fr-list" class="fr-list"></div>
+        </div>
+      </section>
     </main>
-
-    <!-- Feature request queue -->
-    <aside id="fr-panel" class="side-panel left hidden">
-      <div class="side-head">
-        <strong>Feature requests</strong>
-        <button id="fr-close" class="icon-btn" title="Close">✕</button>
-      </div>
-      <form id="fr-form" class="fr-form">
-        <input id="fr-title" type="text" placeholder="Request a feature…" autocomplete="off" />
-        <textarea id="fr-detail" rows="2" placeholder="Details (optional)"></textarea>
-        <button type="submit">Add request</button>
-      </form>
-      <div id="fr-list" class="fr-list"></div>
-    </aside>
 
     <!-- Assistant — a floating, draggable, resizable window -->
     <aside id="chat" class="side-panel assistant hidden">

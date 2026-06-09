@@ -38,7 +38,7 @@ function renderTabs() {
     .join('');
   const add = '<button type="button" class="ws-add" title="New workspace">＋</button>';
   const sys = systemWorkspaces
-    .map((w) => `<button type="button" class="ws-tab ws-system${viewing === w.id ? ' active' : ''}" data-ws="${esc(w.id)}" data-kind="system">${w.label}</button>`)
+    .map((w) => `<button type="button" class="ws-tab ws-system${viewing === w.id ? ' active' : ''}" data-ws="${esc(w.id)}" data-kind="system">${typeof w.label === 'function' ? w.label() : w.label}</button>`)
     .join('');
   $('#ws-tabs').innerHTML = content + add + sys;
 }
@@ -62,6 +62,14 @@ function showContent(id) {
   viewing = 'board';
   persistView();
   if (id && id !== state.activeWorkspaceId) switchWorkspace(id); // setState → refresh via onRender
+  else refresh();
+}
+
+// Show the board for a given workspace (used by global search to jump to a find).
+export async function showBoardWorkspace(id) {
+  viewing = 'board';
+  persistView();
+  if (id && id !== state.activeWorkspaceId) await switchWorkspace(id);
   else refresh();
 }
 

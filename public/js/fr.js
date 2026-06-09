@@ -1,16 +1,13 @@
-// Feature-request queue panel.
+// Feature-request queue — its own workspace (🗒️ Requests tab).
 import { $, api, jsonBody, esc } from './util.js';
 import { state, onRender, loadDashboard } from './store.js';
 
 const FR_STATUSES = ['open', 'planned', 'done', 'rejected'];
 
-function renderFR() {
+export function renderFR() {
   const list = $('#fr-list');
+  if (!list) return;
   const frs = state.featureRequests;
-  const open = frs.filter((f) => f.status === 'open').length;
-  const badge = $('#fr-count');
-  badge.textContent = open;
-  badge.classList.toggle('hidden', open === 0);
   if (!frs.length) {
     list.innerHTML = '<p class="empty">No requests yet. Ask the assistant for something it can\'t do — it\'ll file one here.</p>';
     return;
@@ -33,8 +30,6 @@ function renderFR() {
 }
 
 onRender(renderFR);
-$('#fr-toggle').addEventListener('click', () => $('#fr-panel').classList.toggle('hidden'));
-$('#fr-close').addEventListener('click', () => $('#fr-panel').classList.add('hidden'));
 $('#fr-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const title = $('#fr-title').value.trim();

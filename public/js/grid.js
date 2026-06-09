@@ -171,14 +171,23 @@ function renderGrid() {
     wireSection(el, section);
   }
   for (const note of notes) {
-    if (note.hidden) continue;
+    if (note.hidden) {
+      // Hidden notes leave a faint, dashed-outline placeholder — click to restore.
+      const el = widgetEl(note.id, note.layout || {}, 3, 2, '<div class="note-ghost" title="Hidden note — click to show"></div>');
+      gridEl.appendChild(el);
+      grid.makeWidget(el);
+      el.querySelector('.note-ghost').addEventListener('click', async () => {
+        await api(`/api/notes/${note.id}`, jsonBody({ hidden: false }, 'PATCH'));
+        await loadDashboard();
+      });
+      continue;
+    }
     const el = widgetEl(note.id, note.layout || {}, 3, 3, noteInner(note));
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireNote(el, note);
   }
   rendering = false;
-  renderHidden();
 }
 
 // Attach an item to the chat composer (chat.js listens).
@@ -186,23 +195,6 @@ function attachItem(type, id, label) {
   document.dispatchEvent(new CustomEvent('attach-item', { detail: { type, id, label: String(label || type).slice(0, 40) } }));
 }
 
-// Hidden-notes topbar dropdown: list each with an "unhide" action.
-function renderHidden() {
-  const hidden = state.notes.filter((n) => n.hidden && n.workspaceId === state.activeWorkspaceId);
-  const btn = $('#hidden-toggle');
-  btn.classList.toggle('hidden', hidden.length === 0);
-  btn.textContent = `🙈 Hidden ${hidden.length}`;
-  const menu = $('#hidden-menu');
-  menu.innerHTML = hidden.length
-    ? hidden.map((n) => `<div class="hid-item"><span>${esc((n.text || '(empty)').slice(0, 40))}</span><button data-id="${n.id}" class="hid-show">unhide</button></div>`).join('')
-    : '<div class="mr-empty">No hidden notes</div>';
-  menu.querySelectorAll('.hid-show').forEach((b) =>
-    b.addEventListener('click', async () => {
-      await api(`/api/notes/${b.dataset.id}`, jsonBody({ hidden: false }, 'PATCH'));
-      await loadDashboard();
-    })
-  );
-}
 
 function wireSection(el, section) {
   el.querySelector('.sec-collapse').addEventListener('click', async (e) => {
@@ -324,17 +316,6 @@ export async function loadHealth() {
   } catch { /* ignore */ }
 }
 
-async function addSection() {
-  const name = prompt('New section name:');
-  if (!name || !name.trim()) return;
-  try {
-    await api('/api/sections', jsonBody({ name: name.trim() }));
-    await loadDashboard();
-  } catch (err) {
-    alert('Could not add section: ' + err.message);
-  }
-}
-
 async function addTileTo(sectionId) {
   const name = prompt('Tile name:');
   if (!name) return;
@@ -347,12 +328,6 @@ async function addTileTo(sectionId) {
   } catch (err) {
     alert('Could not add tile: ' + err.message);
   }
-}
-
-async function addNote() {
-  await api('/api/notes', jsonBody({ text: '', color: NOTE_COLORS[state.notes.length % NOTE_COLORS.length] }));
-  await loadDashboard();
-  gridEl.querySelector('.grid-stack-item:last-child textarea')?.focus();
 }
 
 async function saveNote(id, patch) {
@@ -385,8 +360,6 @@ document.addEventListener('keydown', (e) => {
 
 onRender(renderGrid);
 arrangeLabel();
-$('#section-add').addEventListener('click', addSection);
-$('#note-add').addEventListener('click', addNote);
 // Collapse all if any section is open, otherwise expand all (active workspace).
 $('#collapse-all').addEventListener('click', async () => {
   const secs = state.sections.filter((s) => s.workspaceId === state.activeWorkspaceId);
@@ -408,12 +381,15 @@ $('#edit-toggle').addEventListener('click', () => {
   gridEl.classList.toggle('locked', locked);
 });
 
-const hiddenMenu = $('#hidden-menu');
-$('#hidden-toggle').addEventListener('click', (e) => {
-  e.stopPropagation();
-  document.querySelectorAll('.topbar .dropdown-menu').forEach((m) => { if (m.id !== 'hidden-menu') m.classList.add('hidden'); });
-  hiddenMenu.classList.toggle('hidden');
+// Grid-guides overlay. Cards always snap to the grid; this just shows it.
+let showGrid = localStorage.getItem('dash-showgrid') === '1';
+function snapLabel() {
+  $('#snap-toggle').textContent = `⊞ Grid: ${showGrid ? 'on' : 'off'}`;
+  gridEl.classList.toggle('show-grid', showGrid);
+}
+$('#snap-toggle').addEventListener('click', () => {
+  showGrid = !showGrid;
+  localStorage.setItem('dash-showgrid', showGrid ? '1' : '0');
+  snapLabel();
 });
-document.addEventListener('click', (e) => {
-  if (!hiddenMenu.classList.contains('hidden') && !e.target.closest('.dropdown')) hiddenMenu.classList.add('hidden');
-});
+snapLabel();

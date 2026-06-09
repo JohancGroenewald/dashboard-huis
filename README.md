@@ -178,20 +178,28 @@ POST   /api/agent/chat               {model, messages[]}   (allowlisted models o
 - **Workspaces** — top-level tabs, each its own board of sections + notes
   (e.g. Home, Media, Work). New content lands in the active workspace. The
   agent manages them too (`add_workspace`, `switch_workspace`,
-  `move_to_workspace`, …). Separate **🧪 Models** and **🛠️ Abilities** system
-  tabs show the gate outcomes and the agent's tool surface. ＋ to add,
-  double-click a tab to rename, hover ✕ to delete (empty workspaces only).
+  `move_to_workspace`, …). Separate **🧪 Models**, **🛠️ Abilities**, and
+  **🗒️ Requests** system tabs show the gate outcomes, the agent's tool surface,
+  and the feature-request queue. ＋ to add, double-click a tab to rename, hover ✕
+  to delete (empty workspaces only).
+- **Global search** — a top-bar box (press `/`) finds tiles, sections, notes,
+  and workspaces across every workspace; click a hit to jump to it (switching
+  workspace and flashing the card).
 - **Tiles & sections** — service links grouped into sections, with optional
   health checks. Tiles have a description and icon; sections have a description
   and customizable card colours (🎨 fill / outline / heading), all editable by
-  you or the agent. Sections **collapse** to just their header (▾/▸, with a tile
-  count), and a topbar **Collapse/Expand all** folds the active workspace at once.
+  you or the agent. Text bold is per-item (tiles default off). Sections
+  **collapse** to just their header (▾/▸, with a tile count), and a topbar
+  **Collapse/Expand all** folds the active workspace at once. A **grid-guides**
+  toggle shows the snap grid.
 - **Drag-and-drop** — reorder tiles within a section, move tiles between
   sections (regroup), and reorder sections via the `⋮⋮` grip.
-- **Sticky notes** — quick freeform notes (📝 Note); editable inline, colorable.
-- **Feature-request queue** — file requests (🗒️ Requests). The agent also files
-  them via the `request_feature` tool when asked for something it can't do, so
-  the queue is fed *by the models* as well as by you.
+- **Sticky notes** — quick freeform notes (added via the assistant); editable
+  inline, colorable. Hiding one leaves a faint dashed-outline ghost you click to
+  restore.
+- **Feature-request queue** — the **🗒️ Requests** tab. The agent also files
+  requests via the `request_feature` tool when asked for something it can't do,
+  so the queue is fed *by the models* as well as by you.
 - **Assistant** — a floating, draggable (by its header), resizable window
   driven by an allowlisted model; geometry persists across reloads. Enter sends,
   Shift+Enter for a newline.
