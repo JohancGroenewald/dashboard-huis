@@ -22,10 +22,15 @@
         <button id="undo-btn" class="ghost-btn dashboard-only" title="Undo (Ctrl+Z)">↶</button>
         <button id="redo-btn" class="ghost-btn dashboard-only" title="Redo (Ctrl+Shift+Z)">↷</button>
         <span id="clock" class="clock"></span>
-        <button id="collapse-all" class="ghost-btn dashboard-only" title="Collapse or expand all sections">⊟ Collapse all</button>
-        <button id="snap-toggle" class="ghost-btn dashboard-only" title="Show grid guides (cards always snap to the grid)">⊞ Grid: off</button>
-        <button id="arrange-toggle" class="ghost-btn dashboard-only" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
-        <button id="edit-toggle" class="ghost-btn dashboard-only" title="Lock / unlock the layout">🔓 Edit</button>
+        <div class="dropdown dashboard-only">
+          <button id="layout-toggle" class="ghost-btn" title="Layout &amp; view">⚙️ Layout ▾</button>
+          <div id="layout-menu" class="dropdown-menu layout-menu hidden">
+            <button id="collapse-all" class="menu-item" title="Collapse or expand all sections">⊟ Collapse all</button>
+            <button id="snap-toggle" class="menu-item" title="Show grid guides (cards always snap to the grid)">⊞ Grid: off</button>
+            <button id="arrange-toggle" class="menu-item" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
+            <button id="edit-toggle" class="menu-item" title="Lock / unlock the layout">🔓 Edit</button>
+          </div>
+        </div>
         <div class="dropdown">
           <button id="logs-toggle" class="ghost-btn" title="Conversation log">🧾 Logs ▾</button>
           <div id="logs-menu" class="dropdown-menu hidden"></div>

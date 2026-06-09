@@ -4,6 +4,8 @@ import { $, api, jsonBody, esc, NOTE_COLORS } from './util.js';
 import { state, onRender, loadDashboard, setState } from './store.js';
 
 const gridEl = $('#board');
+const COLS = 12;
+const CELL_H = 92; // grid row height in px (must match the overlay)
 let grid;
 let rendering = false; // suppress layout-persist while we rebuild programmatically
 let persistTimer = null;
@@ -11,6 +13,7 @@ let healthCache = {};
 let locked = false;
 // Auto-arrange = Gridstack gravity (float off): cards compact up to fill gaps.
 let autoArrange = localStorage.getItem('dash-autoarrange') !== '0';
+let showGrid = localStorage.getItem('dash-showgrid') === '1';
 
 function arrangeLabel() {
   $('#arrange-toggle').textContent = `🧲 Arrange: ${autoArrange ? 'on' : 'off'}`;
@@ -18,11 +21,19 @@ function arrangeLabel() {
 
 function initGrid() {
   grid = GridStack.init(
-    { column: 12, cellHeight: 92, margin: 8, float: !autoArrange, handle: '.card-grip', animate: true },
+    { column: COLS, cellHeight: CELL_H, margin: 8, float: !autoArrange, handle: '.card-grip', animate: true },
     gridEl
   );
   grid.on('change', persistLayout);
 }
+
+// Size the grid-guides overlay to the live cell size so the lines mark the exact
+// cells the cards snap to (column width = grid width / 12; row = cellHeight).
+function updateGridOverlay() {
+  if (!grid || !showGrid) return;
+  gridEl.style.backgroundSize = `${gridEl.clientWidth / COLS}px ${CELL_H}px`;
+}
+window.addEventListener('resize', updateGridOverlay);
 
 function persistLayout() {
   if (rendering) return;
@@ -188,6 +199,7 @@ function renderGrid() {
     wireNote(el, note);
   }
   rendering = false;
+  updateGridOverlay();
 }
 
 // Attach an item to the chat composer (chat.js listens).
@@ -382,10 +394,10 @@ $('#edit-toggle').addEventListener('click', () => {
 });
 
 // Grid-guides overlay. Cards always snap to the grid; this just shows it.
-let showGrid = localStorage.getItem('dash-showgrid') === '1';
 function snapLabel() {
   $('#snap-toggle').textContent = `⊞ Grid: ${showGrid ? 'on' : 'off'}`;
   gridEl.classList.toggle('show-grid', showGrid);
+  updateGridOverlay();
 }
 $('#snap-toggle').addEventListener('click', () => {
   showGrid = !showGrid;
@@ -393,3 +405,13 @@ $('#snap-toggle').addEventListener('click', () => {
   snapLabel();
 });
 snapLabel();
+
+// Layout dropdown: holds Collapse all / Grid / Arrange / Edit. Stays open while
+// you flip toggles; closes on an outside click.
+const layoutMenu = $('#layout-menu');
+$('#layout-toggle').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.querySelectorAll('.topbar .dropdown-menu').forEach((m) => { if (m !== layoutMenu) m.classList.add('hidden'); });
+  layoutMenu.classList.toggle('hidden');
+});
+document.addEventListener('click', (e) => { if (!e.target.closest('.dropdown')) layoutMenu.classList.add('hidden'); });
