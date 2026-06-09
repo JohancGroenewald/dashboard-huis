@@ -21,6 +21,7 @@ Config via env vars (all optional):
 | `DASH_TLS_CERT` | `data/tls/dashboard.crt` | TLS cert (full chain) |
 | `DASH_TLS_KEY` | `data/tls/dashboard.key` | TLS private key |
 | `OLLAMA_HOST` | `http://ollama.huis:11434` | Ollama backend |
+| `DASH_AGENT_MAX_TOOL_CALLS` | `16` | max tool calls per assistant turn |
 | `DASH_HEALTH_INTERVAL` | `30000` | health-check interval (ms) |
 | `DASH_MAX_BACKUPS` | `25` | dashboard snapshots to keep |
 

@@ -2,7 +2,10 @@
   "name": "huis-dashboard",
   "version": "0.1.0",
   "description": "Local-network dashboard server with an Ollama-driven agent",
-  "main": "index.js",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "directories": {
     "test": "tests"
   },
@@ -13,6 +16,7 @@
     "supervise": "node src/validation/supervised-cli.js",
     "delegate": "node src/validation/delegated-cli.js",
     "parallel": "node src/validation/parallel-cli.js",
+    "test": "node --test",
     "lint": "npm run lint:js && npm run lint:css && npm run lint:html && npm run lint:json && npm run check-loc",
     "lint:js": "eslint .",
     "lint:css": "stylelint 'public/**/*.css'",

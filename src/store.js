@@ -8,7 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  fail, checkString, normalizeState, normalizeSection, normalizeTile, normalizeNote,
+  fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote,
   normalizeFeatureRequest, normalizeWorkspace, normalizeLayout, defaultState, colorName,
 } from './schema.js';
 
@@ -190,12 +190,14 @@ export class Store {
 
   updateSection(id, patch) {
     const s = this.#section(id);
-    if (patch.name !== undefined) s.name = checkString(patch.name, 'section.name', { max: 120 });
-    if (patch.description !== undefined) s.description = checkString(patch.description, 'section.description', { required: false, max: 500 });
-    if (patch.bold !== undefined) s.bold = Boolean(patch.bold);
+    const next = {};
+    if (patch.name !== undefined) next.name = checkString(patch.name, 'section.name', { max: 120 });
+    if (patch.description !== undefined) next.description = checkString(patch.description, 'section.description', { required: false, max: 500 });
+    if (patch.bold !== undefined) next.bold = Boolean(patch.bold);
     for (const k of ['color', 'borderColor', 'headingColor']) {
-      if (patch[k] !== undefined) s[k] = checkString(patch[k], `section.${k}`, { required: false, max: 30 });
+      if (patch[k] !== undefined) next[k] = checkColor(patch[k], `section.${k}`);
     }
+    Object.assign(s, next);
     this.#commit();
     return structuredClone(s);
   }

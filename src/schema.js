@@ -3,6 +3,8 @@
 import crypto from 'node:crypto';
 
 const HEALTH_TYPES = new Set(['http', 'tcp', 'none']);
+const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+const COLOR_NAME = /^[a-zA-Z]+$/;
 
 export function fail(msg) {
   const e = new Error(msg);
@@ -24,18 +26,29 @@ export function checkString(val, field, { required = true, max = 2000 } = {}) {
   return val;
 }
 
+export function checkColor(val, field, { required = false } = {}) {
+  const s = checkString(val, field, { required, max: 30 }).trim();
+  if (!s) return '';
+  if (HEX_COLOR.test(s)) return s.toLowerCase();
+  if (COLOR_NAME.test(s)) return s.toLowerCase();
+  fail(`"${field}" must be a hex colour or CSS colour name`);
+}
+
 function checkUrl(val, field, { required = true } = {}) {
   const s = checkString(val, field, { required });
   if (!s) return '';
+  // Accept http(s) and root-relative paths (e.g. /grafana). Protocol-relative
+  // URLs are rejected so callers cannot smuggle an external host as a "/path".
+  if (s.startsWith('//')) fail(`"${field}" must be http(s) or a /path`);
+  if (s.startsWith('/')) return s;
+  let u;
   try {
-    // Accept http(s) and root-relative paths (e.g. /grafana).
-    if (s.startsWith('/')) return s;
-    const u = new URL(s);
-    if (!['http:', 'https:'].includes(u.protocol)) fail(`"${field}" must be http(s) or a /path`);
-    return s;
+    u = new URL(s);
   } catch {
     fail(`"${field}" is not a valid URL`);
   }
+  if (!['http:', 'https:'].includes(u.protocol)) fail(`"${field}" must be http(s) or a /path`);
+  return s;
 }
 
 function normalizeHealth(h) {
@@ -88,7 +101,7 @@ export function normalizeTile(raw) {
     url: checkUrl(raw.url, 'tile.url'),
     description: checkString(raw.description, 'tile.description', { required: false, max: 500 }),
     icon: checkString(raw.icon, 'tile.icon', { required: false, max: 40 }),
-    color: checkString(raw.color, 'tile.color', { required: false, max: 30 }),
+    color: checkColor(raw.color, 'tile.color'),
     bold: Boolean(raw.bold), // tile labels are not bold unless turned on
     health: normalizeHealth(raw.health),
     layout: normalizeLayout(raw.layout),
@@ -112,9 +125,9 @@ export function normalizeSection(raw) {
     name: checkString(raw.name, 'section.name', { max: 120 }),
     description: checkString(raw.description, 'section.description', { required: false, max: 500 }),
     workspaceId: checkString(raw.workspaceId, 'section.workspaceId', { required: false, max: 100 }),
-    color: checkString(raw.color, 'section.color', { required: false, max: 30 }),
-    borderColor: checkString(raw.borderColor, 'section.borderColor', { required: false, max: 30 }),
-    headingColor: checkString(raw.headingColor, 'section.headingColor', { required: false, max: 30 }),
+    color: checkColor(raw.color, 'section.color'),
+    borderColor: checkColor(raw.borderColor, 'section.borderColor'),
+    headingColor: checkColor(raw.headingColor, 'section.headingColor'),
     bold: raw.bold === undefined ? true : Boolean(raw.bold), // headings bold by default
     collapsed: Boolean(raw.collapsed),
     layout: normalizeLayout(raw.layout),
@@ -127,8 +140,8 @@ export function normalizeNote(raw) {
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     text: checkString(raw.text, 'note.text', { required: false, max: 2000 }),
-    color: checkString(raw.color, 'note.color', { required: false, max: 30 }),
-    textColor: checkString(raw.textColor, 'note.textColor', { required: false, max: 30 }),
+    color: checkColor(raw.color, 'note.color'),
+    textColor: checkColor(raw.textColor, 'note.textColor'),
     workspaceId: checkString(raw.workspaceId, 'note.workspaceId', { required: false, max: 100 }),
     bold: Boolean(raw.bold),
     hidden: Boolean(raw.hidden),

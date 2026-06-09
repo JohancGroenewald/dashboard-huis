@@ -6,6 +6,14 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
+function boundedIntegerEnv(name, fallback, { min = 1, max = 100 } = {}) {
+  const raw = process.env[name];
+  if (raw === undefined) return fallback;
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(Math.max(Math.trunc(n), min), max);
+}
+
 export const config = {
   root: ROOT,
   dataDir: path.join(ROOT, 'data'),
@@ -23,6 +31,7 @@ export const config = {
 
   // Ollama backend used by the agent + validation harness.
   ollamaHost: (process.env.OLLAMA_HOST || 'http://ollama.huis:11434').replace(/\/$/, ''),
+  agentMaxToolCalls: boundedIntegerEnv('DASH_AGENT_MAX_TOOL_CALLS', 16),
 
   // Health checks.
   healthIntervalMs: Number(process.env.DASH_HEALTH_INTERVAL || 30_000),

@@ -11,6 +11,7 @@ import { Ollama } from './ollama.js';
 import { runAgent } from './agent/agent.js';
 import { toolSpecs } from './agent/tools.js';
 import { logTurn, query } from './chatlog.js';
+import { latestUserMessage, sanitizeChatMessages } from './messages.js';
 import { listApproved, isApproved, listResults, listSupervised, listDelegated, listParallel, listRetired } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -192,25 +193,30 @@ app.post('/api/agent/chat', wrap(async (req, res) => {
   if (!Array.isArray(messages) || !messages.length) {
     return res.status(400).json({ error: 'messages[] is required' });
   }
+  const safeMessages = sanitizeChatMessages(messages);
+  if (!latestUserMessage(safeMessages)) {
+    return res.status(400).json({ error: 'messages[] must include at least one user message' });
+  }
   if (!isApproved(model)) {
     return res.status(403).json({
       error: `"${model}" has not passed pre-validation. Run: npm run validate -- "${model}"`,
     });
   }
   const started = Date.now();
-  const userMsg = [...messages].reverse().find((m) => m.role === 'user')?.content || '';
+  const userMsg = latestUserMessage(safeMessages);
   try {
-    const result = await runAgent({ model, store, messages, ollama });
-    logTurn({ session, model, userMsg, messages, reply: result.reply, trace: result.trace, steps: result.steps, ms: Date.now() - started });
+    const result = await runAgent({ model, store, messages: safeMessages, ollama });
+    logTurn({ session, model, userMsg, messages: safeMessages, reply: result.reply, trace: result.trace, steps: result.steps, ms: Date.now() - started });
     res.json({
       reply: result.reply,
       trace: result.trace,
       steps: result.steps,
+      toolCalls: result.toolCalls ?? result.trace.length,
       followups: followupsFromTrace(result.trace),
       dashboard: store.getState(), // so the UI can refresh after agent edits
     });
   } catch (err) {
-    logTurn({ session, model, userMsg, messages, ms: Date.now() - started, error: err.message });
+    logTurn({ session, model, userMsg, messages: safeMessages, ms: Date.now() - started, error: err.message });
     throw err;
   }
 }));

@@ -15,6 +15,10 @@ const args = process.argv.slice(2);
 const flag = (n) => args.includes(n);
 const opt = (n, d) => (args.indexOf(n) !== -1 ? args[args.indexOf(n) + 1] : d);
 const trunc = (s, n) => (s && s.length > n ? s.slice(0, n) + '…' : s || '');
+const boundedRecent = (raw) => {
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 1), 200) : 20;
+};
 
 if (flag('--sql')) {
   console.log(JSON.stringify(query(opt('--sql')), null, 2));
@@ -31,7 +35,7 @@ if (flag('--errors')) where.push('error IS NOT NULL');
 let sql = 'SELECT * FROM chat_log';
 if (where.length) sql += ' WHERE ' + where.join(' AND ');
 sql += ' ORDER BY id DESC LIMIT ?';
-params.push(Number(opt('--recent', '20')));
+params.push(boundedRecent(opt('--recent', '20')));
 
 const rows = query(sql, params).reverse(); // chronological
 if (!rows.length) { console.log('No matching turns.'); process.exit(0); }

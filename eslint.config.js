@@ -6,7 +6,7 @@ export default [
   js.configs.recommended,
   {
     // Node-side code (server, validation, agent) + tooling.
-    files: ['src/**/*.js', 'scripts/**/*.mjs', '*.js'],
+    files: ['src/**/*.js', 'scripts/**/*.mjs', 'tests/**/*.mjs', '*.js'],
     languageOptions: {
       ecmaVersion: 2023,
       sourceType: 'module',

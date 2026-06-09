@@ -13,6 +13,7 @@ RestartSec=3
 User=root
 # Serve HTTP on 8080 and HTTPS on 443 (cert in /opt/dashboard/data/tls)
 Environment=NODE_ENV=production
+Environment=DASH_AGENT_MAX_TOOL_CALLS=16
 
 [Install]
 WantedBy=multi-user.target

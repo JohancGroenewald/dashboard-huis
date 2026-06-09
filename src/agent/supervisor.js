@@ -2,11 +2,10 @@
 // trusted SUPERVISOR approves or blocks each mutating call before it executes.
 // Read-only calls (get_dashboard) bypass supervision. The idea: keep the fast
 // model's speed while a trusted model catches its unsafe actions.
+import { config } from '../config.js';
 import { Ollama } from '../ollama.js';
 import { systemPrompt } from './prompt.js';
 import { toolSpecs, makeToolHandlers } from './tools.js';
-
-const MAX_STEPS = 8;
 
 function parseArgs(raw) {
   if (raw == null) return {};
@@ -60,25 +59,46 @@ ALLOW or BLOCK this action?`;
   return { allow: !block, raw: text.slice(0, 120), ms: Date.now() - started };
 }
 
-export async function runSupervisedAgent({ worker, supervisor, store, messages, ollama = new Ollama(), maxSteps = MAX_STEPS }) {
+function toolCallLimit(maxToolCalls, maxSteps) {
+  const raw = maxToolCalls ?? maxSteps ?? config.agentMaxToolCalls;
+  const n = Number(raw);
+  return Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 1), 100) : config.agentMaxToolCalls;
+}
+
+export async function runSupervisedAgent({ worker, supervisor, store, messages, ollama = new Ollama(), maxToolCalls, maxSteps }) {
   const handlers = makeToolHandlers(store, { requestedBy: worker });
   const convo = [{ role: 'system', content: systemPrompt(store) }, ...messages];
   const userText = messages.map((m) => m.content).join(' ');
   const trace = [];
   const blocked = [];
+  const limit = toolCallLimit(maxToolCalls, maxSteps);
+  let steps = 0;
+  let toolCalls = 0;
 
-  for (let step = 0; step < maxSteps; step++) {
+  while (toolCalls < limit) {
     const msg = await ollama.chat({ model: worker, messages: convo, tools: toolSpecs });
     convo.push(msg);
+    steps += 1;
     const calls = msg.tool_calls || [];
-    if (calls.length === 0) return { reply: msg.content || '', trace, blocked, steps: step + 1 };
+    if (calls.length === 0) return { reply: msg.content || '', trace, blocked, steps, toolCalls };
 
     for (const call of calls) {
+      if (toolCalls >= limit) {
+        return {
+          reply: '(stopped: reached the maximum number of tool calls)',
+          trace,
+          blocked,
+          steps,
+          toolCalls,
+          truncated: true,
+        };
+      }
       const name = call.function?.name;
       const args = parseArgs(call.function?.arguments);
       const handler = handlers[name];
       if (!handler) {
         trace.push({ name, args, ok: false, error: `unknown tool: ${name}` });
+        toolCalls += 1;
         convo.push({ role: 'tool', tool_name: name, content: JSON.stringify({ error: 'unknown tool' }) });
         continue;
       }
@@ -88,6 +108,7 @@ export async function runSupervisedAgent({ worker, supervisor, store, messages, 
         if (!decision.allow) {
           blocked.push({ name, args, reason: decision.raw });
           trace.push({ name, args, ok: false, blocked: true, error: 'blocked by supervisor' });
+          toolCalls += 1;
           convo.push({
             role: 'tool',
             tool_name: name,
@@ -99,12 +120,14 @@ export async function runSupervisedAgent({ worker, supervisor, store, messages, 
       try {
         const result = await handler(args);
         trace.push({ name, args, ok: true, result });
+        toolCalls += 1;
         convo.push({ role: 'tool', tool_name: name, content: JSON.stringify(result) });
       } catch (err) {
         trace.push({ name, args, ok: false, error: err.message });
+        toolCalls += 1;
         convo.push({ role: 'tool', tool_name: name, content: JSON.stringify({ error: err.message }) });
       }
     }
   }
-  return { reply: '(stopped: max steps)', trace, blocked, steps: maxSteps, truncated: true };
+  return { reply: '(stopped: reached the maximum number of tool calls)', trace, blocked, steps, toolCalls, truncated: true };
 }

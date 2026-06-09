@@ -13,7 +13,7 @@ export const toolNames = toolSpecs.map((t) => t.function.name);
 // `requestedBy` labels feature requests the model files (defaults to the model).
 export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
   // Resolve a section by id first, then by case-insensitive name.
-  const resolveSection = (ref) => {
+  const resolveSectionMaybe = (ref) => {
     const { sections } = store.getState();
     const byId = sections.find((s) => s.id === ref);
     if (byId) return byId;
@@ -23,6 +23,12 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       // Don't guess — tell the model exactly how to disambiguate.
       throw new Error(`"${ref}" is ambiguous: ${matches.length} sections share that name. Use the section id — one of: ${matches.map((s) => s.id).join(', ')}`);
     }
+    return null;
+  };
+
+  const resolveSection = (ref) => {
+    const section = resolveSectionMaybe(ref);
+    if (section) return section;
     throw new Error(`no section matching "${ref}"`);
   };
 
@@ -89,8 +95,7 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
     move_to_workspace: ({ item, workspace }) => {
       const ws = resolveWorkspace(workspace);
       const s = store.getState();
-      const section = s.sections.find((x) => x.id === item) ||
-        s.sections.find((x) => x.name.toLowerCase() === String(item).toLowerCase());
+      const section = resolveSectionMaybe(item);
       if (section) return { moved: store.moveSectionToWorkspace(section.id, ws.id) };
       const note = s.notes.find((n) => n.id === item);
       if (note) return { moved: store.moveNoteToWorkspace(note.id, ws.id) };
@@ -158,13 +163,11 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
     },
 
     resize_card: ({ card, w, h }) => {
-      const s = store.getState();
-      const sec =
-        s.sections.find((x) => x.id === card) ||
-        s.sections.find((x) => x.name.toLowerCase() === String(card).toLowerCase());
-      const id = sec ? sec.id : s.notes.find((n) => n.id === card)?.id;
-      if (!id) throw new Error(`no section or note matching "${card}"`);
-      return { resized: store.resizeCard(id, { w, h }) };
+      const section = resolveSectionMaybe(card);
+      if (section) return { resized: store.resizeCard(section.id, { w, h }) };
+      const note = store.getState().notes.find((n) => n.id === card);
+      if (!note) throw new Error(`no section or note matching "${card}"`);
+      return { resized: store.resizeCard(note.id, { w, h }) };
     },
 
     // UI-only: surface clickable buttons/chips in the chat (no state change).
