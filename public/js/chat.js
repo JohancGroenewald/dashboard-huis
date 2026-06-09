@@ -216,54 +216,57 @@ document.addEventListener('click', (e) => {
 
 // ---- draggable / resizable assistant window ----
 // Drag by the header; resize via the native bottom-right grip (CSS resize:both).
-// Geometry is clamped into the viewport and persisted across reloads.
+// Geometry is clamped into the viewport and persisted across reloads. Drag uses
+// document-level listeners (robust across fast moves / leaving the header) plus
+// touch-action:none on the handle so trackpad/touch drags aren't eaten by the
+// browser's own scroll gesture.
 function initAssistantWindow() {
   const win = $('#chat');
   const head = win.querySelector('.asst-head');
   const KEY = 'dash-asst-geom';
 
-  const apply = ({ left, top, w, h }) => {
-    const cw = Math.min(w, window.innerWidth);
-    const ch = Math.min(h, window.innerHeight);
-    win.style.width = `${cw}px`;
-    win.style.height = `${ch}px`;
-    win.style.left = `${Math.max(0, Math.min(left, window.innerWidth - 80))}px`;
-    win.style.top = `${Math.max(0, Math.min(top, window.innerHeight - 40))}px`;
+  // Move (and optionally size) the window, clamped so the header stays reachable.
+  const place = ({ left, top, w, h }) => {
+    if (w != null) win.style.width = `${Math.min(w, window.innerWidth)}px`;
+    if (h != null) win.style.height = `${Math.min(h, window.innerHeight)}px`;
+    win.style.left = `${Math.max(0, Math.min(left, window.innerWidth - 120))}px`;
+    win.style.top = `${Math.max(0, Math.min(top, window.innerHeight - 44))}px`;
     win.style.right = 'auto';
   };
   const save = () => {
     const r = win.getBoundingClientRect();
     localStorage.setItem(KEY, JSON.stringify({ left: r.left, top: r.top, w: r.width, h: r.height }));
   };
-  try { const g = JSON.parse(localStorage.getItem(KEY) || 'null'); if (g) apply(g); } catch { /* ignore */ }
+  try { const g = JSON.parse(localStorage.getItem(KEY) || 'null'); if (g) place(g); } catch { /* ignore */ }
 
-  let drag = null;
-  head.addEventListener('pointerdown', (e) => {
-    if (e.target.closest('button, .model-picker')) return; // controls aren't drag handles
-    const r = win.getBoundingClientRect();
-    apply({ left: r.left, top: r.top, w: r.width, h: r.height }); // pin to pixels first
-    drag = { x: e.clientX, y: e.clientY, left: r.left, top: r.top, w: r.width, h: r.height };
-    head.setPointerCapture(e.pointerId);
-    win.classList.add('dragging');
-  });
-  head.addEventListener('pointermove', (e) => {
-    if (!drag) return;
-    apply({ left: drag.left + (e.clientX - drag.x), top: drag.top + (e.clientY - drag.y), w: drag.w, h: drag.h });
-  });
-  const endDrag = (e) => {
-    if (!drag) return;
-    drag = null;
+  let start = null;
+  const onMove = (e) => {
+    if (!start) return;
+    e.preventDefault(); // suppress text selection while dragging
+    place({ left: start.left + (e.clientX - start.x), top: start.top + (e.clientY - start.y) });
+  };
+  const onUp = () => {
+    if (!start) return;
+    start = null;
     win.classList.remove('dragging');
-    try { head.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
     save();
   };
-  head.addEventListener('pointerup', endDrag);
-  head.addEventListener('pointercancel', endDrag);
+  head.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return; // left button only
+    if (e.target.closest('button, .model-picker')) return; // controls aren't drag handles
+    const r = win.getBoundingClientRect();
+    start = { x: e.clientX, y: e.clientY, left: r.left, top: r.top };
+    win.classList.add('dragging');
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  });
 
   // Persist size changes from the native resize grip (debounced; skip when hidden).
   let rt;
   new ResizeObserver(() => {
-    if (win.classList.contains('hidden') || drag) return;
+    if (win.classList.contains('hidden') || start) return;
     clearTimeout(rt);
     rt = setTimeout(save, 300);
   }).observe(win);
