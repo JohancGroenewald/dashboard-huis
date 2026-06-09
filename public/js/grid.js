@@ -185,9 +185,10 @@ function renderGrid() {
   }
   for (const note of notes) {
     if (note.hidden) {
-      // Hidden notes leave a faint, dashed-outline placeholder (with the
-      // see-no-evil monkey) — click to restore.
-      const el = widgetEl(note.id, note.layout || {}, 3, 2, '<div class="note-ghost" title="Hidden note — click to show">🙈</div>');
+      // Hidden notes leave a faint, dashed-outline placeholder at the note's own
+      // size (same defaults as a real note) with the see-no-evil monkey — click
+      // to restore.
+      const el = widgetEl(note.id, note.layout || {}, 3, 3, '<div class="note-ghost" title="Hidden note — click to show">🙈</div>');
       gridEl.appendChild(el);
       grid.makeWidget(el);
       el.querySelector('.note-ghost').addEventListener('click', async () => {
