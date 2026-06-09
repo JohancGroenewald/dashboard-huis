@@ -1,21 +1,24 @@
 // Gridstack grid: section group cards + sticky-note cards, drag/resize with
 // persisted layout, tile chips (click/delete/drag-between-sections), health.
 import { $, api, jsonBody, esc, NOTE_COLORS } from './util.js';
+import { FONT_WEIGHTS, GRID_UI, NOTE_TEXT_COLORS, SECTION_PALETTES, STORAGE_KEYS } from './constants.js';
 import { state, onRender, loadDashboard, setState } from './store.js';
 
 const gridEl = $('#board');
-const COLS = 12;
 // Grid row height in px — adjustable ("Grid size" in the Layout menu). The
 // overlay and Gridstack share this value so the guides stay exact.
-let cellH = Math.min(160, Math.max(56, Number(localStorage.getItem('dash-cellh')) || 92));
+let cellH = Math.min(
+  GRID_UI.cellHeightMax,
+  Math.max(GRID_UI.cellHeightMin, Number(localStorage.getItem(STORAGE_KEYS.gridCellHeight)) || GRID_UI.cellHeightDefault)
+);
 let grid;
 let rendering = false; // suppress layout-persist while we rebuild programmatically
 let persistTimer = null;
 let healthCache = {};
 let locked = false;
 // Auto-arrange = Gridstack gravity (float off): cards compact up to fill gaps.
-let autoArrange = localStorage.getItem('dash-autoarrange') !== '0';
-let showGrid = localStorage.getItem('dash-showgrid') === '1';
+let autoArrange = localStorage.getItem(STORAGE_KEYS.autoArrange) !== '0';
+let showGrid = localStorage.getItem(STORAGE_KEYS.showGrid) === '1';
 
 function arrangeLabel() {
   $('#arrange-toggle').textContent = `🧲 Arrange: ${autoArrange ? 'on' : 'off'}`;
@@ -23,17 +26,17 @@ function arrangeLabel() {
 
 function initGrid() {
   grid = GridStack.init(
-    { column: COLS, cellHeight: cellH, margin: 8, float: !autoArrange, handle: '.card-grip', animate: true },
+    { column: GRID_UI.columns, cellHeight: cellH, margin: GRID_UI.margin, float: !autoArrange, handle: '.card-grip', animate: true },
     gridEl
   );
   grid.on('change', persistLayout);
 }
 
 // Size the grid-guides overlay to the live cell size so the lines mark the exact
-// cells the cards snap to (column width = grid width / 12; row = cellHeight).
+// cells the cards snap to (column width = grid width / configured columns; row = cellHeight).
 function updateGridOverlay() {
   if (!grid || !showGrid) return;
-  gridEl.style.backgroundSize = `${gridEl.clientWidth / COLS}px ${cellH}px`;
+  gridEl.style.backgroundSize = `${gridEl.clientWidth / GRID_UI.columns}px ${cellH}px`;
 }
 window.addEventListener('resize', updateGridOverlay);
 
@@ -45,10 +48,10 @@ function persistLayout() {
       // A collapsed section is rendered at h=1; keep its real (expanded) height
       // so it restores correctly when expanded.
       const sec = state.sections.find((s) => s.id === n.id);
-      return { id: n.id, x: n.x, y: n.y, w: n.w, h: sec?.collapsed ? (sec.layout?.h || 4) : n.h };
+      return { id: n.id, x: n.x, y: n.y, w: n.w, h: sec?.collapsed ? (sec.layout?.h || GRID_UI.sectionDefaultHeight) : n.h };
     });
     api('/api/layout', jsonBody({ items })).catch(() => {});
-  }, 400);
+  }, GRID_UI.layoutPersistDebounceMs);
 }
 
 function widgetEl(id, layout, defW, defH, innerHtml) {
@@ -79,7 +82,7 @@ function tileChip(tile) {
   const dot = tile.health?.enabled ? `<span class="dot ${h?.status || 'unknown'}" title="${esc(healthTitle(h))}"></span>` : '';
   return `<div class="tile-chip" draggable="true" data-id="${tile.id}" data-name="${esc(tile.name)}" data-url="${esc(tile.url)}" title="${esc(tile.url)}">
     <span class="tile-icon">${esc(tile.icon || '🔗')}</span>
-    <span class="tile-meta"><span class="tile-name" style="font-weight:${tile.bold ? 650 : 400}">${esc(tile.name)}</span>${tile.description ? `<span class="tile-desc">${esc(tile.description)}</span>` : ''}</span>
+    <span class="tile-meta"><span class="tile-name" style="font-weight:${tile.bold ? FONT_WEIGHTS.semiBold : FONT_WEIGHTS.normal}">${esc(tile.name)}</span>${tile.description ? `<span class="tile-desc">${esc(tile.description)}</span>` : ''}</span>
     ${dot}
     <button class="chip-bold${tile.bold ? ' on' : ''}" title="Bold label">B</button>
     <button class="chip-attach" title="Attach to chat">📎</button>
@@ -88,9 +91,6 @@ function tileChip(tile) {
 }
 
 // Section card colour palettes ('' = clear back to the theme default).
-const SEC_BG = ['', '#1a2233', '#16241a', '#2a1f2e', '#2a2418', '#1a2628'];
-const SEC_BORDER = ['', '#4c8dff', '#3fb950', '#f85149', '#d29922', '#a371f7'];
-const SEC_HEADING = ['', '#e8eef5', '#7aa9ff', '#69d28a', '#f0b429', '#ff9580'];
 function swatchRow(label, prop, colors, current) {
   const sw = colors
     .map((c) => {
@@ -110,7 +110,7 @@ function sectionInner(section) {
     section.color ? `background:${esc(section.color)}` : '',
     section.borderColor ? `border-color:${esc(section.borderColor)}` : '',
   ].filter(Boolean).join(';');
-  const nameStyle = ` style="font-weight:${section.bold ? 650 : 400}${section.headingColor ? `;color:${esc(section.headingColor)}` : ''}"`;
+  const nameStyle = ` style="font-weight:${section.bold ? FONT_WEIGHTS.semiBold : FONT_WEIGHTS.normal}${section.headingColor ? `;color:${esc(section.headingColor)}` : ''}"`;
   const desc = section.description
     ? `<div class="sec-desc" title="Click to edit description">${esc(section.description)}</div>`
     : '<div class="sec-desc empty" title="Add a description">＋ description</div>';
@@ -127,16 +127,15 @@ function sectionInner(section) {
     </div>
     ${desc}
     <div class="sec-style hidden">
-      ${swatchRow('Fill', 'color', SEC_BG, section.color)}
-      ${swatchRow('Outline', 'borderColor', SEC_BORDER, section.borderColor)}
-      ${swatchRow('Heading', 'headingColor', SEC_HEADING, section.headingColor)}
+      ${swatchRow('Fill', 'color', SECTION_PALETTES.background, section.color)}
+      ${swatchRow('Outline', 'borderColor', SECTION_PALETTES.border, section.borderColor)}
+      ${swatchRow('Heading', 'headingColor', SECTION_PALETTES.heading, section.headingColor)}
       <label class="sty-toggle"><input type="checkbox" class="sec-bold-chk"${section.bold ? ' checked' : ''}> Bold heading</label>
     </div>
     <div class="sec-tiles" data-section="${section.id}">${tiles}</div>
   </div>`;
 }
 
-const NOTE_TEXT_COLORS = ['#2a2300', '#000000', '#ffffff', '#1d4ed8', '#b91c1c'];
 function noteInner(note) {
   const bg = NOTE_COLORS.map((c) => `<span class="swatch" data-color="${c}" style="background:${c}"></span>`).join('');
   const tx = NOTE_TEXT_COLORS.map((c) => `<span class="tswatch" data-textcolor="${c}" style="color:${c}">A</span>`).join('');
@@ -177,8 +176,8 @@ function renderGrid() {
   for (const section of sections) {
     // Collapsed sections render at a single header row; their stored layout.h
     // (the expanded height) is preserved by persistLayout for when they reopen.
-    const layout = section.collapsed ? { ...(section.layout || {}), h: 1 } : (section.layout || {});
-    const el = widgetEl(section.id, layout, 4, 4, sectionInner(section));
+    const layout = section.collapsed ? { ...(section.layout || {}), h: GRID_UI.collapsedHeight } : (section.layout || {});
+    const el = widgetEl(section.id, layout, GRID_UI.sectionDefaultWidth, GRID_UI.sectionDefaultHeight, sectionInner(section));
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireSection(el, section);
@@ -188,7 +187,13 @@ function renderGrid() {
       // Hidden notes leave a faint, dashed-outline placeholder at the note's own
       // size (same defaults as a real note) with the see-no-evil monkey — click
       // to restore.
-      const el = widgetEl(note.id, note.layout || {}, 3, 3, '<div class="note-ghost" title="Hidden note — click to show"><span class="ghost-eye">🙈</span></div>');
+      const el = widgetEl(
+        note.id,
+        note.layout || {},
+        GRID_UI.noteDefaultWidth,
+        GRID_UI.noteDefaultHeight,
+        '<div class="note-ghost" title="Hidden note — click to show"><span class="ghost-eye">🙈</span></div>'
+      );
       gridEl.appendChild(el);
       grid.makeWidget(el);
       el.querySelector('.note-ghost').addEventListener('click', async () => {
@@ -197,7 +202,7 @@ function renderGrid() {
       });
       continue;
     }
-    const el = widgetEl(note.id, note.layout || {}, 3, 3, noteInner(note));
+    const el = widgetEl(note.id, note.layout || {}, GRID_UI.noteDefaultWidth, GRID_UI.noteDefaultHeight, noteInner(note));
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireNote(el, note);
@@ -208,7 +213,7 @@ function renderGrid() {
 
 // Attach an item to the chat composer (chat.js listens).
 function attachItem(type, id, label) {
-  document.dispatchEvent(new CustomEvent('attach-item', { detail: { type, id, label: String(label || type).slice(0, 40) } }));
+  document.dispatchEvent(new CustomEvent('attach-item', { detail: { type, id, label: String(label || type).slice(0, GRID_UI.attachLabelChars) } }));
 }
 
 
@@ -384,7 +389,7 @@ $('#collapse-all').addEventListener('click', async () => {
 });
 $('#arrange-toggle').addEventListener('click', () => {
   autoArrange = !autoArrange;
-  localStorage.setItem('dash-autoarrange', autoArrange ? '1' : '0');
+  localStorage.setItem(STORAGE_KEYS.autoArrange, autoArrange ? '1' : '0');
   arrangeLabel();
   if (!grid) return;
   grid.float(!autoArrange);
@@ -405,7 +410,7 @@ function snapLabel() {
 }
 $('#snap-toggle').addEventListener('click', () => {
   showGrid = !showGrid;
-  localStorage.setItem('dash-showgrid', showGrid ? '1' : '0');
+  localStorage.setItem(STORAGE_KEYS.showGrid, showGrid ? '1' : '0');
   snapLabel();
 });
 snapLabel();
@@ -417,8 +422,16 @@ function applyCellH() {
   if (grid) grid.cellHeight(cellH);
   updateGridOverlay();
 }
-$('#grid-smaller').addEventListener('click', () => { cellH = Math.max(56, cellH - 12); localStorage.setItem('dash-cellh', cellH); applyCellH(); });
-$('#grid-bigger').addEventListener('click', () => { cellH = Math.min(160, cellH + 12); localStorage.setItem('dash-cellh', cellH); applyCellH(); });
+$('#grid-smaller').addEventListener('click', () => {
+  cellH = Math.max(GRID_UI.cellHeightMin, cellH - GRID_UI.cellHeightStep);
+  localStorage.setItem(STORAGE_KEYS.gridCellHeight, cellH);
+  applyCellH();
+});
+$('#grid-bigger').addEventListener('click', () => {
+  cellH = Math.min(GRID_UI.cellHeightMax, cellH + GRID_UI.cellHeightStep);
+  localStorage.setItem(STORAGE_KEYS.gridCellHeight, cellH);
+  applyCellH();
+});
 applyCellH();
 
 // Layout dropdown: holds Collapse all / Grid / Arrange / Edit. Stays open while

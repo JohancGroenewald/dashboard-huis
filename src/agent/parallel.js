@@ -4,6 +4,8 @@
 // OLLAMA_NUM_PARALLEL > 1 the sub-agents run truly concurrently, so N attempts
 // cost about one attempt's wall-time — and the orchestrator gets options.
 import { Store } from '../store.js';
+import { config } from '../config.js';
+import { AGENT_LIMITS, OLLAMA_LIMITS } from '../constants.js';
 import { Ollama } from '../ollama.js';
 import { runAgent } from './agent.js';
 
@@ -47,8 +49,8 @@ Which candidate should be applied? Reply "APPLY <number>" or "REJECT".`;
       { role: 'system', content: reviewerSystem(candidates.length) },
       { role: 'user', content },
     ],
-    options: { temperature: 0 },
-    timeoutMs: 90_000,
+    options: { temperature: OLLAMA_LIMITS.defaultTemperature },
+    timeoutMs: config.agentReviewTimeoutMs,
   });
   const text = (msg.content || '').trim();
   const m = text.match(/apply\s*#?\s*(\d+)/i);
@@ -57,7 +59,7 @@ Which candidate should be applied? Reply "APPLY <number>" or "REJECT".`;
     const n = Number(m[1]) - 1;
     if (n >= 0 && n < candidates.length) index = n;
   }
-  return { index, raw: text.slice(0, 120), ms: Date.now() - started };
+  return { index, raw: text.slice(0, AGENT_LIMITS.reviewPreviewChars), ms: Date.now() - started };
 }
 
 export async function runParallelDelegatedAgent({ orchestrator, subAgents, subAgentOptions = [], store, messages, ollama = new Ollama() }) {

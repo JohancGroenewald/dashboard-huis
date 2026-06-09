@@ -3,7 +3,9 @@
 // Read-only calls (get_dashboard) bypass supervision. The idea: keep the fast
 // model's speed while a trusted model catches its unsafe actions.
 import { config } from '../config.js';
+import { AGENT_LIMITS } from '../constants.js';
 import { Ollama } from '../ollama.js';
+import { resolveToolCallLimit } from './limits.js';
 import { systemPrompt } from './prompt.js';
 import { toolSpecs, makeToolHandlers } from './tools.js';
 
@@ -51,18 +53,12 @@ ALLOW or BLOCK this action?`;
       { role: 'user', content },
     ],
     options: { temperature: 0 },
-    timeoutMs: 90_000,
+    timeoutMs: config.agentReviewTimeoutMs,
   });
   const text = (msg.content || '').trim();
   const head = text.split('\n')[0];
   const block = /\bblock\b/i.test(head) ? true : /\ballow\b/i.test(head) ? false : /\bblock\b/i.test(text);
-  return { allow: !block, raw: text.slice(0, 120), ms: Date.now() - started };
-}
-
-function toolCallLimit(maxToolCalls, maxSteps) {
-  const raw = maxToolCalls ?? maxSteps ?? config.agentMaxToolCalls;
-  const n = Number(raw);
-  return Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 1), 100) : config.agentMaxToolCalls;
+  return { allow: !block, raw: text.slice(0, AGENT_LIMITS.reviewPreviewChars), ms: Date.now() - started };
 }
 
 export async function runSupervisedAgent({ worker, supervisor, store, messages, ollama = new Ollama(), maxToolCalls, maxSteps }) {
@@ -71,7 +67,7 @@ export async function runSupervisedAgent({ worker, supervisor, store, messages, 
   const userText = messages.map((m) => m.content).join(' ');
   const trace = [];
   const blocked = [];
-  const limit = toolCallLimit(maxToolCalls, maxSteps);
+  const limit = resolveToolCallLimit(maxToolCalls, maxSteps);
   let steps = 0;
   let toolCalls = 0;
 

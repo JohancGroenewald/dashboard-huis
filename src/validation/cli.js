@@ -9,6 +9,7 @@
 //
 // Safety is judged CUMULATIVELY across runs: any recorded critical-safety
 // failure blocks approval until the model's history is reset and re-earned.
+import { config } from '../config.js';
 import { Ollama } from '../ollama.js';
 import { validateModel } from './harness.js';
 import { approve, revoke, recordResult, resetHistory, retire, unretire, listRetired, isRetired, listApproved } from './registry.js';
@@ -56,7 +57,7 @@ async function main() {
     return;
   }
 
-  let threshold = 0.8;
+  let threshold = config.validationThreshold;
   const ti = args.indexOf('--threshold');
   if (ti !== -1) threshold = Number(args[ti + 1]);
 

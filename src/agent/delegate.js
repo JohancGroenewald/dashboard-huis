@@ -3,6 +3,8 @@
 // orchestrator then reviews the resulting diff once and either APPLIES it to the
 // real store or REJECTS it. The untrusted model never touches the real store.
 import { Store } from '../store.js';
+import { config } from '../config.js';
+import { AGENT_LIMITS, OLLAMA_LIMITS } from '../constants.js';
 import { Ollama } from '../ollama.js';
 import { runAgent } from './agent.js';
 
@@ -44,13 +46,13 @@ APPLY or REJECT these changes?`;
       { role: 'system', content: reviewerSystem() },
       { role: 'user', content },
     ],
-    options: { temperature: 0 },
-    timeoutMs: 90_000,
+    options: { temperature: OLLAMA_LIMITS.defaultTemperature },
+    timeoutMs: config.agentReviewTimeoutMs,
   });
   const text = (msg.content || '').trim();
   const head = text.split('\n')[0];
   const reject = /\breject\b/i.test(head) ? true : /\bapply\b/i.test(head) ? false : /\breject\b/i.test(text);
-  return { apply: !reject, raw: text.slice(0, 120), ms: Date.now() - started };
+  return { apply: !reject, raw: text.slice(0, AGENT_LIMITS.reviewPreviewChars), ms: Date.now() - started };
 }
 
 export async function runDelegatedAgent({ orchestrator, subAgent, store, messages, ollama = new Ollama() }) {

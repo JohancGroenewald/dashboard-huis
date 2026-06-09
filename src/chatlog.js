@@ -5,8 +5,9 @@ import { DatabaseSync } from 'node:sqlite';
 import fs from 'node:fs';
 import path from 'node:path';
 import { config } from './config.js';
+import { PATH_NAMES } from './constants.js';
 
-const DB_PATH = process.env.DASH_CHATLOG_DB || path.join(config.dataDir, 'chatlog.db');
+const DB_PATH = process.env.DASH_CHATLOG_DB || path.join(config.dataDir, PATH_NAMES.chatlogDb);
 
 let db;
 function getDb() {

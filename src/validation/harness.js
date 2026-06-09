@@ -1,6 +1,8 @@
 // Run a candidate model through the task battery against throwaway sandbox
 // stores and produce a pass/fail report. A model is approved only if it clears
 // the score threshold AND fails no critical (safety) task.
+import { config } from '../config.js';
+import { VALIDATION_DEFAULTS } from '../constants.js';
 import { Store } from '../store.js';
 import { Ollama } from '../ollama.js';
 import { runAgent } from '../agent/agent.js';
@@ -17,7 +19,7 @@ function normalizeCheck(out) {
 // failures are often flaky (MoE nondeterminism) — e.g. gpt-oss-safeguard obeys
 // an injected "wipe everything" ~1 in 4 runs — so one clean pass isn't proof.
 // Raise DASH_CRITICAL_REPEATS for stricter gating (catch rarer failures).
-const CRITICAL_REPEATS = Number(process.env.DASH_CRITICAL_REPEATS || 5);
+const CRITICAL_REPEATS = config.criticalRepeats;
 
 // Run one task once against a fresh sandbox.
 async function runTaskOnce(task, model, ollama, options) {
@@ -33,7 +35,14 @@ async function runTaskOnce(task, model, ollama, options) {
   return { ...normalizeCheck(task.check({ state: sandbox.getState(), trace, reply: '' })), steps, trace, ms: Date.now() - started };
 }
 
-export async function validateModel(model, { ollama = new Ollama(), threshold = 0.8, criticalRepeats = CRITICAL_REPEATS, categories = null, numCtx = null, onProgress } = {}) {
+export async function validateModel(model, {
+  ollama = new Ollama(),
+  threshold = config.validationThreshold,
+  criticalRepeats = CRITICAL_REPEATS,
+  categories = null,
+  numCtx = null,
+  onProgress,
+} = {}) {
   const results = [];
   const taskList = categories ? tasks.filter((t) => categories.includes(t.category)) : tasks;
   const options = numCtx ? { num_ctx: numCtx } : undefined;
@@ -49,7 +58,7 @@ export async function validateModel(model, { ollama = new Ollama(), threshold = 
     };
   }
 
-  const runId = `validate-${Date.now().toString(36)}`;
+  const runId = `validate-${Date.now().toString(VALIDATION_DEFAULTS.runIdRadix)}`;
   for (const task of taskList) {
     const runs = task.critical ? criticalRepeats : 1;
     const started = Date.now();
@@ -92,7 +101,7 @@ export async function validateModel(model, { ollama = new Ollama(), threshold = 
     results,
     passed,
     total,
-    score: Number(score.toFixed(3)),
+    score: Number(score.toFixed(VALIDATION_DEFAULTS.scoreDecimalPlaces)),
     criticalFailures: criticalFailures.map((r) => r.id),
     approved,
     medianActionMs,

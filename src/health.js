@@ -3,6 +3,7 @@
 // TCP checks just confirm the port accepts a connection.
 import net from 'node:net';
 import { config } from './config.js';
+import { HTTP_DEFAULT_PORTS } from './constants.js';
 
 export class HealthMonitor {
   constructor(store, { intervalMs = config.healthIntervalMs, timeoutMs = config.healthTimeoutMs } = {}) {
@@ -89,7 +90,7 @@ export class HealthMonitor {
       try {
         const u = new URL(target);
         host = u.hostname;
-        port = Number(u.port) || (u.protocol === 'https:' ? 443 : 80);
+        port = Number(u.port) || (u.protocol === 'https:' ? HTTP_DEFAULT_PORTS.https : HTTP_DEFAULT_PORTS.http);
       } catch {
         reject(new Error(`invalid tcp target: ${target}`));
         return;

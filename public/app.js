@@ -1,6 +1,7 @@
 // Entry point: importing each feature module wires its DOM events and registers
 // its renderer; then we do the initial loads and start the refresh intervals.
 import { $ } from './js/util.js';
+import { REFRESH_INTERVALS } from './js/constants.js';
 import { loadDashboard, state } from './js/store.js';
 import { loadHealth } from './js/grid.js';
 import { renderFR } from './js/fr.js';
@@ -33,5 +34,5 @@ loadDashboard();
 loadModels();
 loadHealth();
 tick();
-setInterval(tick, 30_000);
-setInterval(loadHealth, 30_000);
+setInterval(tick, REFRESH_INTERVALS.clockMs);
+setInterval(loadHealth, REFRESH_INTERVALS.healthMs);

@@ -1,8 +1,7 @@
 // Feature-request queue — its own workspace (🗒️ Requests tab).
 import { $, api, jsonBody, esc } from './util.js';
+import { FEATURE_REQUEST_STATUSES } from './constants.js';
 import { state, onRender, loadDashboard } from './store.js';
-
-const FR_STATUSES = ['open', 'planned', 'done', 'rejected'];
 
 export function renderFR() {
   const list = $('#fr-list');
@@ -14,7 +13,7 @@ export function renderFR() {
   }
   list.innerHTML = frs
     .map((fr) => {
-      const opts = FR_STATUSES.map((s) => `<option value="${s}"${s === fr.status ? ' selected' : ''}>${s}</option>`).join('');
+      const opts = FEATURE_REQUEST_STATUSES.map((s) => `<option value="${s}"${s === fr.status ? ' selected' : ''}>${s}</option>`).join('');
       return `<div class="fr ${fr.status}" data-id="${fr.id}">
         <div class="fr-title">${esc(fr.title)}</div>
         ${fr.detail ? `<div class="fr-detail">${esc(fr.detail)}</div>` : ''}

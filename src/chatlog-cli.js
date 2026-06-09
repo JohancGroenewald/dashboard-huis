@@ -8,6 +8,8 @@
 //   npm run logs -- --errors         only failed turns
 //   npm run logs -- --full           include full reply + tool args/results
 //   npm run logs -- --sql "SELECT ... FROM chat_log ..."   raw query (JSON out)
+import { config } from './config.js';
+import { CHATLOG_CLI_LIMITS, ENV_BOUNDS } from './constants.js';
 import { query } from './chatlog.js';
 
 const C = { gray: '\x1b[90m', cyan: '\x1b[36m', green: '\x1b[32m', red: '\x1b[31m', yellow: '\x1b[33m', bold: '\x1b[1m', reset: '\x1b[0m' };
@@ -17,7 +19,9 @@ const opt = (n, d) => (args.indexOf(n) !== -1 ? args[args.indexOf(n) + 1] : d);
 const trunc = (s, n) => (s && s.length > n ? s.slice(0, n) + '…' : s || '');
 const boundedRecent = (raw) => {
   const n = Number(raw);
-  return Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 1), 200) : 20;
+  return Number.isFinite(n)
+    ? Math.min(Math.max(Math.trunc(n), ENV_BOUNDS.minPositiveInt), config.logMaxLimit)
+    : CHATLOG_CLI_LIMITS.defaultRecent;
 };
 
 if (flag('--sql')) {
@@ -35,25 +39,25 @@ if (flag('--errors')) where.push('error IS NOT NULL');
 let sql = 'SELECT * FROM chat_log';
 if (where.length) sql += ' WHERE ' + where.join(' AND ');
 sql += ' ORDER BY id DESC LIMIT ?';
-params.push(boundedRecent(opt('--recent', '20')));
+params.push(boundedRecent(opt('--recent', String(CHATLOG_CLI_LIMITS.defaultRecent))));
 
 const rows = query(sql, params).reverse(); // chronological
 if (!rows.length) { console.log('No matching turns.'); process.exit(0); }
 
 for (const r of rows) {
   const head = `${C.bold}#${r.id}${C.reset} ${C.gray}${r.ts}${C.reset} ${C.cyan}${r.model}${C.reset}` +
-    ` ${C.gray}· ${(r.ms / 1000).toFixed(1)}s · ${r.steps ?? '?'} step(s)${r.session ? ` · ${r.session.slice(0, 8)}` : ''}${C.reset}`;
+    ` ${C.gray}· ${(r.ms / 1000).toFixed(1)}s · ${r.steps ?? '?'} step(s)${r.session ? ` · ${r.session.slice(0, CHATLOG_CLI_LIMITS.sessionPreviewChars)}` : ''}${C.reset}`;
   console.log(head);
   if (r.error) console.log(`  ${C.red}✗ error: ${r.error}${C.reset}`);
-  console.log(`  ${C.yellow}▸ user:${C.reset} ${full ? r.user_msg : trunc(r.user_msg, 160)}`);
-  if (r.reply) console.log(`  ${C.green}◂ asst:${C.reset} ${full ? r.reply : trunc(r.reply, 200)}`);
+  console.log(`  ${C.yellow}▸ user:${C.reset} ${full ? r.user_msg : trunc(r.user_msg, CHATLOG_CLI_LIMITS.userPreviewChars)}`);
+  if (r.reply) console.log(`  ${C.green}◂ asst:${C.reset} ${full ? r.reply : trunc(r.reply, CHATLOG_CLI_LIMITS.replyPreviewChars)}`);
   let trace = [];
   try { trace = JSON.parse(r.trace || '[]'); } catch { /* ignore */ }
   for (const t of trace) {
     const mark = t.ok ? `${C.green}✓${C.reset}` : `${C.red}✗${C.reset}`;
     const detail = full
       ? `(${JSON.stringify(t.args)}) → ${JSON.stringify(t.ok ? t.result : t.error)}`
-      : trunc(JSON.stringify(t.args), 80);
+      : trunc(JSON.stringify(t.args), CHATLOG_CLI_LIMITS.argsPreviewChars);
     console.log(`    ${mark} ${C.bold}${t.name}${C.reset} ${C.gray}${detail}${C.reset}`);
   }
   console.log();

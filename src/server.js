@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import { config, paths } from './config.js';
+import { AGENT_LIMITS, ENV_BOUNDS, HTTP_STATUS } from './constants.js';
 import { Store } from './store.js';
 import { HealthMonitor } from './health.js';
 import { Ollama } from './ollama.js';
@@ -20,20 +21,21 @@ const store = new Store({
   filePath: paths.dashboard,
   backupsDir: paths.backups,
   maxBackups: config.maxBackups,
+  maxHistory: config.maxHistory,
 }).load();
 
 const health = new HealthMonitor(store).start();
 const ollama = new Ollama();
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: config.jsonBodyLimit }));
 
 // Turn store validation errors into 400s instead of 500s.
 const wrap = (fn) => async (req, res) => {
   try {
     await fn(req, res);
   } catch (err) {
-    const status = err.code === 'EVALIDATION' ? 400 : 500;
+    const status = err.code === 'EVALIDATION' ? HTTP_STATUS.badRequest : HTTP_STATUS.internalServerError;
     res.status(status).json({ error: err.message });
   }
 };
@@ -42,7 +44,7 @@ const wrap = (fn) => async (req, res) => {
 app.get('/api/dashboard', (req, res) => res.json(store.getState()));
 
 // ---- workspaces ----------------------------------------------------------
-app.post('/api/workspaces', wrap((req, res) => res.status(201).json(store.addWorkspace(req.body))));
+app.post('/api/workspaces', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addWorkspace(req.body))));
 app.patch('/api/workspaces/:id', wrap((req, res) => res.json(store.renameWorkspace(req.params.id, req.body.name))));
 app.delete('/api/workspaces/:id', wrap((req, res) => res.json(store.removeWorkspace(req.params.id))));
 // Switch the active workspace; returns the full state so the board can refresh.
@@ -50,7 +52,7 @@ app.post('/api/workspaces/:id/activate', wrap((req, res) => res.json(store.setAc
 app.post('/api/sections/:id/workspace', wrap((req, res) => res.json(store.moveSectionToWorkspace(req.params.id, req.body.workspaceId))));
 app.post('/api/notes/:id/workspace', wrap((req, res) => res.json(store.moveNoteToWorkspace(req.params.id, req.body.workspaceId))));
 
-app.post('/api/sections', wrap((req, res) => res.status(201).json(store.addSection(req.body))));
+app.post('/api/sections', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addSection(req.body))));
 app.patch('/api/sections/:id', wrap((req, res) => res.json(store.updateSection(req.params.id, req.body))));
 app.delete('/api/sections/:id', wrap((req, res) => res.json(store.removeSection(req.params.id))));
 
@@ -60,7 +62,7 @@ app.post('/api/sections/:id/move', wrap((req, res) => res.json(store.moveSection
 app.post('/api/sections/collapse', wrap((req, res) => res.json(store.setAllCollapsed(req.body.collapsed))));
 app.post('/api/sections/:id/collapse', wrap((req, res) => res.json(store.setSectionCollapsed(req.params.id, req.body.collapsed))));
 
-app.post('/api/sections/:id/tiles', wrap((req, res) => res.status(201).json(store.addTile(req.params.id, req.body))));
+app.post('/api/sections/:id/tiles', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addTile(req.params.id, req.body))));
 app.patch('/api/tiles/:id', wrap((req, res) => res.json(store.updateTile(req.params.id, req.body))));
 app.delete('/api/tiles/:id', wrap((req, res) => res.json(store.removeTile(req.params.id))));
 app.post('/api/tiles/:id/move', wrap((req, res) =>
@@ -81,13 +83,13 @@ app.post('/api/redo', wrap((req, res) => {
 }));
 
 // ---- sticky notes --------------------------------------------------------
-app.post('/api/notes', wrap((req, res) => res.status(201).json(store.addNote(req.body))));
+app.post('/api/notes', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addNote(req.body))));
 app.patch('/api/notes/:id', wrap((req, res) => res.json(store.updateNote(req.params.id, req.body))));
 app.delete('/api/notes/:id', wrap((req, res) => res.json(store.removeNote(req.params.id))));
 
 // ---- feature requests ----------------------------------------------------
 app.post('/api/feature-requests', wrap((req, res) =>
-  res.status(201).json(store.addFeatureRequest({ ...req.body, requestedBy: req.body.requestedBy || 'you' }))
+  res.status(HTTP_STATUS.created).json(store.addFeatureRequest({ ...req.body, requestedBy: req.body.requestedBy || 'you' }))
 ));
 app.patch('/api/feature-requests/:id', wrap((req, res) => res.json(store.updateFeatureRequest(req.params.id, req.body))));
 app.delete('/api/feature-requests/:id', wrap((req, res) => res.json(store.removeFeatureRequest(req.params.id))));
@@ -111,8 +113,8 @@ app.get('/api/abilities', (req, res) =>
 app.get('/api/logs', wrap((req, res) => {
   const requestedLimit = Number(req.query.limit);
   const limit = Number.isFinite(requestedLimit)
-    ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 200)
-    : 40;
+    ? Math.min(Math.max(Math.trunc(requestedLimit), ENV_BOUNDS.minPositiveInt), config.logMaxLimit)
+    : config.logDefaultLimit;
   const where = [];
   const params = [];
   if (req.query.kind) { where.push('kind = ?'); params.push(req.query.kind); }
@@ -158,7 +160,7 @@ const MUTATING = new Set([
 ]);
 function followupsFromTrace(trace = []) {
   const sf = [...trace].reverse().find((t) => t.ok && t.name === 'suggest_followups');
-  if (sf) return (sf.result?.suggestions || sf.args?.suggestions || []).slice(0, 4);
+  if (sf) return (sf.result?.suggestions || sf.args?.suggestions || []).slice(0, AGENT_LIMITS.followupsMax);
   const last = [...trace].reverse().find((t) => t.ok && MUTATING.has(t.name));
   switch (last?.name) {
     case 'add_tile': return ['Add another tile', 'Resize the section', 'Add a note'];
@@ -189,16 +191,16 @@ function followupsFromTrace(trace = []) {
 // Every turn is logged in full to data/chatlog.db (see `npm run logs`).
 app.post('/api/agent/chat', wrap(async (req, res) => {
   const { model, messages, session } = req.body || {};
-  if (!model) return res.status(400).json({ error: 'model is required' });
+  if (!model) return res.status(HTTP_STATUS.badRequest).json({ error: 'model is required' });
   if (!Array.isArray(messages) || !messages.length) {
-    return res.status(400).json({ error: 'messages[] is required' });
+    return res.status(HTTP_STATUS.badRequest).json({ error: 'messages[] is required' });
   }
   const safeMessages = sanitizeChatMessages(messages);
   if (!latestUserMessage(safeMessages)) {
-    return res.status(400).json({ error: 'messages[] must include at least one user message' });
+    return res.status(HTTP_STATUS.badRequest).json({ error: 'messages[] must include at least one user message' });
   }
   if (!isApproved(model)) {
-    return res.status(403).json({
+    return res.status(HTTP_STATUS.forbidden).json({
       error: `"${model}" has not passed pre-validation. Run: npm run validate -- "${model}"`,
     });
   }

@@ -2,13 +2,15 @@
 // (untrusted) SUB-AGENT: the sub-agent drafts on a sandbox, the orchestrator
 // reviews the diff once and applies or rejects. Answers: does this keep things
 // safe + capable, and is it faster than the orchestrator working alone?
+import { config } from '../config.js';
+import { VALIDATION_DEFAULTS } from '../constants.js';
 import { Store } from '../store.js';
 import { Ollama } from '../ollama.js';
 import { runDelegatedAgent } from '../agent/delegate.js';
 import { tasks } from './tasks.js';
 import { listResults } from './registry.js';
 
-const CRITICAL_REPEATS = Number(process.env.DASH_CRITICAL_REPEATS || 5);
+const CRITICAL_REPEATS = config.criticalRepeats;
 
 function normalizeCheck(out) {
   if (out === true) return { pass: true, reason: '' };
@@ -64,7 +66,7 @@ export async function delegateModel(subAgent, orchestrator, { ollama = new Ollam
   const capabilityPass = results.filter((r) => !r.critical).every((r) => r.pass);
 
   const orchestratorAloneMs = listResults()[orchestrator]?.msPerAction || null;
-  const speedup = orchestratorAloneMs ? Number((orchestratorAloneMs / medianActionMs).toFixed(2)) : null;
+  const speedup = orchestratorAloneMs ? Number((orchestratorAloneMs / medianActionMs).toFixed(VALIDATION_DEFAULTS.decimalPlaces)) : null;
   const fasterThanOrchestrator = orchestratorAloneMs ? medianActionMs < orchestratorAloneMs : null;
   const useful = safetyPass && capabilityPass && fasterThanOrchestrator === true;
 

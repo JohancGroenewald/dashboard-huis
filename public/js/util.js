@@ -1,4 +1,8 @@
 // Shared frontend helpers: DOM, fetch, escaping, markdown, formatting.
+import { NOTE_COLORS, SPEED_LIMITS } from './constants.js';
+
+export { NOTE_COLORS };
+
 export const $ = (sel) => document.querySelector(sel);
 
 export async function api(path, opts) {
@@ -19,19 +23,17 @@ export const esc = (s) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])
   );
 
-export const NOTE_COLORS = ['#f6d365', '#a0e7a0', '#9bd0ff', '#ffb3c1', '#e0c3fc'];
-
 export function fmtMs(ms) {
   if (!ms) return '';
-  const s = ms / 1000;
-  return s < 10 ? `${s.toFixed(1)}s` : `${Math.round(s)}s`;
+  const s = ms / SPEED_LIMITS.msPerSecond;
+  return s < SPEED_LIMITS.secondsCutoff ? `${s.toFixed(1)}s` : `${Math.round(s)}s`;
 }
 
 export function speedTier(ms) {
   if (!ms) return '';
-  if (ms < 2500) return '⚡';
-  if (ms < 6000) return '🟢';
-  if (ms < 12000) return '🟡';
+  if (ms < SPEED_LIMITS.fastMs) return '⚡';
+  if (ms < SPEED_LIMITS.okMs) return '🟢';
+  if (ms < SPEED_LIMITS.slowMs) return '🟡';
   return '🐢';
 }
 

@@ -7,6 +7,7 @@
 // lost. The same class runs in memory-only mode for the validation sandbox.
 import fs from 'node:fs';
 import path from 'node:path';
+import { CONFIG_DEFAULTS, SCHEMA_LIMITS, STORE_LIMITS } from './constants.js';
 import {
   fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote,
   normalizeFeatureRequest, normalizeWorkspace, normalizeLayout, defaultState, colorName,
@@ -14,7 +15,13 @@ import {
 
 export class Store {
   // persist=false → memory-only (used by the validation sandbox).
-  constructor({ filePath = null, backupsDir = null, maxBackups = 25, persist = true, maxHistory = 50 } = {}) {
+  constructor({
+    filePath = null,
+    backupsDir = null,
+    maxBackups = CONFIG_DEFAULTS.maxBackups,
+    persist = true,
+    maxHistory = STORE_LIMITS.defaultMaxHistory,
+  } = {}) {
     this.filePath = filePath;
     this.backupsDir = backupsDir;
     this.maxBackups = maxBackups;
@@ -104,7 +111,7 @@ export class Store {
     for (const n of this.state.notes) {
       const color = colorName(n.color);
       items.push({
-        type: 'note', id: n.id, color, label: (n.text || '').slice(0, 50) || '(empty note)', layout: n.layout,
+        type: 'note', id: n.id, color, label: (n.text || '').slice(0, STORE_LIMITS.noteSearchLabelChars) || '(empty note)', layout: n.layout,
         _hay: `note ${color} ${n.text || ''}`,
       });
     }
@@ -118,12 +125,12 @@ export class Store {
       })
       .filter((m) => m.score > 0)
       .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+      .slice(0, STORE_LIMITS.searchResults);
   }
 
   // ---- mutations --------------------------------------------------------
   setTitle(title) {
-    this.state.title = checkString(title, 'title', { max: 120 });
+    this.state.title = checkString(title, 'title', { max: SCHEMA_LIMITS.dashboardTitleChars });
     return this.#commit().title;
   }
 
@@ -137,7 +144,7 @@ export class Store {
 
   renameWorkspace(id, name) {
     const w = this.#workspace(id);
-    w.name = checkString(name, 'workspace.name', { max: 120 });
+    w.name = checkString(name, 'workspace.name', { max: SCHEMA_LIMITS.workspaceNameChars });
     this.#commit();
     return structuredClone(w);
   }
@@ -191,8 +198,11 @@ export class Store {
   updateSection(id, patch) {
     const s = this.#section(id);
     const next = {};
-    if (patch.name !== undefined) next.name = checkString(patch.name, 'section.name', { max: 120 });
-    if (patch.description !== undefined) next.description = checkString(patch.description, 'section.description', { required: false, max: 500 });
+    if (patch.name !== undefined) next.name = checkString(patch.name, 'section.name', { max: SCHEMA_LIMITS.sectionNameChars });
+    if (patch.description !== undefined) next.description = checkString(patch.description, 'section.description', {
+      required: false,
+      max: SCHEMA_LIMITS.sectionDescriptionChars,
+    });
     if (patch.bold !== undefined) next.bold = Boolean(patch.bold);
     for (const k of ['color', 'borderColor', 'headingColor']) {
       if (patch[k] !== undefined) next[k] = checkColor(patch[k], `section.${k}`);
@@ -232,7 +242,7 @@ export class Store {
     const idx = this.state.sections.findIndex((s) => s.id === id);
     if (idx === -1) fail(`section not found: ${id}`);
     const [s] = this.state.sections.splice(idx, 1);
-    const clamped = Math.max(0, Math.min(Number(toIndex) || 0, this.state.sections.length));
+    const clamped = Math.max(STORE_LIMITS.minIndex, Math.min(Number(toIndex) || STORE_LIMITS.minIndex, this.state.sections.length));
     this.state.sections.splice(clamped, 0, s);
     this.#commit();
     return this.getState();
@@ -266,7 +276,7 @@ export class Store {
     const dest = this.#section(toSectionId);
     section.tiles.splice(index, 1);
     const pos = toIndex == null ? dest.tiles.length : Number(toIndex);
-    const clamped = Math.max(0, Math.min(pos, dest.tiles.length));
+    const clamped = Math.max(STORE_LIMITS.minIndex, Math.min(pos, dest.tiles.length));
     dest.tiles.splice(clamped, 0, tile);
     this.#commit();
     return structuredClone(tile);

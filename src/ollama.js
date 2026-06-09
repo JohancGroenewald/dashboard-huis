@@ -1,5 +1,6 @@
 // Thin Ollama API client. Uses Node's global fetch.
 import { config } from './config.js';
+import { OLLAMA_LIMITS } from './constants.js';
 
 export class Ollama {
   constructor(host = config.ollamaHost) {
@@ -22,7 +23,7 @@ export class Ollama {
   // Preload a model into memory (cold loads of large models can take minutes).
   // Empty messages make Ollama load weights and return without generating.
   // Pass options (e.g. num_ctx) to size the context/KV-cache at load time.
-  async load(model, { timeoutMs = 300_000, options } = {}) {
+  async load(model, { timeoutMs = config.ollamaLoadTimeoutMs, options } = {}) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
@@ -45,14 +46,14 @@ export class Ollama {
       await fetch(`${this.host}/api/generate`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ model, keep_alive: 0 }),
+        body: JSON.stringify({ model, keep_alive: OLLAMA_LIMITS.unloadKeepAlive }),
       });
     } catch { /* best effort */ }
   }
 
   // Non-streaming chat. Pass `tools` to enable tool-calling (model permitting).
   // Returns the assistant message: { role, content, tool_calls? }.
-  async chat({ model, messages, tools, options, timeoutMs = 180_000 }) {
+  async chat({ model, messages, tools, options, timeoutMs = config.ollamaChatTimeoutMs }) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
@@ -65,12 +66,12 @@ export class Ollama {
           messages,
           tools,
           stream: false,
-          options: { temperature: 0, ...options },
+          options: { temperature: OLLAMA_LIMITS.defaultTemperature, ...options },
         }),
       });
       if (!res.ok) {
         const body = await res.text().catch(() => '');
-        throw new Error(`ollama /api/chat → ${res.status} ${body.slice(0, 300)}`);
+        throw new Error(`ollama /api/chat → ${res.status} ${body.slice(0, OLLAMA_LIMITS.errorBodyPreviewChars)}`);
       }
       const data = await res.json();
       return data.message ?? { role: 'assistant', content: '' };

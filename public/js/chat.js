@@ -1,6 +1,7 @@
 // Assistant: model picker, agent chat (markdown replies + tool trace), the
 // tested-models report, and the abilities dropdown.
 import { $, api, jsonBody, esc, fmtMs, speedTier, mdToHtml } from './util.js';
+import { CHAT_UI, SPEED_LIMITS, STORAGE_KEYS } from './constants.js';
 import { setState } from './store.js';
 
 const chatLog = $('#chat-log');
@@ -34,12 +35,12 @@ let activeModel = '';
 
 function setModel(m, ms) {
   activeModel = m;
-  if (m) localStorage.setItem('dash-model', m); // remember the picked driver
+  if (m) localStorage.setItem(STORAGE_KEYS.activeModel, m); // remember the picked driver
   $('#model-btn-label').innerHTML = m ? `${esc(m)}${ms ? ` <span class="pill-badge">${speedTier(ms)} ~${fmtMs(ms)}</span>` : ''}` : 'no models';
 }
 
 function saveChat() {
-  try { localStorage.setItem('dash-chat', JSON.stringify({ session: SESSION, history })); } catch { /* quota */ }
+  try { localStorage.setItem(STORAGE_KEYS.chat, JSON.stringify({ session: SESSION, history })); } catch { /* quota */ }
 }
 
 export async function loadModels() {
@@ -63,7 +64,7 @@ export async function loadModels() {
           menu.classList.add('hidden');
         })
       );
-      const saved = localStorage.getItem('dash-model');
+      const saved = localStorage.getItem(STORAGE_KEYS.activeModel);
       const pick = activeModel && approved.includes(activeModel) ? activeModel
         : saved && approved.includes(saved) ? saved
         : approved[0];
@@ -121,11 +122,11 @@ function startThinking() {
   const t0 = Date.now();
   const timeEl = row.querySelector('.think-time');
   const timer = setInterval(() => {
-    const s = Math.round((Date.now() - t0) / 1000);
-    if (s < 3) return;
-    timeEl.textContent = s >= 12 ? `${s}s · a cold model can take a while…` : `${s}s`;
+    const s = Math.round((Date.now() - t0) / SPEED_LIMITS.msPerSecond);
+    if (s < CHAT_UI.thinkingNoticeDelaySeconds) return;
+    timeEl.textContent = s >= CHAT_UI.coldModelNoticeSeconds ? `${s}s · a cold model can take a while…` : `${s}s`;
     chatLog.scrollTop = chatLog.scrollHeight;
-  }, 1000);
+  }, CHAT_UI.thinkingTimerMs);
   return { remove: () => { clearInterval(timer); row.remove(); } };
 }
 
@@ -223,14 +224,14 @@ document.addEventListener('click', (e) => {
 function initAssistantWindow() {
   const win = $('#chat');
   const head = win.querySelector('.asst-head');
-  const KEY = 'dash-asst-geom';
+  const KEY = STORAGE_KEYS.assistantGeometry;
 
   // Move (and optionally size) the window, clamped so the header stays reachable.
   const place = ({ left, top, w, h }) => {
     if (w != null) win.style.width = `${Math.min(w, window.innerWidth)}px`;
     if (h != null) win.style.height = `${Math.min(h, window.innerHeight)}px`;
-    win.style.left = `${Math.max(0, Math.min(left, window.innerWidth - 120))}px`;
-    win.style.top = `${Math.max(0, Math.min(top, window.innerHeight - 44))}px`;
+    win.style.left = `${Math.max(CHAT_UI.viewportMin, Math.min(left, window.innerWidth - CHAT_UI.minVisibleWidth))}px`;
+    win.style.top = `${Math.max(CHAT_UI.viewportMin, Math.min(top, window.innerHeight - CHAT_UI.minVisibleHeight))}px`;
     win.style.right = 'auto';
   };
   const save = () => {
@@ -268,7 +269,7 @@ function initAssistantWindow() {
   new ResizeObserver(() => {
     if (win.classList.contains('hidden') || start) return;
     clearTimeout(rt);
-    rt = setTimeout(save, 300);
+    rt = setTimeout(save, CHAT_UI.resizeSaveDebounceMs);
   }).observe(win);
 }
 initAssistantWindow();
@@ -313,7 +314,7 @@ wireSuggestions();
 $('#chat-new').addEventListener('click', () => {
   history.length = 0;
   SESSION = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
-  localStorage.removeItem('dash-chat');
+  localStorage.removeItem(STORAGE_KEYS.chat);
   chatLog.innerHTML = introHTML;
   wireSuggestions();
 });
@@ -321,7 +322,7 @@ $('#chat-new').addEventListener('click', () => {
 // Restore a persisted conversation (same session, so new turns keep grouping).
 (function restoreChat() {
   let saved = {};
-  try { saved = JSON.parse(localStorage.getItem('dash-chat') || '{}'); } catch { /* corrupt */ }
+  try { saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.chat) || '{}'); } catch { /* corrupt */ }
   if (saved.session) SESSION = saved.session;
   if (Array.isArray(saved.history) && saved.history.length) {
     for (const m of saved.history) {

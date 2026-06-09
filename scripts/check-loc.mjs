@@ -3,8 +3,9 @@
 // reason about; over-limit files should be refactored.
 import { execSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
+import { TOOLING_LIMITS } from '../src/constants.js';
 
-const LIMIT = 500;
+const LIMIT = TOOLING_LIMITS.sourceFileMaxLines;
 const files = execSync('git ls-files "*.js" "*.mjs" "*.css" "*.html"', { encoding: 'utf8' })
   .split('\n')
   .filter((f) => f && !f.startsWith('public/vendor/'));

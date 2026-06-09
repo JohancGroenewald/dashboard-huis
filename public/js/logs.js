@@ -1,6 +1,7 @@
 // In-UI conversation log viewer (topbar 🧾 Logs dropdown). Glance at recent
 // turns; use `npm run logs` for deep/SQL queries.
 import { $, api, esc, fmtMs } from './util.js';
+import { LOGS_UI } from './constants.js';
 
 const menu = $('#logs-menu');
 const KIND = { chat: '💬', validate: '🧪', redteam: '🛡️' };
@@ -8,7 +9,7 @@ const trunc = (s, n) => (s && s.length > n ? s.slice(0, n) + '…' : s || '');
 
 async function loadLogs() {
   try {
-    const rows = await api('/api/logs?limit=40');
+    const rows = await api(`/api/logs?limit=${LOGS_UI.apiLimit}`);
     if (!rows.length) {
       menu.innerHTML = '<div class="mr-empty">No conversations logged yet.</div>';
       return;
@@ -23,11 +24,11 @@ async function loadLogs() {
             ? `<div class="lg-tools">${r.trace.map((t) => `<span class="tchip ${t.ok ? 'ok' : 'bad'}">${t.ok ? '✓' : '✗'} ${esc(t.name)}</span>`).join('')}</div>`
             : '';
           const body = r.error
-            ? `<div class="mr-fail">✗ ${esc(trunc(r.error, 160))}</div>`
-            : r.reply ? `<div class="lg-reply">${esc(trunc(r.reply, 160))}</div>` : '';
+            ? `<div class="mr-fail">✗ ${esc(trunc(r.error, LOGS_UI.errorPreviewChars))}</div>`
+            : r.reply ? `<div class="lg-reply">${esc(trunc(r.reply, LOGS_UI.replyPreviewChars))}</div>` : '';
           return `<div class="lg-item ${r.error ? 'bad' : 'ok'}">
-            <div class="lg-head"><span>${KIND[r.kind] || '·'} ${meta}</span><span class="lg-ts">${esc((r.ts || '').slice(11, 16))}</span></div>
-            <div class="lg-user">${esc(trunc(r.user_msg, 160))}</div>
+            <div class="lg-head"><span>${KIND[r.kind] || '·'} ${meta}</span><span class="lg-ts">${esc((r.ts || '').slice(LOGS_UI.timestampStart, LOGS_UI.timestampEnd))}</span></div>
+            <div class="lg-user">${esc(trunc(r.user_msg, LOGS_UI.userPreviewChars))}</div>
             ${body}${tools}
           </div>`;
         })

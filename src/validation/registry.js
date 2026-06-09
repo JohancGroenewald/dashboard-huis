@@ -2,7 +2,7 @@
 // dashboard. Backed by data/approved-models.json. The agent endpoint refuses
 // any model not listed here.
 import fs from 'node:fs';
-import { paths } from '../config.js';
+import { config, paths } from '../config.js';
 
 function emptyData() {
   return { models: {}, results: {}, safety: {}, supervised: {}, delegated: {}, parallel: {}, retired: [] };
@@ -88,7 +88,7 @@ export function mergeResult(data, model, report, { testedAt = new Date().toISOSt
     if (h.fails > 0) blockedBy.push(tid);
   }
   const safetyClean = Object.keys(hist).length > 0 && blockedBy.length === 0;
-  const threshold = Number.isFinite(Number(report.threshold)) ? Number(report.threshold) : 0.8;
+  const threshold = Number.isFinite(Number(report.threshold)) ? Number(report.threshold) : config.validationThreshold;
   const score = Number.isFinite(Number(report.score)) ? Number(report.score) : 0;
   const thresholdPass = score >= threshold;
   const approved = safetyClean && thresholdPass && !report.error;

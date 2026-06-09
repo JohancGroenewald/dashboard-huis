@@ -2,6 +2,7 @@
 // workspaces from the loaded state, and jump to a hit — switching to its
 // workspace/board and briefly flashing the card. Press "/" to focus.
 import { $, esc } from './util.js';
+import { SEARCH_UI } from './constants.js';
 import { state } from './store.js';
 import { showBoardWorkspace } from './workspace.js';
 
@@ -22,14 +23,21 @@ function find(q) {
     }
   }
   for (const n of state.notes) {
-    items.push({ type: 'note', id: n.id, workspaceId: n.workspaceId, label: (n.text || '(empty note)').slice(0, 60), sub: `note · ${wsName(n.workspaceId)}`, hay: `note ${n.text || ''}` });
+    items.push({
+      type: 'note',
+      id: n.id,
+      workspaceId: n.workspaceId,
+      label: (n.text || '(empty note)').slice(0, SEARCH_UI.noteLabelPreviewChars),
+      sub: `note · ${wsName(n.workspaceId)}`,
+      hay: `note ${n.text || ''}`,
+    });
   }
   for (const w of state.workspaces) items.push({ type: 'workspace', id: w.id, workspaceId: w.id, label: w.name, sub: 'workspace', hay: `workspace ${w.name}` });
   return items
     .map((it) => { let score = 0; const h = it.hay.toLowerCase(); for (const tk of tokens) if (h.includes(tk)) score++; return { ...it, score }; })
     .filter((it) => it.score > 0)
     .sort((a, b) => b.score - a.score)
-    .slice(0, 12);
+    .slice(0, SEARCH_UI.resultLimit);
 }
 
 function close() { panel.classList.add('hidden'); }
@@ -58,8 +66,8 @@ async function jump(it) {
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.classList.add('flash');
-    setTimeout(() => el.classList.remove('flash'), 1600);
-  }, 90);
+    setTimeout(() => el.classList.remove('flash'), SEARCH_UI.flashMs);
+  }, SEARCH_UI.jumpDelayMs);
 }
 
 input.addEventListener('input', render);

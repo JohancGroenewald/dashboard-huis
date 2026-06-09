@@ -1,8 +1,8 @@
 // The agent loop: drive a model through tool calls until it produces a final
 // answer. Returns the final text plus a full trace (every tool call + result),
 // which the UI shows and the validation harness scores.
-import { config } from '../config.js';
 import { Ollama } from '../ollama.js';
+import { resolveToolCallLimit } from './limits.js';
 import { systemPrompt } from './prompt.js';
 import { toolSpecs, makeToolHandlers } from './tools.js';
 
@@ -18,17 +18,11 @@ function parseArgs(raw) {
   }
 }
 
-function toolCallLimit(maxToolCalls, maxSteps) {
-  const raw = maxToolCalls ?? maxSteps ?? config.agentMaxToolCalls;
-  const n = Number(raw);
-  return Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 1), 100) : config.agentMaxToolCalls;
-}
-
 export async function runAgent({ model, store, messages, ollama = new Ollama(), maxToolCalls, maxSteps, options }) {
   const handlers = makeToolHandlers(store, { requestedBy: model });
   const convo = [{ role: 'system', content: systemPrompt(store) }, ...messages];
   const trace = []; // { name, args, ok, result|error }
-  const limit = toolCallLimit(maxToolCalls, maxSteps);
+  const limit = resolveToolCallLimit(maxToolCalls, maxSteps);
   let steps = 0;
   let toolCalls = 0;
 

@@ -3,6 +3,7 @@
 // Handlers are bound to a Store, so the identical tool set runs against the
 // live store (the agent) and a throwaway store (the validation sandbox).
 // The JSON-schema specs live in tool-specs.js (re-exported here).
+import { AGENT_LIMITS } from '../constants.js';
 import { toolSpecs } from './tool-specs.js';
 
 export { toolSpecs };
@@ -172,11 +173,11 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
 
     // UI-only: surface clickable buttons/chips in the chat (no state change).
     offer_choices: ({ choices }) => ({
-      offered: Array.isArray(choices) ? choices.slice(0, 6).map((c) => String(c)) : [],
+      offered: Array.isArray(choices) ? choices.slice(0, AGENT_LIMITS.offeredChoicesMax).map((c) => String(c)) : [],
     }),
 
     suggest_followups: ({ suggestions }) => ({
-      suggestions: Array.isArray(suggestions) ? suggestions.slice(0, 4).map((s) => String(s)) : [],
+      suggestions: Array.isArray(suggestions) ? suggestions.slice(0, AGENT_LIMITS.followupsMax).map((s) => String(s)) : [],
     }),
 
     request_feature: ({ title, detail }) => ({

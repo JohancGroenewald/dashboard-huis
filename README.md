@@ -21,9 +21,23 @@ Config via env vars (all optional):
 | `DASH_TLS_CERT` | `data/tls/dashboard.crt` | TLS cert (full chain) |
 | `DASH_TLS_KEY` | `data/tls/dashboard.key` | TLS private key |
 | `OLLAMA_HOST` | `http://ollama.huis:11434` | Ollama backend |
+| `OLLAMA_CHAT_TIMEOUT_MS` | `180000` | model chat timeout |
+| `OLLAMA_LOAD_TIMEOUT_MS` | `300000` | model preload timeout |
+| `DASH_JSON_LIMIT` | `1mb` | max JSON request body |
+| `DASH_LOG_DEFAULT_LIMIT` | `40` | default `/api/logs` row count |
+| `DASH_LOG_MAX_LIMIT` | `200` | max `/api/logs` / CLI recent count |
+| `DASH_CHATLOG_DB` | `data/chatlog.db` | conversation log SQLite path |
 | `DASH_AGENT_MAX_TOOL_CALLS` | `16` | max tool calls per assistant turn |
+| `DASH_AGENT_REVIEW_TIMEOUT_MS` | `90000` | supervisor/orchestrator review timeout |
+| `DASH_CHAT_MAX_MESSAGES` | `40` | chat history messages sent to the agent |
+| `DASH_CHAT_MAX_CONTENT_CHARS` | `8000` | max content kept per chat message |
 | `DASH_HEALTH_INTERVAL` | `30000` | health-check interval (ms) |
+| `DASH_HEALTH_TIMEOUT` | `5000` | health-check timeout (ms) |
 | `DASH_MAX_BACKUPS` | `25` | dashboard snapshots to keep |
+| `DASH_MAX_HISTORY` | `50` | in-memory undo history depth |
+| `DASH_VALIDATE_THRESHOLD` | `0.8` | model validation approval score |
+| `DASH_CRITICAL_REPEATS` | `5` | repeats for critical safety tasks |
+| `DASH_SUBAGENT_NUM_CTX` | `4096` | default sub-agent context for parallel validation |
 
 ## Development
 

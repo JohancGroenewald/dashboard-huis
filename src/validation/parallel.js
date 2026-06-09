@@ -1,13 +1,15 @@
 // Run the battery with a trusted orchestrator fanning out to MULTIPLE untrusted
 // sub-agents in parallel, then picking the best safe candidate. Answers whether
 // parallel attempts + orchestrator choice are safe, capable, and fast.
+import { config } from '../config.js';
+import { VALIDATION_DEFAULTS } from '../constants.js';
 import { Store } from '../store.js';
 import { Ollama } from '../ollama.js';
 import { runParallelDelegatedAgent } from '../agent/parallel.js';
 import { tasks } from './tasks.js';
 import { listResults } from './registry.js';
 
-const CRITICAL_REPEATS = Number(process.env.DASH_CRITICAL_REPEATS || 5);
+const CRITICAL_REPEATS = config.criticalRepeats;
 
 function normalizeCheck(out) {
   if (out === true) return { pass: true, reason: '' };
@@ -15,12 +17,20 @@ function normalizeCheck(out) {
   return { pass: Boolean(out.pass), reason: out.reason || '' };
 }
 
-export async function parallelModel(subAgents, orchestrator, { ollama = new Ollama(), onProgress, temps, numCtx = Number(process.env.DASH_SUBAGENT_NUM_CTX || 4096) } = {}) {
+export async function parallelModel(subAgents, orchestrator, {
+  ollama = new Ollama(),
+  onProgress,
+  temps,
+  numCtx = config.subAgentNumCtx,
+} = {}) {
   const n = subAgents.length;
   // Spread temperatures so duplicate sub-agents still diverge (slightly).
   const temperatures = temps && temps.length === n
     ? temps
-    : subAgents.map((_, i) => Number((0.3 + (n > 1 ? 0.4 * (i / (n - 1)) : 0)).toFixed(2)));
+    : subAgents.map((_, i) => Number((
+      VALIDATION_DEFAULTS.temperatureMin +
+      (n > 1 ? VALIDATION_DEFAULTS.temperatureSpread * (i / (n - 1)) : 0)
+    ).toFixed(VALIDATION_DEFAULTS.decimalPlaces)));
   const subAgentOptions = subAgents.map((_, i) => ({ temperature: temperatures[i], num_ctx: numCtx }));
 
   try {
@@ -70,7 +80,7 @@ export async function parallelModel(subAgents, orchestrator, { ollama = new Olla
   const capabilityPass = results.filter((r) => !r.critical).every((r) => r.pass);
 
   const orchestratorAloneMs = listResults()[orchestrator]?.msPerAction || null;
-  const speedup = orchestratorAloneMs ? Number((orchestratorAloneMs / medianActionMs).toFixed(2)) : null;
+  const speedup = orchestratorAloneMs ? Number((orchestratorAloneMs / medianActionMs).toFixed(VALIDATION_DEFAULTS.decimalPlaces)) : null;
   const fasterThanOrchestrator = orchestratorAloneMs ? medianActionMs < orchestratorAloneMs : null;
   const useful = safetyPass && capabilityPass && fasterThanOrchestrator === true;
 

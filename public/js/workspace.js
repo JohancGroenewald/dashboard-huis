@@ -4,18 +4,19 @@
 // own panel. The board panel is shared — switching content workspaces just
 // re-filters it (grid.js renders only the active workspace's cards).
 import { $, api, jsonBody, esc } from './util.js';
+import { STORAGE_KEYS } from './constants.js';
 import { state, onRender, switchWorkspace, loadDashboard } from './store.js';
 
 const systemWorkspaces = []; // { id, label, onActivate }
 // What's on screen: 'board' (a content workspace) or a system workspace id.
-let viewing = localStorage.getItem('dash-view') || 'board';
+let viewing = localStorage.getItem(STORAGE_KEYS.activeView) || 'board';
 
 export function registerSystemWorkspace(ws) {
   systemWorkspaces.push(ws);
 }
 
 function persistView() {
-  localStorage.setItem('dash-view', viewing);
+  localStorage.setItem(STORAGE_KEYS.activeView, viewing);
 }
 
 function applyPanels() {

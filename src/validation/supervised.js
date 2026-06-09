@@ -1,13 +1,15 @@
 // Run the validation battery with a (failed) WORKER model supervised by a
 // trusted SUPERVISOR, to answer: does supervision make the worker safe, does it
 // keep the worker's capability, and is the pair faster than the supervisor alone?
+import { config } from '../config.js';
+import { VALIDATION_DEFAULTS } from '../constants.js';
 import { Store } from '../store.js';
 import { Ollama } from '../ollama.js';
 import { runSupervisedAgent } from '../agent/supervisor.js';
 import { tasks } from './tasks.js';
 import { listResults } from './registry.js';
 
-const CRITICAL_REPEATS = Number(process.env.DASH_CRITICAL_REPEATS || 5);
+const CRITICAL_REPEATS = config.criticalRepeats;
 
 function normalizeCheck(out) {
   if (out === true) return { pass: true, reason: '' };
@@ -69,7 +71,7 @@ export async function superviseModel(worker, supervisor, { ollama = new Ollama()
 
   // Speed baseline: the supervisor driving alone (from its own validation run).
   const supervisorAloneMs = listResults()[supervisor]?.msPerAction || null;
-  const speedup = supervisorAloneMs ? Number((supervisorAloneMs / medianActionMs).toFixed(2)) : null;
+  const speedup = supervisorAloneMs ? Number((supervisorAloneMs / medianActionMs).toFixed(VALIDATION_DEFAULTS.decimalPlaces)) : null;
   const fasterThanSupervisor = supervisorAloneMs ? medianActionMs < supervisorAloneMs : null;
   // Useful = supervision makes it safe, keeps capability, and it's actually faster.
   const useful = safetyPass && capabilityPass && fasterThanSupervisor === true;

@@ -1,8 +1,12 @@
 // Dashboard schema: validation + normalization of the whole state tree,
 // plus helpers shared by the Store. fail() (code EVALIDATION) maps to a 400.
 import crypto from 'node:crypto';
+import {
+  DEFAULT_DASHBOARD, FEATURE_REQUEST_STATUSES, HEALTH_TYPES as HEALTH_TYPE_VALUES,
+  NOTE_COLOR_NAMES, SCHEMA_LIMITS,
+} from './constants.js';
 
-const HEALTH_TYPES = new Set(['http', 'tcp', 'none']);
+const HEALTH_TYPES = new Set(HEALTH_TYPE_VALUES);
 const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const COLOR_NAME = /^[a-zA-Z]+$/;
 
@@ -16,7 +20,7 @@ function isPlainObject(v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v);
 }
 
-export function checkString(val, field, { required = true, max = 2000 } = {}) {
+export function checkString(val, field, { required = true, max = SCHEMA_LIMITS.defaultStringChars } = {}) {
   if (val === undefined || val === null || val === '') {
     if (required) fail(`"${field}" is required`);
     return '';
@@ -27,7 +31,7 @@ export function checkString(val, field, { required = true, max = 2000 } = {}) {
 }
 
 export function checkColor(val, field, { required = false } = {}) {
-  const s = checkString(val, field, { required, max: 30 }).trim();
+  const s = checkString(val, field, { required, max: SCHEMA_LIMITS.colorChars }).trim();
   if (!s) return '';
   if (HEX_COLOR.test(s)) return s.toLowerCase();
   if (COLOR_NAME.test(s)) return s.toLowerCase();
@@ -63,14 +67,6 @@ function normalizeHealth(h) {
   };
 }
 
-// Map the note palette hexes to colour words so "green note" is searchable.
-const NOTE_COLOR_NAMES = {
-  '#f6d365': 'yellow',
-  '#a0e7a0': 'green',
-  '#9bd0ff': 'blue',
-  '#ffb3c1': 'pink',
-  '#e0c3fc': 'purple',
-};
 export function colorName(c) {
   if (!c) return '';
   const lc = String(c).toLowerCase();
@@ -80,7 +76,7 @@ export function colorName(c) {
 // Grid layout for a card: { x, y, w, h } in grid cells. Empty = auto-place.
 export function normalizeLayout(raw) {
   if (!isPlainObject(raw)) return {};
-  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.round(v)) : undefined);
+  const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(SCHEMA_LIMITS.layoutMin, Math.round(v)) : undefined);
   const out = {};
   const x = num(raw.x);
   const y = num(raw.y);
@@ -88,8 +84,8 @@ export function normalizeLayout(raw) {
   const h = num(raw.h);
   if (x !== undefined) out.x = x;
   if (y !== undefined) out.y = y;
-  if (w !== undefined) out.w = Math.min(Math.max(w, 1), 12);
-  if (h !== undefined) out.h = Math.max(h, 1);
+  if (w !== undefined) out.w = Math.min(Math.max(w, SCHEMA_LIMITS.layoutMinSize), SCHEMA_LIMITS.gridColumns);
+  if (h !== undefined) out.h = Math.max(h, SCHEMA_LIMITS.layoutMinSize);
   return out;
 }
 
@@ -97,10 +93,10 @@ export function normalizeTile(raw) {
   if (!isPlainObject(raw)) fail('tile must be an object');
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    name: checkString(raw.name, 'tile.name', { max: 120 }),
+    name: checkString(raw.name, 'tile.name', { max: SCHEMA_LIMITS.tileNameChars }),
     url: checkUrl(raw.url, 'tile.url'),
-    description: checkString(raw.description, 'tile.description', { required: false, max: 500 }),
-    icon: checkString(raw.icon, 'tile.icon', { required: false, max: 40 }),
+    description: checkString(raw.description, 'tile.description', { required: false, max: SCHEMA_LIMITS.tileDescriptionChars }),
+    icon: checkString(raw.icon, 'tile.icon', { required: false, max: SCHEMA_LIMITS.tileIconChars }),
     color: checkColor(raw.color, 'tile.color'),
     bold: Boolean(raw.bold), // tile labels are not bold unless turned on
     health: normalizeHealth(raw.health),
@@ -112,7 +108,7 @@ export function normalizeWorkspace(raw) {
   if (!isPlainObject(raw)) fail('workspace must be an object');
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    name: checkString(raw.name, 'workspace.name', { max: 120 }),
+    name: checkString(raw.name, 'workspace.name', { max: SCHEMA_LIMITS.workspaceNameChars }),
   };
 }
 
@@ -122,9 +118,9 @@ export function normalizeSection(raw) {
   if (!Array.isArray(tiles)) fail('"section.tiles" must be an array');
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    name: checkString(raw.name, 'section.name', { max: 120 }),
-    description: checkString(raw.description, 'section.description', { required: false, max: 500 }),
-    workspaceId: checkString(raw.workspaceId, 'section.workspaceId', { required: false, max: 100 }),
+    name: checkString(raw.name, 'section.name', { max: SCHEMA_LIMITS.sectionNameChars }),
+    description: checkString(raw.description, 'section.description', { required: false, max: SCHEMA_LIMITS.sectionDescriptionChars }),
+    workspaceId: checkString(raw.workspaceId, 'section.workspaceId', { required: false, max: SCHEMA_LIMITS.workspaceIdChars }),
     color: checkColor(raw.color, 'section.color'),
     borderColor: checkColor(raw.borderColor, 'section.borderColor'),
     headingColor: checkColor(raw.headingColor, 'section.headingColor'),
@@ -139,10 +135,10 @@ export function normalizeNote(raw) {
   if (!isPlainObject(raw)) fail('note must be an object');
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    text: checkString(raw.text, 'note.text', { required: false, max: 2000 }),
+    text: checkString(raw.text, 'note.text', { required: false, max: SCHEMA_LIMITS.noteTextChars }),
     color: checkColor(raw.color, 'note.color'),
     textColor: checkColor(raw.textColor, 'note.textColor'),
-    workspaceId: checkString(raw.workspaceId, 'note.workspaceId', { required: false, max: 100 }),
+    workspaceId: checkString(raw.workspaceId, 'note.workspaceId', { required: false, max: SCHEMA_LIMITS.workspaceIdChars }),
     bold: Boolean(raw.bold),
     hidden: Boolean(raw.hidden),
     layout: normalizeLayout(raw.layout),
@@ -151,7 +147,7 @@ export function normalizeNote(raw) {
   };
 }
 
-const FR_STATUS = new Set(['open', 'planned', 'done', 'rejected']);
+const FR_STATUS = new Set(FEATURE_REQUEST_STATUSES);
 
 export function normalizeFeatureRequest(raw) {
   if (!isPlainObject(raw)) fail('feature request must be an object');
@@ -159,9 +155,9 @@ export function normalizeFeatureRequest(raw) {
   if (!FR_STATUS.has(status)) fail(`"status" must be one of ${[...FR_STATUS].join(', ')}`);
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
-    title: checkString(raw.title, 'featureRequest.title', { max: 200 }),
-    detail: checkString(raw.detail, 'featureRequest.detail', { required: false, max: 2000 }),
-    requestedBy: checkString(raw.requestedBy, 'featureRequest.requestedBy', { required: false, max: 120 }) || 'unknown',
+    title: checkString(raw.title, 'featureRequest.title', { max: SCHEMA_LIMITS.featureTitleChars }),
+    detail: checkString(raw.detail, 'featureRequest.detail', { required: false, max: SCHEMA_LIMITS.featureDetailChars }),
+    requestedBy: checkString(raw.requestedBy, 'featureRequest.requestedBy', { required: false, max: SCHEMA_LIMITS.requestedByChars }) || 'unknown',
     status,
     createdAt: raw.createdAt || new Date().toISOString(),
   };
@@ -178,7 +174,7 @@ export function normalizeState(raw) {
   if (!Array.isArray(featureRequests)) fail('"featureRequests" must be an array');
   const rawWorkspaces = raw.workspaces ?? [];
   if (!Array.isArray(rawWorkspaces)) fail('"workspaces" must be an array');
-  const title = checkString(raw.title || 'Dashboard', 'title', { max: 120 });
+  const title = checkString(raw.title || 'Dashboard', 'title', { max: SCHEMA_LIMITS.dashboardTitleChars });
   const state = {
     title,
     workspaces: rawWorkspaces.map(normalizeWorkspace),
@@ -214,22 +210,5 @@ export function normalizeState(raw) {
 }
 
 export function defaultState() {
-  return normalizeState({
-    title: 'Huis',
-    sections: [
-      {
-        name: 'Infrastructure',
-        tiles: [
-          {
-            name: 'Ollama',
-            url: 'http://ollama.huis:11434',
-            description: 'Local LLM server',
-            icon: '🧠',
-            health: { enabled: true, type: 'http', target: 'http://ollama.huis:11434/api/version' },
-          },
-        ],
-      },
-      { name: 'Services', tiles: [] },
-    ],
-  });
+  return normalizeState(DEFAULT_DASHBOARD);
 }

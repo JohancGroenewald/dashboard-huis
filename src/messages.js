@@ -1,8 +1,12 @@
+import { config } from './config.js';
 import { fail } from './schema.js';
 
 const CHAT_ROLES = new Set(['user', 'assistant']);
 
-export function sanitizeChatMessages(messages, { maxMessages = 40, maxContent = 8000 } = {}) {
+export function sanitizeChatMessages(
+  messages,
+  { maxMessages = config.chatMaxMessages, maxContent = config.chatMaxContentChars } = {}
+) {
   if (!Array.isArray(messages)) fail('messages[] is required');
   const clean = [];
   for (const msg of messages) {
