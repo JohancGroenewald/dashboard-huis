@@ -66,8 +66,9 @@ function tileChip(tile) {
   const dot = tile.health?.enabled ? `<span class="dot ${h?.status || 'unknown'}" title="${esc(healthTitle(h))}"></span>` : '';
   return `<div class="tile-chip" draggable="true" data-id="${tile.id}" data-name="${esc(tile.name)}" data-url="${esc(tile.url)}" title="${esc(tile.url)}">
     <span class="tile-icon">${esc(tile.icon || '🔗')}</span>
-    <span class="tile-meta"><span class="tile-name">${esc(tile.name)}</span>${tile.description ? `<span class="tile-desc">${esc(tile.description)}</span>` : ''}</span>
+    <span class="tile-meta"><span class="tile-name" style="font-weight:${tile.bold ? 650 : 400}">${esc(tile.name)}</span>${tile.description ? `<span class="tile-desc">${esc(tile.description)}</span>` : ''}</span>
     ${dot}
+    <button class="chip-bold${tile.bold ? ' on' : ''}" title="Bold label">B</button>
     <button class="chip-attach" title="Attach to chat">📎</button>
     <button class="chip-del" title="Delete tile">✕</button>
   </div>`;
@@ -96,7 +97,7 @@ function sectionInner(section) {
     section.color ? `background:${esc(section.color)}` : '',
     section.borderColor ? `border-color:${esc(section.borderColor)}` : '',
   ].filter(Boolean).join(';');
-  const nameStyle = section.headingColor ? ` style="color:${esc(section.headingColor)}"` : '';
+  const nameStyle = ` style="font-weight:${section.bold ? 650 : 400}${section.headingColor ? `;color:${esc(section.headingColor)}` : ''}"`;
   const desc = section.description
     ? `<div class="sec-desc" title="Click to edit description">${esc(section.description)}</div>`
     : '<div class="sec-desc empty" title="Add a description">＋ description</div>';
@@ -116,6 +117,7 @@ function sectionInner(section) {
       ${swatchRow('Fill', 'color', SEC_BG, section.color)}
       ${swatchRow('Outline', 'borderColor', SEC_BORDER, section.borderColor)}
       ${swatchRow('Heading', 'headingColor', SEC_HEADING, section.headingColor)}
+      <label class="sty-toggle"><input type="checkbox" class="sec-bold-chk"${section.bold ? ' checked' : ''}> Bold heading</label>
     </div>
     <div class="sec-tiles" data-section="${section.id}">${tiles}</div>
   </div>`;
@@ -125,7 +127,7 @@ const NOTE_TEXT_COLORS = ['#2a2300', '#000000', '#ffffff', '#1d4ed8', '#b91c1c']
 function noteInner(note) {
   const bg = NOTE_COLORS.map((c) => `<span class="swatch" data-color="${c}" style="background:${c}"></span>`).join('');
   const tx = NOTE_TEXT_COLORS.map((c) => `<span class="tswatch" data-textcolor="${c}" style="color:${c}">A</span>`).join('');
-  const style = `background:${esc(note.color || NOTE_COLORS[0])}${note.textColor ? `;color:${esc(note.textColor)}` : ''}`;
+  const style = `background:${esc(note.color || NOTE_COLORS[0])}${note.textColor ? `;color:${esc(note.textColor)}` : ''}${note.bold ? ';font-weight:700' : ''}`;
   return `<div class="card note-card" data-id="${note.id}" style="${style}">
     <span class="card-grip" title="Drag">⠿</span>
     <textarea placeholder="Write a note…">${esc(note.text)}</textarea>
@@ -133,6 +135,7 @@ function noteInner(note) {
       <div class="swatches">${bg}</div>
       <div class="tswatches" title="Text colour">${tx}</div>
       <span class="note-spacer"></span>
+      <button class="note-bold${note.bold ? ' on' : ''}" title="Bold text">B</button>
       <button class="note-attach" title="Attach to chat">📎</button>
       <button class="note-hide" title="Hide note">🙈</button>
       <button class="note-del" title="Delete note">✕</button>
@@ -222,6 +225,10 @@ function wireSection(el, section) {
       await loadDashboard();
     })
   );
+  el.querySelector('.sec-bold-chk').addEventListener('change', async (e) => {
+    await api(`/api/sections/${section.id}`, jsonBody({ bold: e.target.checked }, 'PATCH'));
+    await loadDashboard();
+  });
   el.querySelector('.sec-name').addEventListener('click', async () => {
     const name = prompt('Rename section:', section.name);
     if (name && name.trim() && name !== section.name) {
@@ -240,7 +247,13 @@ function wireSection(el, section) {
 
   el.querySelectorAll('.tile-chip').forEach((chip) => {
     chip.addEventListener('click', (e) => {
-      if (!e.target.closest('.chip-del') && !e.target.closest('.chip-attach')) window.open(chip.dataset.url, '_blank', 'noopener');
+      if (!e.target.closest('.chip-del') && !e.target.closest('.chip-attach') && !e.target.closest('.chip-bold')) window.open(chip.dataset.url, '_blank', 'noopener');
+    });
+    chip.querySelector('.chip-bold').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const isBold = e.currentTarget.classList.contains('on');
+      await api(`/api/tiles/${chip.dataset.id}`, jsonBody({ bold: !isBold }, 'PATCH'));
+      await loadDashboard();
     });
     chip.querySelector('.chip-attach').addEventListener('click', (e) => {
       e.stopPropagation();
@@ -282,6 +295,12 @@ function wireNote(el, note) {
   el.querySelectorAll('.tswatch').forEach((sw) =>
     sw.addEventListener('click', () => { card.style.color = sw.dataset.textcolor; saveNote(note.id, { textColor: sw.dataset.textcolor }); })
   );
+  el.querySelector('.note-bold').addEventListener('click', (e) => {
+    note.bold = !note.bold;
+    card.style.fontWeight = note.bold ? '700' : '';
+    e.currentTarget.classList.toggle('on', note.bold);
+    saveNote(note.id, { bold: note.bold });
+  });
   el.querySelector('.note-attach').addEventListener('click', () => attachItem('note', note.id, note.text || 'note'));
   el.querySelector('.note-hide').addEventListener('click', async () => {
     await api(`/api/notes/${note.id}`, jsonBody({ hidden: true }, 'PATCH'));

@@ -54,6 +54,7 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
           color: sec.color || '',
           borderColor: sec.borderColor || '',
           headingColor: sec.headingColor || '',
+          bold: sec.bold,
           collapsed: sec.collapsed,
           workspaceId: sec.workspaceId,
           layout: sec.layout,
@@ -63,9 +64,10 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
             url: t.url,
             description: t.description || '', // editable via add_tile/update_tile
             icon: t.icon || '',
+            bold: t.bold,
           })),
         })),
-        notes: s.notes.map((n) => ({ id: n.id, text: n.text, color: n.color, workspaceId: n.workspaceId, layout: n.layout })),
+        notes: s.notes.map((n) => ({ id: n.id, text: n.text, color: n.color, bold: n.bold, workspaceId: n.workspaceId, layout: n.layout })),
         featureRequests: s.featureRequests.map((f) => ({ id: f.id, title: f.title, status: f.status })),
       };
     },
@@ -101,9 +103,9 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       updated: store.updateSection(resolveSection(section).id, { name }),
     }),
 
-    update_section: ({ section, description, color, borderColor, headingColor }) => {
+    update_section: ({ section, description, color, borderColor, headingColor, bold }) => {
       const patch = {};
-      for (const [k, v] of Object.entries({ description, color, borderColor, headingColor })) {
+      for (const [k, v] of Object.entries({ description, color, borderColor, headingColor, bold })) {
         if (v !== undefined) patch[k] = v;
       }
       return { updated: store.updateSection(resolveSection(section).id, patch) };

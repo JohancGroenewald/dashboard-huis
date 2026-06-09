@@ -211,6 +211,8 @@ body[data-ws="models"] .dashboard-only { display: none; }
 .note-bar button { background: none; border: 0; cursor: pointer; color: rgba(0, 0, 0, 0.5); font-size: 12px; padding: 0 1px; }
 .note-bar button:hover { color: #000; }
 .note-bar .note-del:hover { color: #a11; }
+.note-bar .note-bold { font-weight: 700; }
+.note-bar .note-bold.on { color: #000; text-decoration: underline; }
 
 /* Section group card */
 .section-card { padding: 10px; }
@@ -242,6 +244,8 @@ body[data-ws="models"] .dashboard-only { display: none; }
 .sty-swatch.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
 .sty-swatch.clear { position: relative; background: var(--panel-2); }
 .sty-swatch.clear::after { content: ''; position: absolute; left: 1px; right: 1px; top: 50%; height: 2px; background: var(--down); transform: rotate(45deg); }
+.sty-toggle { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 11px; cursor: pointer; padding-top: 2px; }
+.sty-toggle input { accent-color: var(--accent); }
 .tile-chip {
   position: relative; display: flex; align-items: center; gap: 9px;
   background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px;
@@ -251,12 +255,14 @@ body[data-ws="models"] .dashboard-only { display: none; }
 .tile-chip:active { transform: scale(0.99); }
 .tile-chip .tile-icon { font-size: 20px; width: 26px; text-align: center; flex: none; }
 .tile-chip .tile-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.chip-del, .chip-attach { position: absolute; top: 3px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; opacity: 0; transition: opacity 0.15s; }
+.chip-del, .chip-attach, .chip-bold { position: absolute; top: 3px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; opacity: 0; transition: opacity 0.15s; }
 .chip-del { right: 4px; }
 .chip-attach { right: 20px; }
-.tile-chip:hover .chip-del, .tile-chip:hover .chip-attach { opacity: 0.85; }
+.chip-bold { right: 36px; font-weight: 700; }
+.tile-chip:hover .chip-del, .tile-chip:hover .chip-attach, .tile-chip:hover .chip-bold { opacity: 0.85; }
+.tile-chip:hover .chip-bold.on { color: var(--accent-2); opacity: 1; }
 .chip-del:hover { color: var(--down); opacity: 1; }
-.chip-attach:hover { color: var(--accent); opacity: 1; }
+.chip-attach:hover, .chip-bold:hover { color: var(--accent); opacity: 1; }
 
 /* Gridstack resize handle */
 .grid-stack-item > .ui-resizable-se {

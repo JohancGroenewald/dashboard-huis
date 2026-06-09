@@ -85,6 +85,7 @@ export function normalizeTile(raw) {
     description: checkString(raw.description, 'tile.description', { required: false, max: 500 }),
     icon: checkString(raw.icon, 'tile.icon', { required: false, max: 40 }),
     color: checkString(raw.color, 'tile.color', { required: false, max: 30 }),
+    bold: Boolean(raw.bold), // tile labels are not bold unless turned on
     health: normalizeHealth(raw.health),
     layout: normalizeLayout(raw.layout),
   };
@@ -110,6 +111,7 @@ export function normalizeSection(raw) {
     color: checkString(raw.color, 'section.color', { required: false, max: 30 }),
     borderColor: checkString(raw.borderColor, 'section.borderColor', { required: false, max: 30 }),
     headingColor: checkString(raw.headingColor, 'section.headingColor', { required: false, max: 30 }),
+    bold: raw.bold === undefined ? true : Boolean(raw.bold), // headings bold by default
     collapsed: Boolean(raw.collapsed),
     layout: normalizeLayout(raw.layout),
     tiles: tiles.map(normalizeTile),
@@ -124,6 +126,7 @@ export function normalizeNote(raw) {
     color: checkString(raw.color, 'note.color', { required: false, max: 30 }),
     textColor: checkString(raw.textColor, 'note.textColor', { required: false, max: 30 }),
     workspaceId: checkString(raw.workspaceId, 'note.workspaceId', { required: false, max: 100 }),
+    bold: Boolean(raw.bold),
     hidden: Boolean(raw.hidden),
     layout: normalizeLayout(raw.layout),
     createdAt: raw.createdAt || new Date().toISOString(),

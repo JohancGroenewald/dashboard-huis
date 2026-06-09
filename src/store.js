@@ -192,6 +192,7 @@ export class Store {
     const s = this.#section(id);
     if (patch.name !== undefined) s.name = checkString(patch.name, 'section.name', { max: 120 });
     if (patch.description !== undefined) s.description = checkString(patch.description, 'section.description', { required: false, max: 500 });
+    if (patch.bold !== undefined) s.bold = Boolean(patch.bold);
     for (const k of ['color', 'borderColor', 'headingColor']) {
       if (patch[k] !== undefined) s[k] = checkString(patch[k], `section.${k}`, { required: false, max: 30 });
     }
