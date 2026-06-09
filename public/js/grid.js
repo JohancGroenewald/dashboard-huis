@@ -5,7 +5,9 @@ import { state, onRender, loadDashboard, setState } from './store.js';
 
 const gridEl = $('#board');
 const COLS = 12;
-const CELL_H = 92; // grid row height in px (must match the overlay)
+// Grid row height in px — adjustable ("Grid size" in the Layout menu). The
+// overlay and Gridstack share this value so the guides stay exact.
+let cellH = Math.min(160, Math.max(56, Number(localStorage.getItem('dash-cellh')) || 92));
 let grid;
 let rendering = false; // suppress layout-persist while we rebuild programmatically
 let persistTimer = null;
@@ -21,7 +23,7 @@ function arrangeLabel() {
 
 function initGrid() {
   grid = GridStack.init(
-    { column: COLS, cellHeight: CELL_H, margin: 8, float: !autoArrange, handle: '.card-grip', animate: true },
+    { column: COLS, cellHeight: cellH, margin: 8, float: !autoArrange, handle: '.card-grip', animate: true },
     gridEl
   );
   grid.on('change', persistLayout);
@@ -31,7 +33,7 @@ function initGrid() {
 // cells the cards snap to (column width = grid width / 12; row = cellHeight).
 function updateGridOverlay() {
   if (!grid || !showGrid) return;
-  gridEl.style.backgroundSize = `${gridEl.clientWidth / COLS}px ${CELL_H}px`;
+  gridEl.style.backgroundSize = `${gridEl.clientWidth / COLS}px ${cellH}px`;
 }
 window.addEventListener('resize', updateGridOverlay);
 
@@ -183,8 +185,9 @@ function renderGrid() {
   }
   for (const note of notes) {
     if (note.hidden) {
-      // Hidden notes leave a faint, dashed-outline placeholder — click to restore.
-      const el = widgetEl(note.id, note.layout || {}, 3, 2, '<div class="note-ghost" title="Hidden note — click to show"></div>');
+      // Hidden notes leave a faint, dashed-outline placeholder (with the
+      // see-no-evil monkey) — click to restore.
+      const el = widgetEl(note.id, note.layout || {}, 3, 2, '<div class="note-ghost" title="Hidden note — click to show">🙈</div>');
       gridEl.appendChild(el);
       grid.makeWidget(el);
       el.querySelector('.note-ghost').addEventListener('click', async () => {
@@ -405,6 +408,17 @@ $('#snap-toggle').addEventListener('click', () => {
   snapLabel();
 });
 snapLabel();
+
+// Grid size: adjust the row height (cards keep their cell counts, so they grow
+// or shrink). Applied live to Gridstack + the overlay, and persisted.
+function applyCellH() {
+  $('#grid-size-val').textContent = String(cellH);
+  if (grid) grid.cellHeight(cellH);
+  updateGridOverlay();
+}
+$('#grid-smaller').addEventListener('click', () => { cellH = Math.max(56, cellH - 12); localStorage.setItem('dash-cellh', cellH); applyCellH(); });
+$('#grid-bigger').addEventListener('click', () => { cellH = Math.min(160, cellH + 12); localStorage.setItem('dash-cellh', cellH); applyCellH(); });
+applyCellH();
 
 // Layout dropdown: holds Collapse all / Grid / Arrange / Edit. Stays open while
 // you flip toggles; closes on an outside click.

@@ -16,11 +16,18 @@
   --shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
-* { box-sizing: border-box; }
+* { box-sizing: border-box; scrollbar-width: thin; scrollbar-color: #3a4757 transparent; }
 html, body { height: 100%; }
 /* Always reserve the vertical scrollbar gutter so showing/hiding it never
    shifts the layout (no content jump between tall and short workspaces). */
 html { scrollbar-gutter: stable; }
+
+/* Dark-mode-friendly scrollbars (WebKit/Blink; Firefox uses scrollbar-color above). */
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #313c4b; border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #455466; }
+::-webkit-scrollbar-corner { background: transparent; }
 body {
   margin: 0;
   font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -96,7 +103,7 @@ body[data-ws="requests"] .dashboard-only { display: none; }
 }
 
 /* Hidden-note ghost placeholder */
-.note-ghost { height: 100%; border: 2px dashed var(--border); border-radius: var(--radius); cursor: pointer; opacity: 0.5; transition: opacity 0.15s, border-color 0.15s; }
+.note-ghost { height: 100%; border: 2px dashed var(--border); border-radius: var(--radius); cursor: pointer; opacity: 0.5; transition: opacity 0.15s, border-color 0.15s; display: grid; place-items: center; font-size: 24px; }
 .note-ghost:hover { opacity: 0.95; border-color: var(--accent); }
 
 /* Requests workspace layout */
@@ -140,6 +147,11 @@ body[data-ws="requests"] .dashboard-only { display: none; }
 .dropdown-menu .menu-item { display: block; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); padding: 9px 10px; border-radius: 7px; cursor: pointer; font-size: 13px; }
 .dropdown-menu .menu-item:hover { background: var(--panel-2); }
 .dropdown-menu .menu-item.hidden { display: none; }
+.menu-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; font-size: 13px; color: var(--muted); border-top: 1px solid var(--border-soft); margin-top: 4px; }
+.stepper { display: inline-flex; align-items: center; gap: 8px; }
+.stepper button { width: 22px; height: 22px; border: 1px solid var(--border); background: var(--panel-2); color: var(--text); border-radius: 6px; cursor: pointer; line-height: 1; }
+.stepper button:hover { border-color: var(--accent); }
+.stepper #grid-size-val { min-width: 26px; text-align: center; color: var(--text); font-variant-numeric: tabular-nums; }
 .mr-row { display: flex; gap: 10px; padding: 9px 8px; border-radius: 8px; }
 .mr-row + .mr-row { border-top: 1px solid var(--border-soft); }
 .mr-badge { font-weight: 700; }
