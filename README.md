@@ -57,8 +57,8 @@ sudo update-ca-certificates
 acme.sh --issue --server https://caserver.huis:9000/acme/acme/directory \
   -d dashboard.huis --standalone --httpport 80
 acme.sh --install-cert -d dashboard.huis \
-  --key-file /opt/data/tls/dashboard.key \
-  --fullchain-file /opt/data/tls/dashboard.crt \
+  --key-file /opt/dashboard/data/tls/dashboard.key \
+  --fullchain-file /opt/dashboard/data/tls/dashboard.crt \
   --reloadcmd "systemctl restart huis-dashboard"
 ```
 

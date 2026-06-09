@@ -108,7 +108,10 @@ app.get('/api/abilities', (req, res) =>
 
 // ---- conversation log ----------------------------------------------------
 app.get('/api/logs', wrap((req, res) => {
-  const limit = Math.min(Number(req.query.limit) || 40, 200);
+  const requestedLimit = Number(req.query.limit);
+  const limit = Number.isFinite(requestedLimit)
+    ? Math.min(Math.max(Math.trunc(requestedLimit), 1), 200)
+    : 40;
   const where = [];
   const params = [];
   if (req.query.kind) { where.push('kind = ?'); params.push(req.query.kind); }

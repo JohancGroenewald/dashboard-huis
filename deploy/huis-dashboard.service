@@ -5,13 +5,13 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/opt
+WorkingDirectory=/opt/dashboard
 # Absolute node path (fnm-managed). Update if the Node version changes.
-ExecStart=/root/.local/share/fnm/node-versions/v24.16.0/installation/bin/node /opt/src/server.js
+ExecStart=/root/.local/share/fnm/node-versions/v24.16.0/installation/bin/node /opt/dashboard/src/server.js
 Restart=on-failure
 RestartSec=3
 User=root
-# Serve HTTP on 8080 and HTTPS on 443 (cert in /opt/data/tls)
+# Serve HTTP on 8080 and HTTPS on 443 (cert in /opt/dashboard/data/tls)
 Environment=NODE_ENV=production
 
 [Install]

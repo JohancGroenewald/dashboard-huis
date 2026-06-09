@@ -69,10 +69,14 @@ export function normalizeLayout(raw) {
   if (!isPlainObject(raw)) return {};
   const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.round(v)) : undefined);
   const out = {};
-  for (const k of ['x', 'y', 'w', 'h']) {
-    const n = num(raw[k]);
-    if (n !== undefined) out[k] = n;
-  }
+  const x = num(raw.x);
+  const y = num(raw.y);
+  const w = num(raw.w);
+  const h = num(raw.h);
+  if (x !== undefined) out.x = x;
+  if (y !== undefined) out.y = y;
+  if (w !== undefined) out.w = Math.min(Math.max(w, 1), 12);
+  if (h !== undefined) out.h = Math.max(h, 1);
   return out;
 }
 
