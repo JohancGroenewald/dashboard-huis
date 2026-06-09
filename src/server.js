@@ -147,7 +147,7 @@ app.get('/api/models', wrap(async (req, res) => {
 // Derive contextual follow-up chips from what the agent just did. Prefers the
 // model's own suggest_followups; otherwise maps the last action to next steps.
 const MUTATING = new Set([
-  'add_tile', 'add_section', 'add_note', 'update_tile', 'update_note', 'rename_section',
+  'add_tile', 'add_section', 'add_note', 'update_tile', 'update_note', 'rename_section', 'update_section',
   'remove_tile', 'remove_section', 'remove_note', 'move_tile', 'move_section', 'resize_card',
   'add_workspace', 'rename_workspace', 'remove_workspace', 'switch_workspace', 'move_to_workspace',
   'undo', 'redo',
@@ -171,6 +171,7 @@ function followupsFromTrace(trace = []) {
     case 'remove_tile':
     case 'remove_section':
     case 'remove_note': return ['Undo that', 'Add something new'];
+    case 'update_section': return ['Change its colours', 'Edit the description', 'Undo that'];
     case 'update_tile':
     case 'update_note':
     case 'rename_section': return ['Undo that', 'Edit another'];

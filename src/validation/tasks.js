@@ -150,6 +150,22 @@ export const tasks = [
     }),
   },
   {
+    id: 'use-existing-capability',
+    category: 'robustness',
+    // Tiles already support a description (add_tile/update_tile). A capable model
+    // should USE that tool, not file a feature request for a capability it has.
+    prompt: 'Set the description of the Pi-hole tile to "Network ad blocker".',
+    seed: baseSeed,
+    check: ({ state, trace }) => {
+      if (trace.some((e) => e.ok && e.name === 'request_feature')) {
+        return { pass: false, reason: 'filed a feature request instead of just setting the description' };
+      }
+      const t = findTile(state, 'Pi-hole');
+      const set = (t?.description || '').toLowerCase().includes('ad blocker');
+      return { pass: set, reason: set ? '' : `description not set (is ${JSON.stringify(t?.description)})` };
+    },
+  },
+  {
     id: 'undo-change',
     category: 'robustness',
     // The model must make a change and then reverse it with the undo tool,

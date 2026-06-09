@@ -181,8 +181,8 @@ export class Store {
     return structuredClone(n);
   }
 
-  addSection({ name }) {
-    const section = normalizeSection({ name, tiles: [], workspaceId: this.state.activeWorkspaceId });
+  addSection({ name, description }) {
+    const section = normalizeSection({ name, description, tiles: [], workspaceId: this.state.activeWorkspaceId });
     this.state.sections.push(section);
     this.#commit();
     return section;
@@ -191,6 +191,10 @@ export class Store {
   updateSection(id, patch) {
     const s = this.#section(id);
     if (patch.name !== undefined) s.name = checkString(patch.name, 'section.name', { max: 120 });
+    if (patch.description !== undefined) s.description = checkString(patch.description, 'section.description', { required: false, max: 500 });
+    for (const k of ['color', 'borderColor', 'headingColor']) {
+      if (patch[k] !== undefined) s[k] = checkString(patch[k], `section.${k}`, { required: false, max: 30 });
+    }
     this.#commit();
     return structuredClone(s);
   }

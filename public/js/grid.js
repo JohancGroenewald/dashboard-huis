@@ -73,18 +73,49 @@ function tileChip(tile) {
   </div>`;
 }
 
+// Section card colour palettes ('' = clear back to the theme default).
+const SEC_BG = ['', '#1a2233', '#16241a', '#2a1f2e', '#2a2418', '#1a2628'];
+const SEC_BORDER = ['', '#4c8dff', '#3fb950', '#f85149', '#d29922', '#a371f7'];
+const SEC_HEADING = ['', '#e8eef5', '#7aa9ff', '#69d28a', '#f0b429', '#ff9580'];
+function swatchRow(label, prop, colors, current) {
+  const sw = colors
+    .map((c) => {
+      const sel = (current || '') === c ? ' sel' : '';
+      return c
+        ? `<span class="sty-swatch${sel}" data-prop="${prop}" data-color="${c}" style="background:${c}" title="${c}"></span>`
+        : `<span class="sty-swatch clear${sel}" data-prop="${prop}" data-color="" title="Default"></span>`;
+    })
+    .join('');
+  return `<div class="sty-row"><span class="sty-label">${label}</span>${sw}</div>`;
+}
+
 function sectionInner(section) {
   const tiles = section.tiles.map(tileChip).join('') || '<div class="sec-empty">No tiles — ＋ to add, or drop one here</div>';
   const n = section.tiles.length;
-  return `<div class="card section-card${section.collapsed ? ' collapsed' : ''}" data-id="${section.id}">
+  const cardStyle = [
+    section.color ? `background:${esc(section.color)}` : '',
+    section.borderColor ? `border-color:${esc(section.borderColor)}` : '',
+  ].filter(Boolean).join(';');
+  const nameStyle = section.headingColor ? ` style="color:${esc(section.headingColor)}"` : '';
+  const desc = section.description
+    ? `<div class="sec-desc" title="Click to edit description">${esc(section.description)}</div>`
+    : '<div class="sec-desc empty" title="Add a description">＋ description</div>';
+  return `<div class="card section-card${section.collapsed ? ' collapsed' : ''}" data-id="${section.id}"${cardStyle ? ` style="${cardStyle}"` : ''}>
     <div class="sec-head">
       <button class="sec-collapse" title="${section.collapsed ? 'Expand' : 'Collapse'} section">${section.collapsed ? '▸' : '▾'}</button>
       <span class="card-grip" title="Drag section">⠿</span>
-      <span class="sec-name" title="Click to rename">${esc(section.name)}</span>
+      <span class="sec-name"${nameStyle} title="Click to rename">${esc(section.name)}</span>
       ${section.collapsed && n ? `<span class="sec-count" title="${n} tile(s)">${n}</span>` : ''}
+      <button class="sec-style-btn" title="Card colours">🎨</button>
       <button class="sec-attach" title="Attach to chat">📎</button>
       <button class="sec-add" title="Add tile to this section">＋</button>
       <button class="sec-del" title="Delete section">✕</button>
+    </div>
+    ${desc}
+    <div class="sec-style hidden">
+      ${swatchRow('Fill', 'color', SEC_BG, section.color)}
+      ${swatchRow('Outline', 'borderColor', SEC_BORDER, section.borderColor)}
+      ${swatchRow('Heading', 'headingColor', SEC_HEADING, section.headingColor)}
     </div>
     <div class="sec-tiles" data-section="${section.id}">${tiles}</div>
   </div>`;
@@ -176,6 +207,21 @@ function wireSection(el, section) {
     await api(`/api/sections/${section.id}/collapse`, jsonBody({ collapsed: !section.collapsed }));
     await loadDashboard();
   });
+  el.querySelector('.sec-desc').addEventListener('click', async () => {
+    const cur = section.description || '';
+    const val = prompt('Section description:', cur);
+    if (val === null || val === cur) return;
+    await api(`/api/sections/${section.id}`, jsonBody({ description: val }, 'PATCH'));
+    await loadDashboard();
+  });
+  const stylePanel = el.querySelector('.sec-style');
+  el.querySelector('.sec-style-btn').addEventListener('click', (e) => { e.stopPropagation(); stylePanel.classList.toggle('hidden'); });
+  el.querySelectorAll('.sty-swatch').forEach((sw) =>
+    sw.addEventListener('click', async () => {
+      await api(`/api/sections/${section.id}`, jsonBody({ [sw.dataset.prop]: sw.dataset.color }, 'PATCH'));
+      await loadDashboard();
+    })
+  );
   el.querySelector('.sec-name').addEventListener('click', async () => {
     const name = prompt('Rename section:', section.name);
     if (name && name.trim() && name !== section.name) {

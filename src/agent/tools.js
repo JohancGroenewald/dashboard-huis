@@ -2,342 +2,10 @@
 // affect the dashboard — there is no shell, file, or network access here.
 // Handlers are bound to a Store, so the identical tool set runs against the
 // live store (the agent) and a throwaway store (the validation sandbox).
+// The JSON-schema specs live in tool-specs.js (re-exported here).
+import { toolSpecs } from './tool-specs.js';
 
-export const toolSpecs = [
-  {
-    type: 'function',
-    function: {
-      name: 'get_dashboard',
-      description:
-        'Read the current dashboard: its workspaces (with the active one), and every section, tile, and note with their ids and which workspace they belong to. Call this first to learn the ids you need for other tools.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'add_workspace',
-      description: 'Create a new workspace — a separate tabbed board with its own sections and notes. Does not switch to it; use switch_workspace for that.',
-      parameters: {
-        type: 'object',
-        properties: { name: { type: 'string', description: 'Workspace name, e.g. "Media Room".' } },
-        required: ['name'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'rename_workspace',
-      description: 'Rename an existing workspace.',
-      parameters: {
-        type: 'object',
-        properties: {
-          workspace: { type: 'string', description: 'Workspace id or current name.' },
-          name: { type: 'string', description: 'New workspace name.' },
-        },
-        required: ['workspace', 'name'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'remove_workspace',
-      description: 'Delete a workspace. Only works if it has no sections or notes (move or delete those first) and it is not the last workspace.',
-      parameters: {
-        type: 'object',
-        properties: { workspace: { type: 'string', description: 'Workspace id or name.' } },
-        required: ['workspace'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'switch_workspace',
-      description: 'Make a workspace the active one — the board shows it and new sections/notes land in it.',
-      parameters: {
-        type: 'object',
-        properties: { workspace: { type: 'string', description: 'Workspace id or name to switch to.' } },
-        required: ['workspace'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'move_to_workspace',
-      description: 'Move a section (with its tiles) or a sticky note into a different workspace.',
-      parameters: {
-        type: 'object',
-        properties: {
-          item: { type: 'string', description: 'A section id or name, or a note id, to move.' },
-          workspace: { type: 'string', description: 'Destination workspace id or name.' },
-        },
-        required: ['item', 'workspace'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'add_section',
-      description: 'Create a new, empty section (a group of tiles) on the dashboard.',
-      parameters: {
-        type: 'object',
-        properties: { name: { type: 'string', description: 'Section title, e.g. "Monitoring".' } },
-        required: ['name'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'rename_section',
-      description: 'Rename an existing section.',
-      parameters: {
-        type: 'object',
-        properties: {
-          section: { type: 'string', description: 'Section id or current name.' },
-          name: { type: 'string', description: 'New section title.' },
-        },
-        required: ['section', 'name'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'remove_section',
-      description: 'Delete a section AND all tiles inside it. Use with care.',
-      parameters: {
-        type: 'object',
-        properties: { section: { type: 'string', description: 'Section id or name.' } },
-        required: ['section'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'add_tile',
-      description: 'Add a service tile (a labelled link) to a section.',
-      parameters: {
-        type: 'object',
-        properties: {
-          section: { type: 'string', description: 'Target section id or name.' },
-          name: { type: 'string', description: 'Tile label, e.g. "Grafana".' },
-          url: { type: 'string', description: 'Link target, e.g. "http://grafana.huis:3000".' },
-          description: { type: 'string', description: 'Optional one-line description.' },
-          icon: { type: 'string', description: 'Optional emoji or short label, e.g. "📊".' },
-          enable_health: { type: 'boolean', description: 'Whether to health-check this tile (default false).' },
-        },
-        required: ['section', 'name', 'url'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'update_tile',
-      description: 'Change fields on an existing tile. Only provided fields are modified.',
-      parameters: {
-        type: 'object',
-        properties: {
-          tile_id: { type: 'string', description: 'Id of the tile to update.' },
-          name: { type: 'string' },
-          url: { type: 'string' },
-          description: { type: 'string' },
-          icon: { type: 'string' },
-          enable_health: { type: 'boolean' },
-        },
-        required: ['tile_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'remove_tile',
-      description: 'Delete a single tile by its id.',
-      parameters: {
-        type: 'object',
-        properties: { tile_id: { type: 'string', description: 'Id of the tile to remove.' } },
-        required: ['tile_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'move_tile',
-      description: 'Move a tile to a different section and/or position.',
-      parameters: {
-        type: 'object',
-        properties: {
-          tile_id: { type: 'string' },
-          section: { type: 'string', description: 'Destination section id or name.' },
-          position: { type: 'integer', description: 'Zero-based index within the section (optional).' },
-        },
-        required: ['tile_id', 'section'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'move_section',
-      description: 'Reorder a section to a new position on the dashboard.',
-      parameters: {
-        type: 'object',
-        properties: {
-          section: { type: 'string', description: 'Section id or name to move.' },
-          position: { type: 'integer', description: 'Zero-based target index among sections.' },
-        },
-        required: ['section', 'position'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'add_note',
-      description: 'Add a sticky note to the dashboard.',
-      parameters: {
-        type: 'object',
-        properties: {
-          text: { type: 'string', description: 'Note contents.' },
-          color: { type: 'string', description: 'Optional color name or hex, e.g. "yellow".' },
-        },
-        required: ['text'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'update_note',
-      description: 'Edit a sticky note: text, background colour, text colour, or hide/show it.',
-      parameters: {
-        type: 'object',
-        properties: {
-          note_id: { type: 'string' },
-          text: { type: 'string' },
-          color: { type: 'string', description: 'Background colour (name or hex).' },
-          textColor: { type: 'string', description: 'Text colour (name or hex).' },
-          hidden: { type: 'boolean', description: 'Hide the note from the board without deleting it.' },
-        },
-        required: ['note_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'remove_note',
-      description: 'Delete a sticky note by id.',
-      parameters: {
-        type: 'object',
-        properties: { note_id: { type: 'string' } },
-        required: ['note_id'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'search_dashboard',
-      description:
-        'Find dashboard items by a free-text query like "the green note", "grafana", or "monitoring". Matches names, note text, note colour, URLs, descriptions, and section. Returns ranked matches with their ids and type — use it to resolve a vague reference before updating, moving, resizing, or removing something, instead of guessing an id.',
-      parameters: {
-        type: 'object',
-        properties: { query: { type: 'string', description: 'What to look for, e.g. "green note".' } },
-        required: ['query'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'resize_card',
-      description:
-        'Resize a card on the dashboard grid — a section or a sticky note — by setting its width and height in grid cells. The grid is 12 columns wide.',
-      parameters: {
-        type: 'object',
-        properties: {
-          card: { type: 'string', description: 'Section id or name, or a note id.' },
-          w: { type: 'integer', description: 'Width in grid columns (1–12).' },
-          h: { type: 'integer', description: 'Height in grid rows (1 or more).' },
-        },
-        required: ['card', 'w', 'h'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'undo',
-      description: 'Undo the last dashboard change (revert the most recent mutation). Call it again to step further back. Use this when the user asks to undo, revert, or take back the last change.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'redo',
-      description: 'Re-apply the change that was just undone.',
-      parameters: { type: 'object', properties: {}, required: [] },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'suggest_followups',
-      description:
-        'Optionally offer 2–4 short follow-up actions the user might want next (e.g. "Add another tile", "Make it wider"). Shown as dismissable chips under your reply; clicking one pre-fills their input to edit and send. Use sparingly, only when there are obvious next steps.',
-      parameters: {
-        type: 'object',
-        properties: {
-          suggestions: { type: 'array', items: { type: 'string' }, description: '2–4 short next-step suggestions.' },
-        },
-        required: ['suggestions'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'offer_choices',
-      description:
-        'Offer the user a few clickable choices (e.g. ["Yes","No"]) when you need a decision or confirmation. Put the question in your reply text and pass the options here; the user clicks one and it becomes their next message. Prefer this over asking them to type for yes/no or either/or questions.',
-      parameters: {
-        type: 'object',
-        properties: {
-          choices: { type: 'array', items: { type: 'string' }, description: '2–6 short options, e.g. ["Yes","No"].' },
-        },
-        required: ['choices'],
-      },
-    },
-  },
-  {
-    type: 'function',
-    function: {
-      name: 'request_feature',
-      description:
-        'File a feature request for the dashboard maintainers. Use this when the user asks for something you cannot do with your current tools, instead of refusing or pretending.',
-      parameters: {
-        type: 'object',
-        properties: {
-          title: { type: 'string', description: 'Short summary of the requested feature.' },
-          detail: { type: 'string', description: 'Optional details / rationale.' },
-        },
-        required: ['title'],
-      },
-    },
-  },
-];
-
+export { toolSpecs };
 export const toolNames = toolSpecs.map((t) => t.function.name);
 
 // Build name -> handler(args) bound to a given store. Handlers return plain,
@@ -382,13 +50,19 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
         sections: s.sections.map((sec) => ({
           id: sec.id,
           name: sec.name,
+          description: sec.description || '', // always shown so the field is discoverable
+          color: sec.color || '',
+          borderColor: sec.borderColor || '',
+          headingColor: sec.headingColor || '',
+          collapsed: sec.collapsed,
           workspaceId: sec.workspaceId,
           layout: sec.layout,
           tiles: sec.tiles.map((t) => ({
             id: t.id,
             name: t.name,
             url: t.url,
-            ...(t.description ? { description: t.description } : {}),
+            description: t.description || '', // editable via add_tile/update_tile
+            icon: t.icon || '',
           })),
         })),
         notes: s.notes.map((n) => ({ id: n.id, text: n.text, color: n.color, workspaceId: n.workspaceId, layout: n.layout })),
@@ -421,11 +95,19 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       throw new Error(`no section or note matching "${item}"`);
     },
 
-    add_section: ({ name }) => ({ added: store.addSection({ name }) }),
+    add_section: ({ name, description }) => ({ added: store.addSection({ name, description }) }),
 
     rename_section: ({ section, name }) => ({
       updated: store.updateSection(resolveSection(section).id, { name }),
     }),
+
+    update_section: ({ section, description, color, borderColor, headingColor }) => {
+      const patch = {};
+      for (const [k, v] of Object.entries({ description, color, borderColor, headingColor })) {
+        if (v !== undefined) patch[k] = v;
+      }
+      return { updated: store.updateSection(resolveSection(section).id, patch) };
+    },
 
     remove_section: ({ section }) => ({ removed: store.removeSection(resolveSection(section).id) }),
 

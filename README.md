@@ -182,7 +182,9 @@ POST   /api/agent/chat               {model, messages[]}   (allowlisted models o
   tabs show the gate outcomes and the agent's tool surface. ＋ to add,
   double-click a tab to rename, hover ✕ to delete (empty workspaces only).
 - **Tiles & sections** — service links grouped into sections, with optional
-  health checks. Sections **collapse** to just their header (▾/▸, with a tile
+  health checks. Tiles have a description and icon; sections have a description
+  and customizable card colours (🎨 fill / outline / heading), all editable by
+  you or the agent. Sections **collapse** to just their header (▾/▸, with a tile
   count), and a topbar **Collapse/Expand all** folds the active workspace at once.
 - **Drag-and-drop** — reorder tiles within a section, move tiles between
   sections (regroup), and reorder sections via the `⋮⋮` grip.

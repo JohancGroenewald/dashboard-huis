@@ -105,7 +105,11 @@ export function normalizeSection(raw) {
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     name: checkString(raw.name, 'section.name', { max: 120 }),
+    description: checkString(raw.description, 'section.description', { required: false, max: 500 }),
     workspaceId: checkString(raw.workspaceId, 'section.workspaceId', { required: false, max: 100 }),
+    color: checkString(raw.color, 'section.color', { required: false, max: 30 }),
+    borderColor: checkString(raw.borderColor, 'section.borderColor', { required: false, max: 30 }),
+    headingColor: checkString(raw.headingColor, 'section.headingColor', { required: false, max: 30 }),
     collapsed: Boolean(raw.collapsed),
     layout: normalizeLayout(raw.layout),
     tiles: tiles.map(normalizeTile),
