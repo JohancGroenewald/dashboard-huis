@@ -329,23 +329,21 @@ body[data-ws="requests"] .dashboard-only { display: none; }
 .chip-del:hover { color: var(--down); opacity: 1; }
 .chip-attach:hover, .chip-bold:hover { color: var(--accent); opacity: 1; }
 
-/* Gridstack resize grip — two nested rounded chevrons pointing south-east */
+/* Gridstack resize grip — a subtle lip tucked into the rounded corner */
 .grid-stack-item > .ui-resizable-se {
-  width: 20px; height: 20px; right: 1px; bottom: 1px;
-  background-image: none; opacity: 0.4; transition: opacity 0.15s;
+  width: 26px; height: 26px; right: 0; bottom: 0;
+  background-image: none; opacity: 0.45; transition: opacity 0.15s;
 }
-.grid-stack-item > .ui-resizable-se::before,
-.grid-stack-item > .ui-resizable-se::after {
-  content: ''; position: absolute; right: 3px; bottom: 3px;
-  border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
-  border-bottom-right-radius: 4px;
+.grid-stack-item > .ui-resizable-se::before {
+  content: ''; position: absolute; right: 5px; bottom: 5px;
+  width: 13px; height: 13px;
+  border-right: 3px solid var(--muted);
+  border-bottom: 3px solid var(--muted);
+  border-bottom-right-radius: 9px;
 }
-.grid-stack-item > .ui-resizable-se::after { width: 5px; height: 5px; }
-.grid-stack-item > .ui-resizable-se::before { width: 11px; height: 11px; }
 .grid-stack-item:hover > .ui-resizable-se { opacity: 0.85; }
 .grid-stack-item > .ui-resizable-se:hover { opacity: 1; }
-.grid-stack-item > .ui-resizable-se:hover::before,
-.grid-stack-item > .ui-resizable-se:hover::after { border-color: var(--accent-2); }
+.grid-stack-item > .ui-resizable-se:hover::before { border-color: var(--accent-2); }
 .grid-stack.locked .ui-resizable-handle { display: none !important; }
 
 /* ---- Side panels (chat + feature requests) ---- */
