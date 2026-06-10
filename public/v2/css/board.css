@@ -128,6 +128,13 @@
   100% { outline: 3px solid transparent; outline-offset: 3px; }
 }
 
+/* A card another tab/user just changed (subtler than the AI pulse). */
+.remote-pulse { animation: remote-pulse 1.6s ease-out; border-radius: var(--r-3); }
+@keyframes remote-pulse {
+  0%, 25% { outline: 2px solid var(--accent); outline-offset: 2px; }
+  100% { outline: 2px solid transparent; outline-offset: 2px; }
+}
+
 /* ---- GridStack chrome ---- */
 .grid-stack-item.ui-draggable-dragging,
 .grid-stack-item.ui-resizable-resizing { z-index: var(--z-grid-active); }

@@ -6,6 +6,7 @@ import { store, subscribe, loadDashboard, setHealth, setInteractionCheck, applyD
 import { setKeyHandler } from './keys.js';
 import { initWorkspaces, registerView } from './workspaces.js';
 import { initBoard, isInteracting } from './board/board.js';
+import { initLive } from './state/live.js';
 import { renderModelsView } from './views/models.js';
 import { renderAbilitiesView } from './views/abilities.js';
 import { renderRequestsView, initRequests } from './views/requests.js';
@@ -68,6 +69,7 @@ setInteractionCheck(isInteracting);
 initBoard();
 initWorkspaces();
 initRequests();
+initLive();
 loadDashboard();
 loadHealth();
 tick();
