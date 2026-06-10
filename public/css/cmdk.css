@@ -11,13 +11,22 @@
   box-shadow: var(--shadow-3); overflow: hidden;
   animation: pop-in var(--t-med) var(--ease);
 }
-.cmdk-input-row { display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-bottom: 1px solid var(--edge-soft); }
+.cmdk-input-row { display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-bottom: 1px solid var(--edge-soft); cursor: grab; touch-action: none; }
+.cmdk-panel.dragging { user-select: none; }
+.cmdk-panel.dragging .cmdk-input-row { cursor: grabbing; }
+.cmdk-grip { color: var(--muted); font-size: var(--fs-1); line-height: 1; }
 .cmdk-icon { color: var(--muted); font-size: var(--fs-3); }
 .cmdk-input-row input {
   flex: 1; background: transparent; border: 0; color: var(--text);
-  font-size: var(--fs-2); padding: 10px 0; border-radius: 0;
+  font-size: var(--fs-2); padding: 10px 0; border-radius: 0; cursor: text;
 }
 .cmdk-input-row input:focus { outline: none; }
+.cmdk-esc {
+  font: 11px/1.4 var(--font); color: var(--muted);
+  background: var(--surface-2); border: 1px solid var(--edge); border-bottom-width: 2px;
+  border-radius: 5px; padding: 0 5px; cursor: pointer;
+}
+.cmdk-esc:hover { color: var(--text); border-color: var(--accent); }
 
 .cmdk-results { max-height: 50vh; overflow-y: auto; padding: 6px; }
 .cmdk-group { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 10px 3px; }

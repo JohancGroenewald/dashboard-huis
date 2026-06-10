@@ -120,10 +120,11 @@
 
     <div id="cmdk" class="cmdk-backdrop hidden">
       <div class="cmdk-panel">
-        <div class="cmdk-input-row">
+        <div class="cmdk-input-row" title="Drag to move">
+          <span class="cmdk-grip">⠿</span>
           <span class="cmdk-icon">⌕</span>
           <input id="cmdk-input" type="text" placeholder="Search, act, or ask Dashy…" autocomplete="off" />
-          <kbd>esc</kbd>
+          <button id="cmdk-esc" class="cmdk-esc" type="button" title="Close (Esc)">esc</button>
         </div>
         <div id="cmdk-results" class="cmdk-results"></div>
       </div>

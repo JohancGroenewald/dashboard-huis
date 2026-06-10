@@ -164,10 +164,16 @@ async function runRow(i) {
 }
 
 // ---- open / close ----
+const dragOffset = { x: 0, y: 0 };
+
 export function openCmdk() {
   backdrop.classList.remove('hidden');
   input.value = '';
   sel = 0;
+  // A fresh open re-centres the box.
+  dragOffset.x = 0;
+  dragOffset.y = 0;
+  $('.cmdk-panel').style.transform = '';
   render();
   input.focus();
   popEsc = pushEscLayer(closeCmdk);
@@ -192,6 +198,37 @@ export function initCmdk() {
     else if (e.key === 'Enter') { e.preventDefault(); runRow(sel); }
   });
   backdrop.addEventListener('pointerdown', (e) => { if (e.target === backdrop) closeCmdk(); });
+  $('#cmdk-esc').addEventListener('click', () => closeCmdk());
+
+  // Drag the box by its input row (anywhere but the input itself), so it can
+  // be moved off whatever it's covering. Re-centres on the next open.
+  const panel = $('.cmdk-panel');
+  const dragRow = $('.cmdk-input-row');
+  let drag = null;
+  const onMove = (e) => {
+    if (!drag) return;
+    e.preventDefault();
+    const m = 8;
+    const dx = Math.min(Math.max(drag.rect.left + (e.clientX - drag.x), m), window.innerWidth - drag.rect.width - m) - drag.rect.left;
+    const dy = Math.min(Math.max(drag.rect.top + (e.clientY - drag.y), m), window.innerHeight - drag.rect.height - m) - drag.rect.top;
+    dragOffset.x = drag.base.x + dx;
+    dragOffset.y = drag.base.y + dy;
+    panel.style.transform = `translate(${dragOffset.x}px, ${dragOffset.y}px)`;
+  };
+  const onUp = () => {
+    if (!drag) return;
+    drag = null;
+    panel.classList.remove('dragging');
+    document.removeEventListener('pointermove', onMove);
+    document.removeEventListener('pointerup', onUp);
+  };
+  dragRow.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0 || e.target === input || e.target.closest('.cmdk-esc')) return;
+    drag = { x: e.clientX, y: e.clientY, rect: panel.getBoundingClientRect(), base: { ...dragOffset } };
+    panel.classList.add('dragging');
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  });
 
   $('#cmdk-pill').addEventListener('click', openCmdk);
   setKeyHandler('cmdk', openCmdk);
