@@ -14,7 +14,7 @@ export function renderRequestsView() {
   badge.classList.toggle('hidden', !open);
 
   if (!frs.length) {
-    list.innerHTML = '<p class="fr-empty">No requests yet. Ask the copilot for something it can\'t do — it\'ll file one here.</p>';
+    list.innerHTML = '<p class="fr-empty">No requests yet. Ask Dashy for something it can\'t do — it\'ll file one here.</p>';
     return;
   }
   list.innerHTML = frs

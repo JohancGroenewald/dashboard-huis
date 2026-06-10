@@ -22,7 +22,7 @@ export function tileChip(tile) {
     <span class="tile-meta"><span class="tile-name" style="font-weight:${tile.bold ? FONT_WEIGHTS.semiBold : FONT_WEIGHTS.normal}">${esc(tile.name)}</span>${tile.description ? `<span class="tile-desc">${esc(tile.description)}</span>` : ''}</span>
     ${dot}
     <button class="chip-ctl chip-bold${tile.bold ? ' on' : ''}" type="button" title="Bold label">B</button>
-    <button class="chip-ctl chip-ai" type="button" title="Copilot: act on this tile">✦</button>
+    <button class="chip-ctl chip-ai" type="button" title="Dashy: act on this tile">✦</button>
     <button class="chip-ctl chip-del" type="button" title="Delete tile">✕</button>
   </div>`;
 }

@@ -22,7 +22,7 @@ let busy = false;
 
 const INTRO = `<div class="intro">
   <div class="intro-avatar">✦</div>
-  <p>I can add, edit, move, group, or remove tiles, sections and notes — just ask. Changes light up on the board as I make them, and every run can be reverted.</p>
+  <p>Hi — I'm <strong>Dashy</strong>. I can add, edit, move, group, or remove tiles, sections and notes — just ask. Changes light up on the board as I make them, and every run can be reverted.</p>
   <div class="suggestions">
     <button class="suggestion" type="button">Add a Grafana tile to a new Monitoring section</button>
     <button class="suggestion" type="button">Add a sticky note to call the plumber</button>
@@ -182,7 +182,7 @@ export async function sendChat(text) {
   } catch (err) {
     // No automatic re-send: the run may have completed server-side, and the
     // events channel has already applied whatever it changed.
-    view.fail(`${err.message} — any changes the copilot made are still applied.`);
+    view.fail(`${err.message} — any changes Dashy made are still applied.`);
     await loadDashboard().catch(() => {});
   } finally {
     busy = false;

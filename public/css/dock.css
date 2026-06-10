@@ -134,7 +134,7 @@
 /* ---- Narrow screens: the dock floats over the board as a sheet, and the
    rail collapses to a floating ✦ button. ---- */
 @media (max-width: 900px) {
-  .dock { position: fixed; top: 0; right: 0; bottom: 0; box-shadow: var(--shadow-3); }
+  .dock { position: fixed; top: 0; right: 0; bottom: 0; box-shadow: var(--shadow-3); z-index: var(--z-dock-sheet); }
   .dock[data-state="rail"] { width: auto; border: 0; background: transparent; box-shadow: none; }
   .dock[data-state="rail"] .dock-rail { position: fixed; right: 16px; bottom: 16px; width: auto; padding: 0; flex-direction: row; align-items: center; }
   .dock[data-state="rail"] .dock-rail-btn { width: 48px; height: 48px; border-radius: 50%; font-size: 22px; box-shadow: var(--shadow-2); }

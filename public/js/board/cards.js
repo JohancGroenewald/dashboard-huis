@@ -30,7 +30,7 @@ export function sectionInner(section) {
       <span class="card-grip" title="Drag section">⠿</span>
       <span class="sec-name"${nameStyle} title="Click to rename">${esc(section.name)}</span>
       ${section.collapsed && n ? `<span class="sec-count" title="${n} tile(s)">${n}</span>` : ''}
-      <button class="ctl ai-btn sec-ai" type="button" title="Copilot: act on this section">✦</button>
+      <button class="ctl ai-btn sec-ai" type="button" title="Dashy: act on this section">✦</button>
       <button class="ctl sec-style" type="button" title="Card colours">🎨</button>
       <button class="ctl sec-add" type="button" title="Add tile to this section">＋</button>
       <button class="ctl danger sec-del" type="button" title="Delete section">✕</button>
@@ -56,7 +56,7 @@ export function noteInner(note) {
     <div class="sec-head note-head">
       <span class="card-grip" title="Drag note">⠿</span>
       <span class="note-title" title="${esc(note.text || 'Note')}">${esc(noteTitle(note))}</span>
-      <button class="ctl ai-btn note-ai" type="button" title="Copilot: act on this note">✦</button>
+      <button class="ctl ai-btn note-ai" type="button" title="Dashy: act on this note">✦</button>
       <button class="ctl note-style" type="button" title="Note colours">🎨</button>
       <button class="ctl note-hide" type="button" title="Hide note">🙈</button>
       <button class="ctl danger note-del" type="button" title="Delete note">✕</button>

@@ -8,7 +8,7 @@ export async function renderAbilitiesView() {
   try {
     const tools = await api('/api/abilities');
     panel.innerHTML =
-      `<div class="sys-summary">${tools.length} agent abilities — the only ways the copilot can change the dashboard</div>` +
+      `<div class="sys-summary">${tools.length} agent abilities — the only ways Dashy can change the dashboard</div>` +
       '<div class="ab-grid">' +
       tools
         .map(

@@ -92,10 +92,16 @@ export function initLive() {
         dropped = false;
       },
       dashboard: (d) => {
-        const remote = d.sourceClient !== clientId;
-        const ids = remote ? changedIds(store.dashboard, d.dashboard) : [];
+        // Our own echo: the UI already reflects this change (REST response or
+        // a live DOM patch). Record the authoritative state silently — a
+        // re-render here would close popovers and re-animate the whole board.
+        if (d.sourceClient === clientId) {
+          if (d.rev >= store.rev) { store.rev = d.rev; store.dashboard = d.dashboard; }
+          return;
+        }
+        const ids = changedIds(store.dashboard, d.dashboard);
         const applied = applyDashboard(d.dashboard, d.rev, { viewOnly: Boolean(d.viewOnly) });
-        if (!applied || !remote) return;
+        if (!applied) return;
         // Agent-driven changes already pulse violet via agent events; only
         // pulse blue for ids the agent didn't claim.
         markTouched(ids.filter((id) => touched.get(id)?.kind !== 'ai' && !pendingIds.has(id)), 'remote');

@@ -80,6 +80,11 @@ function widgetEl(id, layout, defW, defH, innerHtml) {
 function renderBoard() {
   if (!grid) return;
   rendering = true;
+  // Rebuild in one batch with animation off: sequential inserts would
+  // otherwise collision-shove cards downward and animate them visibly —
+  // the "cards keep dropping down" effect.
+  grid.setAnimation(false);
+  grid.batchUpdate();
   grid.removeAll(true);
 
   const ws = store.dashboard.activeWorkspaceId;
@@ -108,6 +113,8 @@ function renderBoard() {
     if (note.hidden) wireGhost(el, note);
     else wireNote(el, note);
   }
+  grid.batchUpdate(false);
+  requestAnimationFrame(() => grid.setAnimation(true));
   rendering = false;
   updateGridOverlay();
   publish('board-rendered');

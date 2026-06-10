@@ -18,7 +18,7 @@ function modelTile(name, r, { selectable = false, muted = false } = {}) {
   const sub = [score, speed].filter(Boolean).join(' · ');
   const reason = muted ? '' : failReason(r);
   const cls = muted ? 'muted' : r?.approved ? 'ok' : 'bad';
-  const attrs = selectable ? ` data-model="${esc(name)}" data-ms="${r?.msPerAction || ''}" title="Use this model in the copilot"` : '';
+  const attrs = selectable ? ` data-model="${esc(name)}" data-ms="${r?.msPerAction || ''}" title="Use this model as Dashy"` : '';
   return `<div class="mw-tile ${cls}${selectable ? ' selectable' : ''}"${attrs}>
     <div class="mw-tile-name">${esc(name)}</div>
     ${sub ? `<div class="mw-tile-sub">${esc(sub)}</div>` : ''}

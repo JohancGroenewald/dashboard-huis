@@ -96,7 +96,7 @@ function buildActions() {
       icon: '⊞', label: 'Expand all sections', hay: 'expand unfold all sections',
       run: async () => applyDashboard(await api('/api/sections/collapse', jsonBody({ collapsed: false }))),
     },
-    { icon: '✦', label: 'Toggle copilot', sub: '⌘J', hay: 'copilot dock chat assistant toggle', run: () => toggleDock() },
+    { icon: '✦', label: 'Toggle Dashy', sub: '⌘J', hay: 'dashy copilot dock chat assistant toggle', run: () => toggleDock() },
     { icon: '🧪', label: 'Open Models', hay: 'models validation open view', run: () => showView('models') },
     { icon: '🛠️', label: 'Open Abilities', hay: 'abilities tools open view', run: () => showView('abilities') },
     { icon: '🗒️', label: 'Open Requests', hay: 'requests features open view', run: () => showView('requests') },
@@ -127,7 +127,7 @@ function render() {
     ...actions,
     {
       icon: '✦',
-      label: q ? `Ask copilot: “${q}”` : 'Ask the copilot…',
+      label: q ? `Ask Dashy: “${q}”` : 'Ask Dashy…',
       sub: '⌘↵',
       ask: true,
       run: () => (q ? sendChat(q) : toggleDock()),

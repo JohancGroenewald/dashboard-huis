@@ -65,9 +65,13 @@
 
   /* Z ladder */
   --z-grid-active: 10000;
-  --z-topbar: 10020;
-  --z-dock: 10030;
+  /* The topbar must out-stack the dock: it is its own stacking context, so
+     its dropdown menus can never exceed it — if the dock sat higher, the ⋯
+     menu would open invisibly underneath the dock panel. */
+  --z-dock: 10020;
+  --z-topbar: 10030;
   --z-dropdown: 10040;
+  --z-dock-sheet: 10045; /* narrow screens: the dock overlays everything */
   --z-popover: 10050;
   --z-cmdk: 10060;
   --z-toast: 10070;
