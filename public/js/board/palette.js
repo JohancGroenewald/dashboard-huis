@@ -8,7 +8,7 @@ import { h } from '../lib/dom.js';
 import { NOTE_TRANSPARENT_COLOR } from '../constants.js';
 import { subscribe } from '../state/store.js';
 import { pushEscLayer } from '../keys.js';
-import { routeCable, clampToEdge, edgeNormal, inflate, ptInside } from './cable-route.js';
+import { routeCableBetweenRects } from './cable-route.js';
 
 const MARGIN = 12;
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -17,7 +17,6 @@ const CABLE = {
   maxSag: 56,
   minSag: 5,
   routedSagMax: 18, // legs that hug the card keep the bow shallow
-  minDraw: 8, // hide the cable when the palette overlaps its anchor
   springK: 0.16,
   springDamping: 0.72,
   flowMs: 700,
@@ -95,21 +94,23 @@ const moveToward = (from, to, by) => {
   return { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t };
 };
 
-// Everything the cable should dodge: every board card plus the dock. Boxes
-// that contain an endpoint can't be avoided, so they're dropped.
-function collectObstacles(a, b) {
-  const rects = [];
+// Everything the cable should dodge: the palette, its card, the other board
+// cards, and the dock.
+function collectObstacles(card, palette, anchor) {
+  const rects = [card, palette];
+  const ownItem = anchor.closest('.grid-stack-item');
   for (const el of document.querySelectorAll('#board .grid-stack-item')) {
+    if (el === ownItem) continue;
     const r = el.getBoundingClientRect();
     if (r.width && r.height) rects.push(r);
   }
   const dock = document.querySelector('#dock');
   if (dock) rects.push(dock.getBoundingClientRect());
-  return rects.filter((r) => !ptInside(a, inflate(r, ROUTE.pad)) && !ptInside(b, inflate(r, ROUTE.pad)));
+  return rects.filter((r) => r.width && r.height);
 }
 
 // One animation frame: follow the anchor (until dragged), then run the cable
-// edge-to-edge along the least-obstructed route, sag + spring on the first leg.
+// edge-to-edge along the least-obstructed route, with a springy main span.
 function frame(anchor) {
   if (!pop) return;
   if (!document.contains(anchor)) return closePalette();
@@ -129,74 +130,68 @@ function frame(anchor) {
   const p = pop.getBoundingClientRect();
   const card = (anchor.closest('.card') || anchor).getBoundingClientRect();
   const cc = { x: (card.left + card.right) / 2, y: (card.top + card.bottom) / 2 };
-  // Sockets sit on the outside edges of both boxes, facing each other.
-  const end = clampToEdge({ x: (p.left + p.right) / 2, y: (p.top + p.bottom) / 2 }, card);
-  const start = clampToEdge(cc, p);
-  const visible = Math.hypot(end.x - start.x, end.y - start.y) >= CABLE.minDraw;
-  tether.classList.toggle('hidden', !visible);
+  const pts = routeCableBetweenRects(p, card, collectObstacles(card, p, anchor), ROUTE.pad);
+  const start = pts[0];
+  const end = pts.at(-1);
+  tether.classList.remove('hidden');
 
-  if (visible) {
-    // Route to a point just clear of the card's edge, then plug in
-    // perpendicular to it.
-    const n = edgeNormal(end, card);
-    const target = { x: end.x + n.x * (ROUTE.pad + 1), y: end.y + n.y * (ROUTE.pad + 1) };
-    const pts = [start, ...routeCable(start, target, collectObstacles(start, target), ROUTE.pad), end];
+  let length = 0;
+  for (let i = 1; i < pts.length; i++) length += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
 
-    let length = 0;
-    for (let i = 1; i < pts.length; i++) length += Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+  // Sag the first leg: with gravity in open space, but pushed away from
+  // the card (and kept shallow) when the route is dodging boxes.
+  const routed = pts.length > 4; // more than [socket, plug, plug, socket]
+  const springStart = pts[1] || start;
+  const leg = pts[2] || end;
+  const mid = { x: (springStart.x + leg.x) / 2, y: (springStart.y + leg.y) / 2 };
+  const awayLen = Math.hypot(mid.x - cc.x, mid.y - cc.y) || 1;
+  const away = { x: (mid.x - cc.x) / awayLen, y: (mid.y - cc.y) / awayLen };
+  const slack = Math.max(0, CABLE.restLength - length);
+  let sag = Math.min(CABLE.maxSag, CABLE.minSag + slack * 0.24);
+  if (routed) sag = Math.min(sag, CABLE.routedSagMax);
+  const ctrlTarget = (away.y > -0.2 && !routed)
+    ? { x: mid.x + away.x * sag * 0.3, y: mid.y + sag } // gravity
+    : { x: mid.x + away.x * sag, y: mid.y + away.y * sag }; // push clear of the boxes
 
-    // Sag the first leg: with gravity in open space, but pushed away from
-    // the card (and kept shallow) when the route is dodging boxes.
-    const routed = pts.length > 3; // more than [start, plug-point, socket]
-    const leg = pts[1];
-    const mid = { x: (start.x + leg.x) / 2, y: (start.y + leg.y) / 2 };
-    const awayLen = Math.hypot(mid.x - cc.x, mid.y - cc.y) || 1;
-    const away = { x: (mid.x - cc.x) / awayLen, y: (mid.y - cc.y) / awayLen };
-    const slack = Math.max(0, CABLE.restLength - length);
-    let sag = Math.min(CABLE.maxSag, CABLE.minSag + slack * 0.24);
-    if (routed) sag = Math.min(sag, CABLE.routedSagMax);
-    const ctrlTarget = (away.y > -0.2 && !routed)
-      ? { x: mid.x + away.x * sag * 0.3, y: mid.y + sag } // gravity
-      : { x: mid.x + away.x * sag, y: mid.y + away.y * sag }; // push clear of the boxes
-
-    if (!ctrl.seeded || reduceMotion.matches) {
-      ctrl.x = ctrlTarget.x;
-      ctrl.y = ctrlTarget.y;
-      ctrl.vx = 0;
-      ctrl.vy = 0;
-      ctrl.seeded = true;
-    } else {
-      ctrl.vx = (ctrl.vx + (ctrlTarget.x - ctrl.x) * CABLE.springK) * CABLE.springDamping;
-      ctrl.vy = (ctrl.vy + (ctrlTarget.y - ctrl.y) * CABLE.springK) * CABLE.springDamping;
-      ctrl.x += ctrl.vx;
-      ctrl.y += ctrl.vy;
-    }
-
-    tether.classList.toggle('taut', length > CABLE.restLength);
-    // First leg is the springy curve; detour legs take rounded turns; the
-    // last hop plugs into the card's edge perpendicular to it.
-    let d = `M ${start.x} ${start.y}`;
-    for (let i = 1; i < pts.length; i++) {
-      const last = i === pts.length - 1;
-      const pt = pts[i];
-      if (last) {
-        d += i === 1 ? ` Q ${ctrl.x} ${ctrl.y} ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`;
-      } else {
-        const c1 = moveToward(pt, pts[i - 1], ROUTE.cornerRadius);
-        const c2 = moveToward(pt, pts[i + 1], ROUTE.cornerRadius);
-        d += i === 1 ? ` Q ${ctrl.x} ${ctrl.y} ${c1.x} ${c1.y}` : ` L ${c1.x} ${c1.y}`;
-        d += ` Q ${pt.x} ${pt.y} ${c2.x} ${c2.y}`;
-      }
-    }
-    d += ` L ${end.x} ${end.y}`;
-    for (const path of tether.querySelectorAll('path')) path.setAttribute('d', d);
-    const dotS = tether.querySelector('.start');
-    dotS.setAttribute('cx', start.x);
-    dotS.setAttribute('cy', start.y);
-    const dotE = tether.querySelector('.end');
-    dotE.setAttribute('cx', end.x);
-    dotE.setAttribute('cy', end.y);
+  if (!ctrl.seeded || reduceMotion.matches) {
+    ctrl.x = ctrlTarget.x;
+    ctrl.y = ctrlTarget.y;
+    ctrl.vx = 0;
+    ctrl.vy = 0;
+    ctrl.seeded = true;
+  } else {
+    ctrl.vx = (ctrl.vx + (ctrlTarget.x - ctrl.x) * CABLE.springK) * CABLE.springDamping;
+    ctrl.vy = (ctrl.vy + (ctrlTarget.y - ctrl.y) * CABLE.springK) * CABLE.springDamping;
+    ctrl.x += ctrl.vx;
+    ctrl.y += ctrl.vy;
   }
+
+  tether.classList.toggle('taut', length > CABLE.restLength);
+  // The first hop plugs straight out of the palette. After that, the cable
+  // takes its springy curve and rounded detour turns.
+  let d = `M ${start.x} ${start.y}`;
+  const firstCurve = pts.length > 2 ? 2 : 1;
+  if (firstCurve === 2) d += ` L ${pts[1].x} ${pts[1].y}`;
+  for (let i = firstCurve; i < pts.length; i++) {
+    const last = i === pts.length - 1;
+    const pt = pts[i];
+    if (last) {
+      d += i === firstCurve ? ` Q ${ctrl.x} ${ctrl.y} ${pt.x} ${pt.y}` : ` L ${pt.x} ${pt.y}`;
+    } else {
+      const c1 = moveToward(pt, pts[i - 1], ROUTE.cornerRadius);
+      const c2 = moveToward(pt, pts[i + 1], ROUTE.cornerRadius);
+      d += i === firstCurve ? ` Q ${ctrl.x} ${ctrl.y} ${c1.x} ${c1.y}` : ` L ${c1.x} ${c1.y}`;
+      d += ` Q ${pt.x} ${pt.y} ${c2.x} ${c2.y}`;
+    }
+  }
+  d += ` L ${end.x} ${end.y}`;
+  for (const path of tether.querySelectorAll('path')) path.setAttribute('d', d);
+  const dotS = tether.querySelector('.start');
+  dotS.setAttribute('cx', start.x);
+  dotS.setAttribute('cy', start.y);
+  const dotE = tether.querySelector('.end');
+  dotE.setAttribute('cx', end.x);
+  dotE.setAttribute('cy', end.y);
 
   rafId = requestAnimationFrame(() => frame(anchor));
 }

@@ -1,10 +1,12 @@
 // Pure geometry for the palette cable: route a line between two points while
-// dodging rectangular obstacles (board cards, the dock). Greedy corner-detour
-// routing — when a segment crosses a rect, go around its cheapest corner and
-// recurse on both halves. No DOM in here, so it's unit-testable in node.
+// dodging rectangular obstacles (board cards, the dock). Bounded corner-detour
+// routing tries clear corners around each blocking rect. No DOM in here, so
+// it's unit-testable in node.
 
 export const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 export const dist = (a, b) => Math.hypot(b.x - a.x, b.y - a.y);
+const pointKey = (p) => `${Math.round(p.x * 10)}:${Math.round(p.y * 10)}`;
+const rectKey = (r) => `${Math.round(r.left * 10)}:${Math.round(r.top * 10)}:${Math.round(r.right * 10)}:${Math.round(r.bottom * 10)}`;
 
 // Nearest point on (the boundary of) rect r to point p. If p is inside, the
 // nearest boundary point of the dominant axis is returned.
@@ -23,6 +25,10 @@ export function clampToEdge(p, r) {
 
 export const inflate = (r, pad) => ({ left: r.left - pad, top: r.top - pad, right: r.right + pad, bottom: r.bottom + pad });
 export const ptInside = (p, r) => p.x > r.left && p.x < r.right && p.y > r.top && p.y < r.bottom;
+const ptInsideAny = (p, obstacles) => obstacles.some((r) => ptInside(p, r));
+const segmentClear = (a, b, obstacles) => obstacles.every((r) => segHit(a, b, r) === null);
+const pathClear = (pts, obstacles) => pts.slice(1).every((p, i) => segmentClear(pts[i], p, obstacles));
+const offset = (p, n, by) => ({ x: p.x + n.x * by, y: p.y + n.y * by });
 
 // Outward normal of the rect edge a boundary point sits on.
 export function edgeNormal(p, r, eps = 0.5) {
@@ -76,21 +82,126 @@ const corners = (r) => [
   { x: r.left, y: r.bottom },
 ];
 
-// Waypoints from a to b (b included) avoiding all obstacle rects: detour via
-// the cheapest reachable corner of the first blocking rect and recurse on
-// both halves. Corners come from the rect inflated by `pad` while crossing
-// tests use the original rect, so legs may run alongside an obstacle without
-// being counted as crossing it. Only the incoming leg must clear the blocker
-// — the recursion routes the outgoing leg around it corner by corner. Falls
-// back to the straight hop when boxed in or too deep.
-export function routeCable(a, b, obstacles, pad = 12, depth = 0) {
-  if (depth > 8) return [b];
+const uniqueRects = (rects) => {
+  const seen = new Set();
+  const out = [];
+  for (const r of rects) {
+    if (!r || r.right <= r.left || r.bottom <= r.top) continue;
+    const key = rectKey(r);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(r);
+  }
+  return out;
+};
+
+const dedupePoints = (pts) => pts.filter((p, i) => i === 0 || dist(p, pts[i - 1]) > 0.5);
+
+function searchRoute(a, b, obstacles, pad, depth = 0, seen = new Set()) {
+  if (depth > 10) return null;
   const block = firstBlocking(a, b, obstacles);
   if (!block) return [b];
   const usable = corners(inflate(block, pad))
-    .filter((c) => segHit(a, c, block) === null && dist(a, c) > 1 && dist(c, b) > 1)
+    .filter((c) => (
+      dist(a, c) > 1
+      && dist(c, b) > 1
+      && !ptInsideAny(c, obstacles)
+      && segmentClear(a, c, obstacles)
+    ))
     .sort((c1, c2) => (dist(a, c1) + dist(c1, b)) - (dist(a, c2) + dist(c2, b)));
-  if (!usable.length) return [b];
-  const via = usable[0];
-  return [...routeCable(a, via, obstacles, pad, depth + 1), ...routeCable(via, b, obstacles, pad, depth + 1)];
+
+  for (const via of usable) {
+    const key = pointKey(via);
+    if (seen.has(key)) continue;
+    const nextSeen = new Set(seen);
+    nextSeen.add(key);
+    const rest = searchRoute(via, b, obstacles, pad, depth + 1, nextSeen);
+    if (rest) return [via, ...rest];
+  }
+  return null;
+}
+
+const sideFractions = [0.2, 0.5, 0.8];
+
+function socketCandidates(rect, avoidRect) {
+  const pts = [];
+  const seen = new Set();
+  const add = (point, normal, bias = 0) => {
+    if (avoidRect && ptInside(point, avoidRect)) return;
+    const key = pointKey(point);
+    if (seen.has(key)) return;
+    seen.add(key);
+    pts.push({ point, normal, bias });
+  };
+  const avoidCenter = avoidRect && { x: (avoidRect.left + avoidRect.right) / 2, y: (avoidRect.top + avoidRect.bottom) / 2 };
+  if (avoidCenter) {
+    const facing = clampToEdge(avoidCenter, rect);
+    add(facing, edgeNormal(facing, rect), -20);
+  }
+  for (const f of sideFractions) {
+    const x = rect.left + (rect.right - rect.left) * f;
+    const y = rect.top + (rect.bottom - rect.top) * f;
+    add({ x, y: rect.top }, { x: 0, y: -1 }, f === 0.5 ? 0 : 8);
+    add({ x, y: rect.bottom }, { x: 0, y: 1 }, f === 0.5 ? 0 : 8);
+    add({ x: rect.left, y }, { x: -1, y: 0 }, f === 0.5 ? 0 : 8);
+    add({ x: rect.right, y }, { x: 1, y: 0 }, f === 0.5 ? 0 : 8);
+  }
+  return pts;
+}
+
+// Waypoints from a to b (b included) avoiding all obstacle rects: detour via
+// reachable corners of the first blocking rect until a clear path is found.
+// Corners come from the rect inflated by `pad` while crossing tests use the
+// original rect, so legs may run alongside an obstacle without being counted
+// as crossing it. Falls back to the straight hop only when boxed in.
+export function routeCable(a, b, obstacles, pad = 12, depth = 0) {
+  return searchRoute(a, b, obstacles, pad, depth) || [b];
+}
+
+// Pick visible sockets on the outside of two boxes, then route between plug
+// points just outside those sockets. The returned points include both box-edge
+// sockets and are ordered from `fromRect` to `toRect`.
+export function routeCableBetweenRects(fromRect, toRect, obstacles = [], pad = 12) {
+  const all = uniqueRects([fromRect, toRect, ...obstacles]);
+  const fromKey = rectKey(fromRect);
+  const toKey = rectKey(toRect);
+  const fromObstacles = all.filter((r) => rectKey(r) !== fromKey);
+  const toObstacles = all.filter((r) => rectKey(r) !== toKey);
+  const starts = socketCandidates(fromRect, toRect);
+  const ends = socketCandidates(toRect, fromRect);
+  const pairs = [];
+
+  for (const start of starts) {
+    for (const end of ends) {
+      const outStart = offset(start.point, start.normal, pad);
+      const outEnd = offset(end.point, end.normal, pad);
+      if (
+        ptInsideAny(start.point, fromObstacles)
+        || ptInsideAny(end.point, toObstacles)
+        || ptInsideAny(outStart, all)
+        || ptInsideAny(outEnd, all)
+      ) continue;
+      pairs.push({
+        start,
+        end,
+        outStart,
+        outEnd,
+        min: dist(start.point, outStart) + dist(outStart, outEnd) + dist(outEnd, end.point) + start.bias + end.bias,
+      });
+    }
+  }
+
+  pairs.sort((a, b) => a.min - b.min);
+  for (const pair of pairs) {
+    const middle = routeCable(pair.outStart, pair.outEnd, all, pad);
+    const pts = dedupePoints([pair.start.point, pair.outStart, ...middle, pair.end.point]);
+    if (!pathClear(pts, all)) continue;
+    return pts;
+  }
+
+  const start = starts[0] || socketCandidates(fromRect)[0];
+  const end = ends[0] || socketCandidates(toRect)[0];
+  const outStart = offset(start.point, start.normal, pad);
+  const outEnd = offset(end.point, end.normal, pad);
+  return dedupePoints([start.point, outStart, ...routeCable(outStart, outEnd, all, pad), end.point]);
 }
