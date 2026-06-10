@@ -8,10 +8,6 @@ export const STORAGE_KEYS = {
   activeView: 'dash-view',
 };
 
-export const NOTE_TRANSPARENT_COLOR = 'transparent';
-export const NOTE_COLORS = ['#f6d365', '#a0e7a0', '#9bd0ff', '#ffb3c1', '#e0c3fc', NOTE_TRANSPARENT_COLOR];
-export const NOTE_TEXT_COLORS = ['#2a2300', '#000000', '#ffffff', '#1d4ed8', '#b91c1c'];
-
 export const SPEED_LIMITS = {
   msPerSecond: 1_000,
   secondsCutoff: 10,
@@ -72,7 +68,7 @@ export const FONT_WEIGHTS = {
   semiBold: 650,
 };
 
-const SECTION_STYLE_COLORS = [
+const STYLE_COLORS = [
   '',
   '#1a2233',
   '#16241a',
@@ -91,10 +87,15 @@ const SECTION_STYLE_COLORS = [
   '#ff9580',
 ];
 
+export const NOTE_TRANSPARENT_COLOR = 'transparent';
+export const NOTE_DEFAULT_COLOR = '#f6d365';
+export const NOTE_COLORS = [...STYLE_COLORS, NOTE_TRANSPARENT_COLOR];
+export const NOTE_TEXT_COLORS = STYLE_COLORS;
+
 export const SECTION_PALETTES = {
-  background: SECTION_STYLE_COLORS,
-  border: SECTION_STYLE_COLORS,
-  heading: SECTION_STYLE_COLORS,
+  background: STYLE_COLORS,
+  border: STYLE_COLORS,
+  heading: STYLE_COLORS,
 };
 
 export const FEATURE_REQUEST_STATUSES = ['open', 'planned', 'done', 'rejected'];

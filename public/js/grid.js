@@ -1,7 +1,10 @@
 // Gridstack grid: section group cards + sticky-note cards, drag/resize with
 // persisted layout, tile chips (click/delete/drag-between-sections), health.
 import { $, api, jsonBody, esc, NOTE_COLORS } from './util.js';
-import { FONT_WEIGHTS, GRID_UI, NOTE_TEXT_COLORS, NOTE_TRANSPARENT_COLOR, SECTION_PALETTES, STORAGE_KEYS } from './constants.js';
+import {
+  FONT_WEIGHTS, GRID_UI, NOTE_DEFAULT_COLOR, NOTE_TEXT_COLORS, NOTE_TRANSPARENT_COLOR,
+  SECTION_PALETTES, STORAGE_KEYS,
+} from './constants.js';
 import { openPalette } from './palette.js';
 import { state, onRender, loadDashboard, setState } from './store.js';
 
@@ -126,7 +129,7 @@ function noteTitle(note) {
 function noteInner(note) {
   const isTransparent = note.color === NOTE_TRANSPARENT_COLOR;
   const style = [
-    `background:${esc(note.color || NOTE_COLORS[0])}`,
+    `background:${esc(note.color || NOTE_DEFAULT_COLOR)}`,
     note.textColor ? `color:${esc(note.textColor)}` : (isTransparent ? 'color:var(--text)' : ''),
     note.bold ? 'font-weight:700' : '',
   ].filter(Boolean).join(';');
@@ -318,15 +321,15 @@ function wireNote(el, note) {
       anchor: e.currentTarget,
       title: `Note: ${noteTitle(note)}`,
       rows: [
-        { label: 'Fill', prop: 'color', colors: ['', ...NOTE_COLORS], current: note.color },
-        { label: 'Text', prop: 'textColor', colors: ['', ...NOTE_TEXT_COLORS], current: note.textColor },
+        { label: 'Fill', prop: 'color', colors: NOTE_COLORS, current: note.color },
+        { label: 'Text', prop: 'textColor', colors: NOTE_TEXT_COLORS, current: note.textColor },
       ],
       toggles: [{ label: 'Bold text', prop: 'bold', checked: note.bold }],
       onSwatch: ({ prop, color }) => {
         if (prop === 'color') {
           const transparent = color === NOTE_TRANSPARENT_COLOR;
           card.classList.toggle('transparent', transparent);
-          card.style.background = color || NOTE_COLORS[0];
+          card.style.background = color || NOTE_DEFAULT_COLOR;
           if (!note.textColor) card.style.color = transparent ? 'var(--text)' : '';
           note.color = color;
         } else if (prop === 'textColor') {
