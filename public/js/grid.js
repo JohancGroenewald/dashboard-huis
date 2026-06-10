@@ -2,6 +2,7 @@
 // persisted layout, tile chips (click/delete/drag-between-sections), health.
 import { $, api, jsonBody, esc, NOTE_COLORS } from './util.js';
 import { FONT_WEIGHTS, GRID_UI, NOTE_TEXT_COLORS, NOTE_TRANSPARENT_COLOR, SECTION_PALETTES, STORAGE_KEYS } from './constants.js';
+import { openPalette } from './palette.js';
 import { state, onRender, loadDashboard, setState } from './store.js';
 
 const gridEl = $('#board');
@@ -90,22 +91,6 @@ function tileChip(tile) {
   </div>`;
 }
 
-// Shared card colour palettes ('' = clear back to the theme default).
-function swatchRow(label, prop, colors, current) {
-  const sw = colors
-    .map((c) => {
-      const sel = (current || '') === c ? ' sel' : '';
-      if (c === NOTE_TRANSPARENT_COLOR) {
-        return `<span class="sty-swatch transparent${sel}" data-prop="${prop}" data-color="${c}" title="Transparent"></span>`;
-      }
-      return c
-        ? `<span class="sty-swatch${sel}" data-prop="${prop}" data-color="${c}" style="background:${c}" title="${c}"></span>`
-        : `<span class="sty-swatch clear${sel}" data-prop="${prop}" data-color="" title="Default"></span>`;
-    })
-    .join('');
-  return `<div class="sty-row"><span class="sty-label">${label}</span><span class="sty-swatches">${sw}</span></div>`;
-}
-
 function sectionInner(section) {
   const tiles = section.tiles.map(tileChip).join('') || '<div class="sec-empty">No tiles — ＋ to add, or drop one here</div>';
   const n = section.tiles.length;
@@ -129,14 +114,13 @@ function sectionInner(section) {
       <button class="sec-del" title="Delete section">✕</button>
     </div>
     ${desc}
-    <div class="sec-style hidden">
-      ${swatchRow('Fill', 'color', SECTION_PALETTES.background, section.color)}
-      ${swatchRow('Outline', 'borderColor', SECTION_PALETTES.border, section.borderColor)}
-      ${swatchRow('Heading', 'headingColor', SECTION_PALETTES.heading, section.headingColor)}
-      <label class="sty-toggle"><input type="checkbox" class="sec-bold-chk"${section.bold ? ' checked' : ''}> Bold heading</label>
-    </div>
     <div class="sec-tiles" data-section="${section.id}">${tiles}</div>
   </div>`;
+}
+
+function noteTitle(note) {
+  const text = String(note.text || '').trim();
+  return text ? text.slice(0, GRID_UI.attachLabelChars) : 'Note';
 }
 
 function noteInner(note) {
@@ -147,20 +131,15 @@ function noteInner(note) {
     note.bold ? 'font-weight:700' : '',
   ].filter(Boolean).join(';');
   return `<div class="card note-card${isTransparent ? ' transparent' : ''}" data-id="${note.id}" style="${style}">
-    <span class="card-grip" title="Drag">⠿</span>
-    <button class="note-hide" title="Hide note">🙈</button>
+    <div class="note-head sec-head">
+      <span class="card-grip" title="Drag note">⠿</span>
+      <span class="note-title" title="${esc(note.text || 'Note')}">${esc(noteTitle(note))}</span>
+      <button class="note-style-btn sec-style-btn" title="Note colours">🎨</button>
+      <button class="note-attach sec-attach" title="Attach to chat">📎</button>
+      <button class="note-hide" title="Hide note">🙈</button>
+      <button class="note-del sec-del" title="Delete note">✕</button>
+    </div>
     <textarea placeholder="Write a note…">${esc(note.text)}</textarea>
-    <div class="note-style sec-style hidden">
-      ${swatchRow('Fill', 'color', ['', ...NOTE_COLORS], note.color)}
-      ${swatchRow('Text', 'textColor', ['', ...NOTE_TEXT_COLORS], note.textColor)}
-      <label class="sty-toggle"><input type="checkbox" class="note-bold-chk"${note.bold ? ' checked' : ''}> Bold text</label>
-    </div>
-    <div class="note-bar">
-      <span class="note-spacer"></span>
-      <button class="note-style-btn" title="Note colours">🎨</button>
-      <button class="note-attach" title="Attach to chat">📎</button>
-      <button class="note-del" title="Delete note">✕</button>
-    </div>
   </div>`;
 }
 
@@ -227,6 +206,8 @@ function attachItem(type, id, label) {
 
 
 function wireSection(el, section) {
+  const card = el.querySelector('.section-card');
+  const nameEl = el.querySelector('.sec-name');
   el.querySelector('.sec-collapse').addEventListener('click', async (e) => {
     e.stopPropagation();
     await api(`/api/sections/${section.id}/collapse`, jsonBody({ collapsed: !section.collapsed }));
@@ -239,17 +220,30 @@ function wireSection(el, section) {
     await api(`/api/sections/${section.id}`, jsonBody({ description: val }, 'PATCH'));
     await loadDashboard();
   });
-  const stylePanel = el.querySelector('.sec-style');
-  el.querySelector('.sec-style-btn').addEventListener('click', (e) => { e.stopPropagation(); stylePanel.classList.toggle('hidden'); });
-  el.querySelectorAll('.sty-swatch').forEach((sw) =>
-    sw.addEventListener('click', async () => {
-      await api(`/api/sections/${section.id}`, jsonBody({ [sw.dataset.prop]: sw.dataset.color }, 'PATCH'));
-      await loadDashboard();
-    })
-  );
-  el.querySelector('.sec-bold-chk').addEventListener('change', async (e) => {
-    await api(`/api/sections/${section.id}`, jsonBody({ bold: e.target.checked }, 'PATCH'));
-    await loadDashboard();
+  el.querySelector('.sec-style-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openPalette({
+      anchor: e.currentTarget,
+      title: `Section: ${section.name}`,
+      rows: [
+        { label: 'Fill', prop: 'color', colors: SECTION_PALETTES.background, current: section.color },
+        { label: 'Outline', prop: 'borderColor', colors: SECTION_PALETTES.border, current: section.borderColor },
+        { label: 'Heading', prop: 'headingColor', colors: SECTION_PALETTES.heading, current: section.headingColor },
+      ],
+      toggles: [{ label: 'Bold heading', prop: 'bold', checked: section.bold }],
+      onSwatch: ({ prop, color }) => {
+        section[prop] = color;
+        if (prop === 'color') card.style.background = color;
+        else if (prop === 'borderColor') card.style.borderColor = color;
+        else if (prop === 'headingColor') nameEl.style.color = color;
+        api(`/api/sections/${section.id}`, jsonBody({ [prop]: color }, 'PATCH')).catch(console.error);
+      },
+      onToggle: ({ checked }) => {
+        section.bold = checked;
+        nameEl.style.fontWeight = checked ? FONT_WEIGHTS.semiBold : FONT_WEIGHTS.normal;
+        api(`/api/sections/${section.id}`, jsonBody({ bold: checked }, 'PATCH')).catch(console.error);
+      },
+    });
   });
   el.querySelector('.sec-name').addEventListener('click', async () => {
     const name = prompt('Rename section:', section.name);
@@ -310,30 +304,43 @@ function wireSection(el, section) {
 function wireNote(el, note) {
   const card = el.querySelector('.note-card');
   const ta = el.querySelector('textarea');
-  ta.addEventListener('blur', () => { if (ta.value !== note.text) saveNote(note.id, { text: ta.value }); });
-  const stylePanel = el.querySelector('.note-style');
-  el.querySelector('.note-style-btn').addEventListener('click', (e) => { e.stopPropagation(); stylePanel.classList.toggle('hidden'); });
-  el.querySelectorAll('.note-style .sty-swatch').forEach((sw) =>
-    sw.addEventListener('click', () => {
-      const color = sw.dataset.color || '';
-      if (sw.dataset.prop === 'color') {
-        const transparent = color === NOTE_TRANSPARENT_COLOR;
-        card.classList.toggle('transparent', transparent);
-        card.style.background = color || NOTE_COLORS[0];
-        if (!note.textColor) card.style.color = transparent ? 'var(--text)' : '';
-        note.color = color;
-      } else if (sw.dataset.prop === 'textColor') {
-        note.textColor = color;
-        card.style.color = color || (note.color === NOTE_TRANSPARENT_COLOR ? 'var(--text)' : '');
-      }
-      stylePanel.querySelectorAll(`.sty-swatch[data-prop="${sw.dataset.prop}"]`).forEach((s) => s.classList.toggle('sel', s === sw));
-      saveNote(note.id, { [sw.dataset.prop]: color });
-    })
-  );
-  el.querySelector('.note-bold-chk').addEventListener('change', (e) => {
-    note.bold = e.target.checked;
-    card.style.fontWeight = note.bold ? '700' : '';
-    saveNote(note.id, { bold: note.bold });
+  const titleEl = el.querySelector('.note-title');
+  ta.addEventListener('blur', () => {
+    if (ta.value === note.text) return;
+    note.text = ta.value;
+    titleEl.textContent = noteTitle(note);
+    titleEl.title = note.text || 'Note';
+    saveNote(note.id, { text: ta.value });
+  });
+  el.querySelector('.note-style-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openPalette({
+      anchor: e.currentTarget,
+      title: `Note: ${noteTitle(note)}`,
+      rows: [
+        { label: 'Fill', prop: 'color', colors: ['', ...NOTE_COLORS], current: note.color },
+        { label: 'Text', prop: 'textColor', colors: ['', ...NOTE_TEXT_COLORS], current: note.textColor },
+      ],
+      toggles: [{ label: 'Bold text', prop: 'bold', checked: note.bold }],
+      onSwatch: ({ prop, color }) => {
+        if (prop === 'color') {
+          const transparent = color === NOTE_TRANSPARENT_COLOR;
+          card.classList.toggle('transparent', transparent);
+          card.style.background = color || NOTE_COLORS[0];
+          if (!note.textColor) card.style.color = transparent ? 'var(--text)' : '';
+          note.color = color;
+        } else if (prop === 'textColor') {
+          note.textColor = color;
+          card.style.color = color || (note.color === NOTE_TRANSPARENT_COLOR ? 'var(--text)' : '');
+        }
+        saveNote(note.id, { [prop]: color });
+      },
+      onToggle: ({ checked }) => {
+        note.bold = checked;
+        card.style.fontWeight = checked ? '700' : '';
+        saveNote(note.id, { bold: checked });
+      },
+    });
   });
   el.querySelector('.note-attach').addEventListener('click', () => attachItem('note', note.id, note.text || 'note'));
   el.querySelector('.note-hide').addEventListener('click', async () => {

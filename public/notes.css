@@ -3,25 +3,26 @@
 .note-card.transparent {
   box-shadow: none;
 }
-.note-card.transparent .card-grip {
+.note-card.transparent .card-grip,
+.note-card.transparent .note-head button {
   color: var(--muted);
 }
-.note-card.transparent .note-bar button {
-  color: var(--muted);
-}
-.note-card.transparent .note-bar button:hover {
+.note-card.transparent .note-head button:hover {
   color: var(--text);
 }
-.note-card.transparent .note-bar .note-del:hover {
+.note-card.transparent .note-head .note-del:hover {
   color: var(--down);
 }
 .note-card textarea {
   flex: 1; width: 100%; background: transparent; border: 0; resize: none;
-  color: inherit; font: inherit; outline: none; margin-top: 8px;
+  color: inherit; font: inherit; outline: none; min-height: 0;
 }
-.note-card .card-grip { color: rgba(0, 0, 0, 0.45); }
-.note-bar { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
-.note-style .sty-label { width: 38px; }
+.note-card .card-grip { position: static; opacity: 0.55; color: rgba(0, 0, 0, 0.45); }
+.note-card:hover .card-grip { opacity: 0.85; }
+.note-title { flex: 1; min-width: 0; font-weight: 650; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-head button { border: 0; background: transparent; color: rgba(0, 0, 0, 0.5); cursor: pointer; font-size: 13px; padding: 0 4px; border-radius: 6px; }
+.note-head button:hover { color: #000; }
+.note-head .note-del:hover { color: #a11; }
 .sty-swatch.transparent {
   background:
     linear-gradient(135deg, transparent 45%, var(--down) 46%, var(--down) 54%, transparent 55%),
@@ -33,9 +34,4 @@
   background-position: 0 0, 0 0, 0 7px, 7px -7px, -7px 0;
   background-size: 100% 100%, 14px 14px, 14px 14px, 14px 14px, 14px 14px;
 }
-.note-spacer { flex: 1; }
-.note-bar button { background: none; border: 0; cursor: pointer; color: rgba(0, 0, 0, 0.5); font-size: 12px; padding: 0 1px; }
-.note-bar button:hover { color: #000; }
-.note-bar .note-del:hover { color: #a11; }
-.note-card .note-hide, .note-ghost .ghost-eye { position: absolute; top: 6px; right: 8px; font-size: 13px; line-height: 1; }
-.note-card .note-hide { background: none; border: 0; padding: 0; cursor: pointer; z-index: 2; }
+.note-ghost .ghost-eye { position: absolute; top: 6px; right: 8px; font-size: 13px; line-height: 1; }
