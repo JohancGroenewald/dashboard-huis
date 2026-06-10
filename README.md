@@ -177,8 +177,8 @@ POST   /api/sections/:id/tiles       {name,url,description?,icon?,health?}
 PATCH  /api/tiles/:id
 DELETE /api/tiles/:id
 POST   /api/tiles/:id/move           {section_id, position?} move/regroup tiles
-POST   /api/notes                    {text, color?}          sticky notes
-PATCH  /api/notes/:id                {text?, color?}
+POST   /api/notes                    {text, color?}          sticky notes (color may be "transparent")
+PATCH  /api/notes/:id                {text?, color?, textColor?, bold?, hidden?}
 DELETE /api/notes/:id
 POST   /api/feature-requests         {title, detail?}        request queue
 PATCH  /api/feature-requests/:id     {status|title|detail}   status: open|planned|done|rejected
@@ -210,8 +210,8 @@ POST   /api/agent/chat               {model, messages[]}   (allowlisted models o
 - **Drag-and-drop** — reorder tiles within a section, move tiles between
   sections (regroup), and reorder sections via the `⋮⋮` grip.
 - **Sticky notes** — quick freeform notes (added via the assistant); editable
-  inline, colorable. Hiding one leaves a faint dashed-outline ghost you click to
-  restore.
+  inline, colorable, and can use a transparent background. Hiding one leaves a
+  faint dashed-outline ghost you click to restore.
 - **Feature-request queue** — the **🗒️ Requests** tab. The agent also files
   requests via the `request_feature` tool when asked for something it can't do,
   so the queue is fed *by the models* as well as by you.

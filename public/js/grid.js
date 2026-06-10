@@ -1,7 +1,7 @@
 // Gridstack grid: section group cards + sticky-note cards, drag/resize with
 // persisted layout, tile chips (click/delete/drag-between-sections), health.
 import { $, api, jsonBody, esc, NOTE_COLORS } from './util.js';
-import { FONT_WEIGHTS, GRID_UI, NOTE_TEXT_COLORS, SECTION_PALETTES, STORAGE_KEYS } from './constants.js';
+import { FONT_WEIGHTS, GRID_UI, NOTE_TEXT_COLORS, NOTE_TRANSPARENT_COLOR, SECTION_PALETTES, STORAGE_KEYS } from './constants.js';
 import { state, onRender, loadDashboard, setState } from './store.js';
 
 const gridEl = $('#board');
@@ -137,10 +137,18 @@ function sectionInner(section) {
 }
 
 function noteInner(note) {
-  const bg = NOTE_COLORS.map((c) => `<span class="swatch" data-color="${c}" style="background:${c}"></span>`).join('');
+  const bg = NOTE_COLORS.map((c) => {
+    if (c === NOTE_TRANSPARENT_COLOR) return `<span class="swatch transparent" data-color="${c}" title="Transparent"></span>`;
+    return `<span class="swatch" data-color="${c}" style="background:${c}" title="${c}"></span>`;
+  }).join('');
   const tx = NOTE_TEXT_COLORS.map((c) => `<span class="tswatch" data-textcolor="${c}" style="color:${c}">A</span>`).join('');
-  const style = `background:${esc(note.color || NOTE_COLORS[0])}${note.textColor ? `;color:${esc(note.textColor)}` : ''}${note.bold ? ';font-weight:700' : ''}`;
-  return `<div class="card note-card" data-id="${note.id}" style="${style}">
+  const isTransparent = note.color === NOTE_TRANSPARENT_COLOR;
+  const style = [
+    `background:${esc(note.color || NOTE_COLORS[0])}`,
+    note.textColor ? `color:${esc(note.textColor)}` : (isTransparent ? 'color:var(--text)' : ''),
+    note.bold ? 'font-weight:700' : '',
+  ].filter(Boolean).join(';');
+  return `<div class="card note-card${isTransparent ? ' transparent' : ''}" data-id="${note.id}" style="${style}">
     <span class="card-grip" title="Drag">⠿</span>
     <button class="note-hide" title="Hide note">🙈</button>
     <textarea placeholder="Write a note…">${esc(note.text)}</textarea>
@@ -303,7 +311,15 @@ function wireNote(el, note) {
   const ta = el.querySelector('textarea');
   ta.addEventListener('blur', () => { if (ta.value !== note.text) saveNote(note.id, { text: ta.value }); });
   el.querySelectorAll('.swatch').forEach((sw) =>
-    sw.addEventListener('click', () => { card.style.background = sw.dataset.color; saveNote(note.id, { color: sw.dataset.color }); })
+    sw.addEventListener('click', () => {
+      const transparent = sw.dataset.color === NOTE_TRANSPARENT_COLOR;
+      card.classList.toggle('transparent', transparent);
+      card.style.background = sw.dataset.color;
+      if (transparent && !note.textColor) card.style.color = 'var(--text)';
+      else if (!transparent && !note.textColor) card.style.color = '';
+      note.color = sw.dataset.color;
+      saveNote(note.id, { color: sw.dataset.color });
+    })
   );
   el.querySelectorAll('.tswatch').forEach((sw) =>
     sw.addEventListener('click', () => { card.style.color = sw.dataset.textcolor; saveNote(note.id, { textColor: sw.dataset.textcolor }); })

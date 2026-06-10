@@ -230,7 +230,7 @@ export const toolSpecs = [
         type: 'object',
         properties: {
           text: { type: 'string', description: 'Note contents.' },
-          color: { type: 'string', description: 'Optional color name or hex, e.g. "yellow".' },
+          color: { type: 'string', description: 'Optional background colour: color name, hex, or "transparent".' },
         },
         required: ['text'],
       },
@@ -240,13 +240,13 @@ export const toolSpecs = [
     type: 'function',
     function: {
       name: 'update_note',
-      description: 'Edit a sticky note: text, background colour, text colour, or hide/show it.',
+      description: 'Edit a sticky note: text, background colour, text colour, bold state, or hide/show it.',
       parameters: {
         type: 'object',
         properties: {
           note_id: { type: 'string' },
           text: { type: 'string' },
-          color: { type: 'string', description: 'Background colour (name or hex).' },
+          color: { type: 'string', description: 'Background colour (name, hex, "transparent", or empty string for the default).' },
           textColor: { type: 'string', description: 'Text colour (name or hex).' },
           bold: { type: 'boolean', description: 'Whether the note text is bold.' },
           hidden: { type: 'boolean', description: 'Hide the note from the board without deleting it.' },

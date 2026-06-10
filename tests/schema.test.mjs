@@ -5,6 +5,7 @@ import { normalizeNote, normalizeSection, normalizeTile } from '../src/schema.js
 test('color fields allow hex and color names', () => {
   assert.equal(normalizeSection({ name: 'Ops', color: '#ABC', tiles: [] }).color, '#abc');
   assert.equal(normalizeNote({ text: 'Check backups', color: 'Blue' }).color, 'blue');
+  assert.equal(normalizeNote({ text: 'Check backups', color: 'transparent' }).color, 'transparent');
 });
 
 test('color fields reject CSS declarations and functions', () => {

@@ -142,6 +142,7 @@ export const NOTE_COLOR_NAMES = {
   '#9bd0ff': 'blue',
   '#ffb3c1': 'pink',
   '#e0c3fc': 'purple',
+  transparent: 'transparent',
 };
 
 export const DEFAULT_DASHBOARD = {

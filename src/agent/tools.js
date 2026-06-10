@@ -74,7 +74,16 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
             bold: t.bold,
           })),
         })),
-        notes: s.notes.map((n) => ({ id: n.id, text: n.text, color: n.color, bold: n.bold, workspaceId: n.workspaceId, layout: n.layout })),
+        notes: s.notes.map((n) => ({
+          id: n.id,
+          text: n.text,
+          color: n.color,
+          textColor: n.textColor || '',
+          bold: n.bold,
+          hidden: n.hidden,
+          workspaceId: n.workspaceId,
+          layout: n.layout,
+        })),
         featureRequests: s.featureRequests.map((f) => ({ id: f.id, title: f.title, status: f.status })),
       };
     },

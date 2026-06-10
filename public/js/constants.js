@@ -8,7 +8,8 @@ export const STORAGE_KEYS = {
   activeView: 'dash-view',
 };
 
-export const NOTE_COLORS = ['#f6d365', '#a0e7a0', '#9bd0ff', '#ffb3c1', '#e0c3fc'];
+export const NOTE_TRANSPARENT_COLOR = 'transparent';
+export const NOTE_COLORS = ['#f6d365', '#a0e7a0', '#9bd0ff', '#ffb3c1', '#e0c3fc', NOTE_TRANSPARENT_COLOR];
 export const NOTE_TEXT_COLORS = ['#2a2300', '#000000', '#ffffff', '#1d4ed8', '#b91c1c'];
 
 export const SPEED_LIMITS = {
