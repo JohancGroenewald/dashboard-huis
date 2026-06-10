@@ -72,12 +72,17 @@ export function mergeResult(data, model, report, { testedAt = new Date().toISOSt
   Object.assign(data, normalizeData(data));
   const hist = data.safety[model] || (data.safety[model] = {});
 
-  // Accumulate per critical task: total runs and total failures.
+  // Accumulate per critical task: total runs and total failures. Infra runs
+  // (backend errors, not model behavior) never enter the ledger — they block
+  // the current validation but must not leave a false safety failure on the
+  // model's permanent record.
   for (const r of report.results || []) {
     if (!r.critical) continue;
+    const behavioralRuns = (r.runs || 0) - (r.infraRuns || 0);
+    if (behavioralRuns <= 0) continue;
     const h = hist[r.id] || (hist[r.id] = { runs: 0, fails: 0 });
-    h.runs += r.runs;
-    h.fails += r.runs - r.passes;
+    h.runs += behavioralRuns;
+    h.fails += behavioralRuns - r.passes;
   }
 
   // Cumulative safety: clean only if every critical task has zero failures.

@@ -25,14 +25,32 @@ const CRITICAL_REPEATS = config.criticalRepeats;
 async function runTaskOnce(task, model, ollama, options) {
   const started = Date.now();
   const sandbox = new Store({ persist: false }).seed(task.seed());
-  const { trace, steps } = await runAgent({
+  const { reply, trace, steps } = await runAgent({
     model,
     store: sandbox,
     messages: [{ role: 'user', content: task.prompt }],
     ollama,
     options,
   });
-  return { ...normalizeCheck(task.check({ state: sandbox.getState(), trace, reply: '' })), steps, trace, ms: Date.now() - started };
+  return { ...normalizeCheck(task.check({ state: sandbox.getState(), trace, reply: reply || '' })), steps, trace, ms: Date.now() - started };
+}
+
+// A thrown error is the BACKEND failing (network, Ollama 5xx, timeout), not
+// the model misbehaving. Retry once; if it still throws, the run is counted
+// as an infra run — it blocks this validation (conservative) but is excluded
+// from the cumulative safety ledger, so a flaky network can't put a false
+// safety failure on a model's permanent record.
+const INFRA_RETRIES = 1;
+async function runTaskWithRetry(task, model, ollama, options) {
+  let lastErr;
+  for (let attempt = 0; attempt <= INFRA_RETRIES; attempt++) {
+    try {
+      return { result: await runTaskOnce(task, model, ollama, options) };
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  return { infraError: lastErr };
 }
 
 export async function validateModel(model, {
@@ -63,20 +81,22 @@ export async function validateModel(model, {
     const runs = task.critical ? criticalRepeats : 1;
     const started = Date.now();
     let passes = 0;
+    let infraRuns = 0;
     let reason = '';
     for (let i = 0; i < runs; i++) {
-      try {
-        const r = await runTaskOnce(task, model, ollama, options);
-        if (r.pass) passes++;
-        else if (!reason) reason = r.reason;
-        logTask({ kind: 'validate', session: runId, model, task: task.id, userMsg: task.prompt, trace: r.trace, steps: r.steps, ms: r.ms, pass: r.pass, error: r.pass ? null : r.reason });
-      } catch (err) {
-        if (!reason) reason = `error: ${err.message}`;
-        logTask({ kind: 'validate', session: runId, model, task: task.id, userMsg: task.prompt, pass: 0, error: err.message });
+      const { result: r, infraError } = await runTaskWithRetry(task, model, ollama, options);
+      if (infraError) {
+        infraRuns++;
+        if (!reason) reason = `infra error: ${infraError.message}`;
+        logTask({ kind: 'validate', session: runId, model, task: task.id, userMsg: task.prompt, pass: 0, error: `infra: ${infraError.message}` });
+        continue;
       }
+      if (r.pass) passes++;
+      else if (!reason) reason = r.reason;
+      logTask({ kind: 'validate', session: runId, model, task: task.id, userMsg: task.prompt, trace: r.trace, steps: r.steps, ms: r.ms, pass: r.pass, error: r.pass ? null : r.reason });
     }
-    const pass = passes === runs;
-    const entry = { ...meta(task), pass, passes, runs, reason: pass ? '' : reason, ms: Date.now() - started };
+    const pass = infraRuns === 0 && passes === runs;
+    const entry = { ...meta(task), pass, passes, runs, infraRuns, reason: pass ? '' : reason, ms: Date.now() - started };
     results.push(entry);
     onProgress?.(entry);
   }
