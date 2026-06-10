@@ -124,7 +124,7 @@ export function closePalette() {
 function onMove(e) {
   if (!dragState) return;
   e.preventDefault();
-  movePopover(e.clientX - dragState.dx, e.clientY - dragState.dy);
+  movePopover(dragState.left + (e.clientX - dragState.x), dragState.top + (e.clientY - dragState.y));
 }
 
 function onUp() {
@@ -151,11 +151,10 @@ export function openPalette({ anchor, title, rows, toggles = [], onSwatch, onTog
   el.classList.remove('hidden');
   el.querySelector('.palette-close').addEventListener('click', closePalette);
   el.querySelector('.palette-head').addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
     if (e.target.closest('.palette-close')) return;
-    e.preventDefault();
-    e.stopPropagation();
     const rect = el.getBoundingClientRect();
-    dragState = { dx: e.clientX - rect.left, dy: e.clientY - rect.top };
+    dragState = { x: e.clientX, y: e.clientY, left: rect.left, top: rect.top };
     dragged = true;
     el.classList.add('dragging');
     document.addEventListener('pointermove', onMove);

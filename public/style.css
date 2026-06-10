@@ -302,7 +302,8 @@ body[data-ws="requests"] .dashboard-only { display: none; }
 .palette-tether-shadow { fill: none; stroke: rgba(0, 0, 0, 0.45); stroke-width: 5px; stroke-linecap: round; opacity: 0.42; }
 .palette-tether-line { fill: none; stroke: var(--accent-2); stroke-width: 2px; stroke-linecap: round; stroke-dasharray: 5 7; opacity: 0.72; }
 .palette-tether-dot { fill: var(--panel); stroke: var(--accent-2); stroke-width: 2px; }
-.palette-head { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-soft); margin-bottom: 8px; cursor: grab; }
+.palette-head { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border-soft); margin-bottom: 8px; cursor: grab; user-select: none; touch-action: none; }
+.palette-head button { touch-action: auto; }
 .palette-popover.dragging .palette-head { cursor: grabbing; }
 .palette-origin { flex: 1; min-width: 0; color: var(--text); font-size: 12.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .palette-close { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 13px; padding: 0 2px; }
