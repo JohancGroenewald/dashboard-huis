@@ -1,8 +1,12 @@
 # Huis Dashboard
 
-A local-network dashboard / start page with a first-class **agent**: an Ollama
-model can add, edit, move, and remove tiles by chatting — but only after it
-passes a **pre-validation gate** that proves it drives the dashboard safely.
+A local-network dashboard / start page with a first-class **copilot**: an
+Ollama model can add, edit, move, and remove tiles by chatting — but only
+after it passes a **pre-validation gate** that proves it drives the dashboard
+safely. The UI is AI-first: replies stream token by token, every tool call
+shows up live in a step timeline, the affected cards pulse violet on the board
+(in every open browser, over SSE), and each agent run can be reverted with one
+click.
 
 ## Quick start
 
@@ -147,8 +151,12 @@ src/
     cli.js           `npm run validate`
     redteam.js       harmful-request refusal cases + runner
     redteam-cli.js   `npm run redteam`
-  server.js          Express: UI + REST API + gated agent endpoint
-public/              vanilla HTML/CSS/JS dashboard + chat panel
+  events.js          SSE hub: /api/events broadcasts state changes + agent activity
+  routes/agent.js    gated agent endpoints (whole-reply + SSE streaming)
+  server.js          Express: UI + REST API + events channel
+public/
+  css/               design tokens (tokens.css) + per-surface stylesheets
+  js/                vanilla ES modules: board/, dock/ (copilot), cmdk.js, state/
 data/                dashboard.json, backups/, approved-models.json (gitignored)
 ```
 
@@ -183,38 +191,52 @@ DELETE /api/notes/:id
 POST   /api/feature-requests         {title, detail?}        request queue
 PATCH  /api/feature-requests/:id     {status|title|detail}   status: open|planned|done|rejected
 DELETE /api/feature-requests/:id
+POST   /api/undo / /api/redo                                 step history
+POST   /api/undo-batch               {steps, expectedRev}    revert an agent run (409 on stale rev)
+GET    /api/events                   SSE: dashboard changes + agent activity (rev-stamped)
 GET    /api/health
 GET    /api/models                   {approved, installed, details}
-POST   /api/agent/chat               {model, messages[]}   (allowlisted models only)
+POST   /api/agent/chat               {model, messages[]}     whole reply (allowlisted models only)
+POST   /api/agent/stream             {model, messages[]}     SSE body: meta → delta/step/result → done
 ```
 
 ## Dashboard features
 
-- **Workspaces** — top-level tabs, each its own board of sections + notes
-  (e.g. Home, Media, Work). New content lands in the active workspace. The
-  agent manages them too (`add_workspace`, `switch_workspace`,
-  `move_to_workspace`, …). Separate **🧪 Models**, **🛠️ Abilities**, and
-  **🗒️ Requests** system tabs show the gate outcomes, the agent's tool surface,
-  and the feature-request queue. ＋ to add, double-click a tab to rename, hover ✕
-  to delete (empty workspaces only).
-- **Global search** — a top-bar box (press `/`) finds tiles, sections, notes,
-  and workspaces across every workspace; click a hit to jump to it (switching
-  workspace and flashing the card).
+The UI has three AI surfaces, all wearing the violet ✦ accent (blue is for
+human actions — the colour split is what makes copilot activity legible):
+
+- **⌘K command bar** (`⌘K` or `/`) — one bar for everything: fuzzy *Jump to*
+  across tiles/sections/notes/workspaces, quick *Actions* (new section/note/
+  tile, switch workspace, undo/redo, collapse/expand, system views), and an
+  always-last *Ask copilot* row (`⌘↵` forces it) that hands the text to the
+  dock.
+- **Copilot dock** (`⌘J`) — a docked, resizable panel (collapses to a slim ✦
+  rail; a floating button on narrow screens). Replies stream token by token
+  with a live **step timeline** (✓/✗ per tool call; click a step to flash the
+  card it touched). After a mutating run a footer offers **Revert this run**,
+  backed by `/api/undo-batch` with a revision guard so it can never eat later
+  edits. Model picker shows only gate-approved models. Enter sends,
+  Shift+Enter newline, ↑ recalls history.
+- **Per-card ✦ menus** — hover any section, note, or tile: *Ask about this…*
+  attaches the item (by exact id) to the composer, plus canned per-type
+  prompts. Agent changes pulse violet on the affected cards in **every** open
+  browser (SSE); changes from other tabs pulse blue.
+
+And the board itself:
+
+- **Workspaces** — top-level tabs, each its own board of sections + notes.
+  New content lands in the active workspace. The agent manages them too
+  (`add_workspace`, `switch_workspace`, `move_to_workspace`, …). **🧪 Models**,
+  **🛠️ Abilities**, **🗒️ Requests**, and **🧾 Logs** live in the ⋯ menu.
+  ＋ to add, double-click a tab to rename, hover ✕ to delete (empty only).
 - **Tiles & sections** — service links grouped into sections, with optional
-  health checks. Tiles have a description and icon; sections have a description
-  and customizable card colours (🎨 fill / outline / heading), all editable by
-  you or the agent. Text bold is per-item (tiles default off). Sections
-  **collapse** to just their header (▾/▸, with a tile count), and a topbar
-  **Collapse/Expand all** folds the active workspace at once. A **grid-guides**
-  toggle shows the snap grid.
-- **Drag-and-drop** — reorder tiles within a section, move tiles between
-  sections (regroup), and reorder sections via the `⋮⋮` grip.
-- **Sticky notes** — quick freeform notes (added via the assistant); editable
-  inline, colorable, and can use a transparent background. Hiding one leaves a
-  faint dashed-outline ghost you click to restore.
-- **Feature-request queue** — the **🗒️ Requests** tab. The agent also files
-  requests via the `request_feature` tool when asked for something it can't do,
-  so the queue is fed *by the models* as well as by you.
-- **Assistant** — a floating, draggable (by its header), resizable window
-  driven by an allowlisted model; geometry persists across reloads. Enter sends,
-  Shift+Enter for a newline.
+  health checks. Inline rename (click a name), customizable card colours
+  (🎨 anchored palette), collapsible sections, grid-guides toggle, lock mode,
+  and an adjustable grid size — all in the ⋯ menu.
+- **Drag-and-drop** — move/resize cards on the 12-column grid, drag tiles
+  between sections. Below 768px the board stacks in one column (positions are
+  preserved). Live edits from other browsers merge without clobbering whatever
+  you're typing or dragging.
+- **Sticky notes** — freeform, colorable (incl. transparent), hide to a ghost.
+- **Deletes never ask first** — every delete shows an Undo toast instead.
+- **Feature-request queue** — fed by you and by the models (`request_feature`).
