@@ -72,10 +72,29 @@ export const FONT_WEIGHTS = {
   semiBold: 650,
 };
 
+const SECTION_STYLE_COLORS = [
+  '',
+  '#1a2233',
+  '#16241a',
+  '#2a1f2e',
+  '#2a2418',
+  '#1a2628',
+  '#4c8dff',
+  '#3fb950',
+  '#f85149',
+  '#d29922',
+  '#a371f7',
+  '#e8eef5',
+  '#7aa9ff',
+  '#69d28a',
+  '#f0b429',
+  '#ff9580',
+];
+
 export const SECTION_PALETTES = {
-  background: ['', '#1a2233', '#16241a', '#2a1f2e', '#2a2418', '#1a2628'],
-  border: ['', '#4c8dff', '#3fb950', '#f85149', '#d29922', '#a371f7'],
-  heading: ['', '#e8eef5', '#7aa9ff', '#69d28a', '#f0b429', '#ff9580'],
+  background: SECTION_STYLE_COLORS,
+  border: SECTION_STYLE_COLORS,
+  heading: SECTION_STYLE_COLORS,
 };
 
 export const FEATURE_REQUEST_STATUSES = ['open', 'planned', 'done', 'rejected'];

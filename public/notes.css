@@ -9,8 +9,7 @@
 .note-card.transparent .note-bar button {
   color: var(--muted);
 }
-.note-card.transparent .note-bar button:hover,
-.note-card.transparent .note-bar .note-bold.on {
+.note-card.transparent .note-bar button:hover {
   color: var(--text);
 }
 .note-card.transparent .note-bar .note-del:hover {
@@ -22,9 +21,8 @@
 }
 .note-card .card-grip { color: rgba(0, 0, 0, 0.45); }
 .note-bar { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
-.note-bar .swatches, .note-bar .tswatches { display: flex; gap: 4px; }
-.note-bar .swatch { width: 14px; height: 14px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(0, 0, 0, 0.25); }
-.note-bar .swatch.transparent {
+.note-style .sty-label { width: 38px; }
+.sty-swatch.transparent {
   background:
     linear-gradient(135deg, transparent 45%, var(--down) 46%, var(--down) 54%, transparent 55%),
     linear-gradient(45deg, var(--panel-2) 25%, transparent 25%),
@@ -35,12 +33,9 @@
   background-position: 0 0, 0 0, 0 7px, 7px -7px, -7px 0;
   background-size: 100% 100%, 14px 14px, 14px 14px, 14px 14px, 14px 14px;
 }
-.note-bar .tswatch { width: 15px; height: 15px; font-size: 12px; font-weight: 700; line-height: 15px; text-align: center; cursor: pointer; }
 .note-spacer { flex: 1; }
 .note-bar button { background: none; border: 0; cursor: pointer; color: rgba(0, 0, 0, 0.5); font-size: 12px; padding: 0 1px; }
 .note-bar button:hover { color: #000; }
 .note-bar .note-del:hover { color: #a11; }
-.note-bar .note-bold { font-weight: 700; }
-.note-bar .note-bold.on { color: #000; text-decoration: underline; }
 .note-card .note-hide, .note-ghost .ghost-eye { position: absolute; top: 6px; right: 8px; font-size: 13px; line-height: 1; }
 .note-card .note-hide { background: none; border: 0; padding: 0; cursor: pointer; z-index: 2; }

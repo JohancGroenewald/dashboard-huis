@@ -90,17 +90,20 @@ function tileChip(tile) {
   </div>`;
 }
 
-// Section card colour palettes ('' = clear back to the theme default).
+// Shared card colour palettes ('' = clear back to the theme default).
 function swatchRow(label, prop, colors, current) {
   const sw = colors
     .map((c) => {
       const sel = (current || '') === c ? ' sel' : '';
+      if (c === NOTE_TRANSPARENT_COLOR) {
+        return `<span class="sty-swatch transparent${sel}" data-prop="${prop}" data-color="${c}" title="Transparent"></span>`;
+      }
       return c
         ? `<span class="sty-swatch${sel}" data-prop="${prop}" data-color="${c}" style="background:${c}" title="${c}"></span>`
         : `<span class="sty-swatch clear${sel}" data-prop="${prop}" data-color="" title="Default"></span>`;
     })
     .join('');
-  return `<div class="sty-row"><span class="sty-label">${label}</span>${sw}</div>`;
+  return `<div class="sty-row"><span class="sty-label">${label}</span><span class="sty-swatches">${sw}</span></div>`;
 }
 
 function sectionInner(section) {
@@ -137,11 +140,6 @@ function sectionInner(section) {
 }
 
 function noteInner(note) {
-  const bg = NOTE_COLORS.map((c) => {
-    if (c === NOTE_TRANSPARENT_COLOR) return `<span class="swatch transparent" data-color="${c}" title="Transparent"></span>`;
-    return `<span class="swatch" data-color="${c}" style="background:${c}" title="${c}"></span>`;
-  }).join('');
-  const tx = NOTE_TEXT_COLORS.map((c) => `<span class="tswatch" data-textcolor="${c}" style="color:${c}">A</span>`).join('');
   const isTransparent = note.color === NOTE_TRANSPARENT_COLOR;
   const style = [
     `background:${esc(note.color || NOTE_COLORS[0])}`,
@@ -152,11 +150,14 @@ function noteInner(note) {
     <span class="card-grip" title="Drag">⠿</span>
     <button class="note-hide" title="Hide note">🙈</button>
     <textarea placeholder="Write a note…">${esc(note.text)}</textarea>
+    <div class="note-style sec-style hidden">
+      ${swatchRow('Fill', 'color', ['', ...NOTE_COLORS], note.color)}
+      ${swatchRow('Text', 'textColor', ['', ...NOTE_TEXT_COLORS], note.textColor)}
+      <label class="sty-toggle"><input type="checkbox" class="note-bold-chk"${note.bold ? ' checked' : ''}> Bold text</label>
+    </div>
     <div class="note-bar">
-      <div class="swatches">${bg}</div>
-      <div class="tswatches" title="Text colour">${tx}</div>
       <span class="note-spacer"></span>
-      <button class="note-bold${note.bold ? ' on' : ''}" title="Bold text">B</button>
+      <button class="note-style-btn" title="Note colours">🎨</button>
       <button class="note-attach" title="Attach to chat">📎</button>
       <button class="note-del" title="Delete note">✕</button>
     </div>
@@ -310,24 +311,28 @@ function wireNote(el, note) {
   const card = el.querySelector('.note-card');
   const ta = el.querySelector('textarea');
   ta.addEventListener('blur', () => { if (ta.value !== note.text) saveNote(note.id, { text: ta.value }); });
-  el.querySelectorAll('.swatch').forEach((sw) =>
+  const stylePanel = el.querySelector('.note-style');
+  el.querySelector('.note-style-btn').addEventListener('click', (e) => { e.stopPropagation(); stylePanel.classList.toggle('hidden'); });
+  el.querySelectorAll('.note-style .sty-swatch').forEach((sw) =>
     sw.addEventListener('click', () => {
-      const transparent = sw.dataset.color === NOTE_TRANSPARENT_COLOR;
-      card.classList.toggle('transparent', transparent);
-      card.style.background = sw.dataset.color;
-      if (transparent && !note.textColor) card.style.color = 'var(--text)';
-      else if (!transparent && !note.textColor) card.style.color = '';
-      note.color = sw.dataset.color;
-      saveNote(note.id, { color: sw.dataset.color });
+      const color = sw.dataset.color || '';
+      if (sw.dataset.prop === 'color') {
+        const transparent = color === NOTE_TRANSPARENT_COLOR;
+        card.classList.toggle('transparent', transparent);
+        card.style.background = color || NOTE_COLORS[0];
+        if (!note.textColor) card.style.color = transparent ? 'var(--text)' : '';
+        note.color = color;
+      } else if (sw.dataset.prop === 'textColor') {
+        note.textColor = color;
+        card.style.color = color || (note.color === NOTE_TRANSPARENT_COLOR ? 'var(--text)' : '');
+      }
+      stylePanel.querySelectorAll(`.sty-swatch[data-prop="${sw.dataset.prop}"]`).forEach((s) => s.classList.toggle('sel', s === sw));
+      saveNote(note.id, { [sw.dataset.prop]: color });
     })
   );
-  el.querySelectorAll('.tswatch').forEach((sw) =>
-    sw.addEventListener('click', () => { card.style.color = sw.dataset.textcolor; saveNote(note.id, { textColor: sw.dataset.textcolor }); })
-  );
-  el.querySelector('.note-bold').addEventListener('click', (e) => {
-    note.bold = !note.bold;
+  el.querySelector('.note-bold-chk').addEventListener('change', (e) => {
+    note.bold = e.target.checked;
     card.style.fontWeight = note.bold ? '700' : '';
-    e.currentTarget.classList.toggle('on', note.bold);
     saveNote(note.id, { bold: note.bold });
   });
   el.querySelector('.note-attach').addEventListener('click', () => attachItem('note', note.id, note.text || 'note'));

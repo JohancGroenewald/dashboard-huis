@@ -287,8 +287,9 @@ body[data-ws="requests"] .dashboard-only { display: none; }
 .sec-style-btn:hover { color: var(--accent); }
 .sec-style { display: flex; flex-direction: column; gap: 6px; padding: 4px 2px 9px; border-bottom: 1px solid var(--border-soft); margin-bottom: 9px; }
 .sec-style.hidden { display: none; }
-.sty-row { display: flex; align-items: center; gap: 6px; }
-.sty-label { color: var(--muted); font-size: 11px; width: 54px; flex: none; }
+.sty-row { display: flex; align-items: flex-start; gap: 6px; }
+.sty-label { color: var(--muted); font-size: 11px; line-height: 16px; width: 54px; flex: none; }
+.sty-swatches { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; }
 .sty-swatch { width: 16px; height: 16px; border-radius: 50%; cursor: pointer; border: 1px solid rgba(255, 255, 255, 0.25); }
 .sty-swatch.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
 .sty-swatch.clear { position: relative; background: var(--panel-2); }
