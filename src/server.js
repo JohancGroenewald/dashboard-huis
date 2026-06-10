@@ -6,6 +6,7 @@ import http from 'node:http';
 import https from 'node:https';
 import { config, paths } from './config.js';
 import { AGENT_LIMITS, ENV_BOUNDS, HTTP_STATUS } from './constants.js';
+import { EventHub } from './events.js';
 import { Store } from './store.js';
 import { HealthMonitor } from './health.js';
 import { Ollama } from './ollama.js';
@@ -26,9 +27,23 @@ const store = new Store({
 
 const health = new HealthMonitor(store).start();
 const ollama = new Ollama();
+const events = new EventHub();
+
+// Broadcast every store change to connected browsers. The originating tab's
+// X-Client-Id rides along so clients can tell their own echo from real news.
+store.onChange = (dashboard, { rev, viewOnly }) =>
+  events.broadcastDashboard({ rev, viewOnly: viewOnly || undefined, dashboard, sourceClient: events.lastClientId || undefined });
 
 const app = express();
 app.use(express.json({ limit: config.jsonBodyLimit }));
+
+// Remember which tab is talking to us; store.onChange fires synchronously
+// inside the mutation, so this is accurate for REST calls (agent runs set it
+// explicitly around the run).
+app.use('/api', (req, res, next) => {
+  events.lastClientId = req.get('x-client-id') || null;
+  next();
+});
 
 // Turn store validation errors into 400s instead of 500s.
 const wrap = (fn) => async (req, res) => {
@@ -41,7 +56,13 @@ const wrap = (fn) => async (req, res) => {
 };
 
 // ---- dashboard state -----------------------------------------------------
-app.get('/api/dashboard', (req, res) => res.json(store.getState()));
+app.get('/api/dashboard', (req, res) => {
+  res.set('X-Dashboard-Rev', String(store.rev));
+  res.json(store.getState());
+});
+
+// Long-lived SSE channel: dashboard changes + ambient agent activity.
+app.get('/api/events', (req, res) => events.attach(req, res, { rev: store.rev }));
 
 // ---- workspaces ----------------------------------------------------------
 app.post('/api/workspaces', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addWorkspace(req.body))));
@@ -80,6 +101,18 @@ app.post('/api/undo', wrap((req, res) => {
 app.post('/api/redo', wrap((req, res) => {
   const dashboard = store.redo() || store.getState();
   res.json({ dashboard, canUndo: store.canUndo(), canRedo: store.canRedo() });
+}));
+
+// Revert a batch of changes (e.g. everything one agent run did). Refuses when
+// the board has moved on since the caller last saw it, so a stale "revert"
+// can never eat someone else's edits.
+app.post('/api/undo-batch', wrap((req, res) => {
+  const { steps, expectedRev } = req.body || {};
+  if (Number(expectedRev) !== store.rev) {
+    return res.status(HTTP_STATUS.conflict).json({ error: `dashboard changed since rev ${expectedRev} (now ${store.rev})` });
+  }
+  const dashboard = store.undoTimes(steps);
+  res.json({ dashboard, rev: store.rev, canUndo: store.canUndo(), canRedo: store.canRedo() });
 }));
 
 // ---- sticky notes --------------------------------------------------------

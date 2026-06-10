@@ -32,6 +32,13 @@ export class Store {
     this.redoStack = [];
     this.lastSnapshot = null;
     this.maxHistory = maxHistory;
+    // Monotonic revision counter: bumped by every undoable change (commit,
+    // undo, redo) but not by view-only writes. Lets clients dedupe broadcast
+    // echoes and lets "revert this agent run" verify nothing changed since.
+    this.rev = 0;
+    // Optional hook the server attaches to broadcast changes over SSE.
+    // Unset in validation sandboxes and tests, where it must stay silent.
+    this.onChange = null;
   }
 
   load() {
@@ -68,6 +75,8 @@ export class Store {
     this.state = this.undoStack.pop();
     const s = this.#persist();
     this.lastSnapshot = structuredClone(s);
+    this.rev += 1;
+    this.#notify(s);
     return s;
   }
 
@@ -77,7 +86,19 @@ export class Store {
     this.state = this.redoStack.pop();
     const s = this.#persist();
     this.lastSnapshot = structuredClone(s);
+    this.rev += 1;
+    this.#notify(s);
     return s;
+  }
+
+  // Undo several changes in one call (used to revert a whole agent run).
+  // Each step lands on the redo stack, so a batch revert is redoable.
+  undoTimes(n) {
+    const steps = Math.trunc(Number(n));
+    if (!Number.isFinite(steps) || steps < 1) fail('steps must be a positive integer');
+    let last = null;
+    for (let i = 0; i < steps && this.canUndo(); i += 1) last = this.undo();
+    return last || this.getState();
   }
 
   canUndo() {
@@ -169,6 +190,7 @@ export class Store {
     // Bake the view change into the baseline so it isn't captured as part of
     // the next real edit's undo entry (switching is not itself undoable).
     this.lastSnapshot = structuredClone(s);
+    this.#notify(s, { viewOnly: true });
     return s;
   }
 
@@ -228,6 +250,7 @@ export class Store {
     s.collapsed = Boolean(collapsed);
     this.#persist({ backup: false });
     this.lastSnapshot = structuredClone(this.state);
+    this.#notify(this.state, { viewOnly: true });
     return structuredClone(s);
   }
 
@@ -235,6 +258,7 @@ export class Store {
     for (const s of this.state.sections) if (s.workspaceId === workspaceId) s.collapsed = Boolean(collapsed);
     this.#persist({ backup: false });
     this.lastSnapshot = structuredClone(this.state);
+    this.#notify(this.state, { viewOnly: true });
     return this.getState();
   }
 
@@ -403,7 +427,13 @@ export class Store {
     }
     const s = this.#persist();
     this.lastSnapshot = structuredClone(s);
+    this.rev += 1;
+    this.#notify(s);
     return s;
+  }
+
+  #notify(state, { viewOnly = false } = {}) {
+    this.onChange?.(structuredClone(state), { rev: this.rev, viewOnly });
   }
 
   // Validate the whole tree and write it atomically. A backup is taken first

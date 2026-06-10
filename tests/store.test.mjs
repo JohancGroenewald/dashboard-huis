@@ -23,3 +23,53 @@ test('valid section patch applies after validation', () => {
   assert.equal(updated.name, 'Infra');
   assert.equal(updated.color, 'green');
 });
+
+test('rev bumps on commits and undo/redo, but not on view-only writes', () => {
+  const store = new Store({ persist: false }).load();
+  assert.equal(store.rev, 0);
+
+  store.addSection({ name: 'A' });
+  assert.equal(store.rev, 1);
+
+  const wsId = store.getState().workspaces[0].id;
+  store.setActiveWorkspace(wsId); // view-only
+  assert.equal(store.rev, 1);
+
+  store.undo();
+  assert.equal(store.rev, 2);
+  store.redo();
+  assert.equal(store.rev, 3);
+});
+
+test('onChange fires for commits and flags view-only writes', () => {
+  const store = new Store({ persist: false }).load();
+  const seen = [];
+  store.onChange = (state, meta) => seen.push({ sections: state.sections.length, ...meta });
+
+  store.addSection({ name: 'A' });
+  store.setSectionCollapsed(store.getState().sections.at(-1).id, true);
+
+  assert.equal(seen.length, 2);
+  assert.equal(seen[0].rev, 1);
+  assert.equal(seen[0].viewOnly, false);
+  assert.equal(seen[1].rev, 1);
+  assert.equal(seen[1].viewOnly, true);
+});
+
+test('undoTimes reverts a batch of commits and is redoable', () => {
+  const store = new Store({ persist: false }).load();
+  const before = store.getState().sections.length;
+
+  store.addSection({ name: 'One' });
+  store.addSection({ name: 'Two' });
+  store.addSection({ name: 'Three' });
+
+  const reverted = store.undoTimes(3);
+  assert.equal(reverted.sections.length, before);
+  assert.equal(store.canRedo(), true);
+
+  store.redo();
+  assert.equal(store.getState().sections.length, before + 1);
+
+  assert.throws(() => store.undoTimes(0), /steps/);
+});

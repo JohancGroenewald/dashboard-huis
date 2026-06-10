@@ -7,6 +7,7 @@ export const HTTP_STATUS = {
   created: 201,
   badRequest: 400,
   forbidden: 403,
+  conflict: 409,
   internalServerError: 500,
 };
 
@@ -52,6 +53,11 @@ export const SERVER_LIMITS = {
   jsonBodyLimit: '1mb',
   logsDefaultLimit: 40,
   logsMaxLimit: 200,
+};
+
+export const SSE_LIMITS = {
+  heartbeatMs: 25_000,
+  coalesceMs: 100,
 };
 
 export const AGENT_LIMITS = {
