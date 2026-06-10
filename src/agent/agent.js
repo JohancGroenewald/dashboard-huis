@@ -18,7 +18,13 @@ function parseArgs(raw) {
   }
 }
 
-export async function runAgent({ model, store, messages, ollama = new Ollama(), maxToolCalls, maxSteps, options }) {
+// onEvent (optional) makes the run observable while it executes:
+//   { type:'delta', text }                       — a streamed reply fragment
+//   { type:'tool-start', i, name, args }         — a tool call is starting
+//   { type:'tool-result', i, name, args, ok, result|error }
+// Without onEvent the behavior (and the Ollama request) is exactly as before,
+// so the validation harness and orchestration modes are unaffected.
+export async function runAgent({ model, store, messages, ollama = new Ollama(), maxToolCalls, maxSteps, options, onEvent }) {
   const handlers = makeToolHandlers(store, { requestedBy: model });
   const convo = [{ role: 'system', content: systemPrompt(store) }, ...messages];
   const trace = []; // { name, args, ok, result|error }
@@ -27,7 +33,9 @@ export async function runAgent({ model, store, messages, ollama = new Ollama(), 
   let toolCalls = 0;
 
   while (toolCalls < limit) {
-    const msg = await ollama.chat({ model, messages: convo, tools: toolSpecs, options });
+    const msg = onEvent
+      ? await ollama.chatStream({ model, messages: convo, tools: toolSpecs, options, onToken: (text) => onEvent({ type: 'delta', text }) })
+      : await ollama.chat({ model, messages: convo, tools: toolSpecs, options });
     convo.push(msg);
     steps += 1;
 
@@ -50,6 +58,7 @@ export async function runAgent({ model, store, messages, ollama = new Ollama(), 
       const name = call.function?.name;
       const args = parseArgs(call.function?.arguments);
       const handler = handlers[name];
+      onEvent?.({ type: 'tool-start', i: toolCalls, name, args });
       let entry;
       if (!handler) {
         entry = { name, args, ok: false, error: `unknown tool: ${name}` };
@@ -60,6 +69,7 @@ export async function runAgent({ model, store, messages, ollama = new Ollama(), 
           entry = { name, args, ok: false, error: err.message };
         }
       }
+      onEvent?.({ type: 'tool-result', i: toolCalls, ...entry });
       trace.push(entry);
       toolCalls += 1;
       convo.push({

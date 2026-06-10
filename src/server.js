@@ -5,16 +5,15 @@ import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import { config, paths } from './config.js';
-import { AGENT_LIMITS, ENV_BOUNDS, HTTP_STATUS } from './constants.js';
+import { ENV_BOUNDS, HTTP_STATUS } from './constants.js';
 import { EventHub } from './events.js';
 import { Store } from './store.js';
 import { HealthMonitor } from './health.js';
 import { Ollama } from './ollama.js';
-import { runAgent } from './agent/agent.js';
 import { toolSpecs } from './agent/tools.js';
-import { logTurn, query } from './chatlog.js';
-import { latestUserMessage, sanitizeChatMessages } from './messages.js';
-import { listApproved, isApproved, listResults, listSupervised, listDelegated, listParallel, listRetired } from './validation/registry.js';
+import { query } from './chatlog.js';
+import { mountAgentRoutes } from './routes/agent.js';
+import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
 
@@ -183,78 +182,8 @@ app.get('/api/models', wrap(async (req, res) => {
   });
 }));
 
-// Derive contextual follow-up chips from what the agent just did. Prefers the
-// model's own suggest_followups; otherwise maps the last action to next steps.
-const MUTATING = new Set([
-  'add_tile', 'add_section', 'add_note', 'update_tile', 'update_note', 'rename_section', 'update_section',
-  'remove_tile', 'remove_section', 'remove_note', 'move_tile', 'move_section', 'resize_card',
-  'add_workspace', 'rename_workspace', 'remove_workspace', 'switch_workspace', 'move_to_workspace',
-  'undo', 'redo',
-]);
-function followupsFromTrace(trace = []) {
-  const sf = [...trace].reverse().find((t) => t.ok && t.name === 'suggest_followups');
-  if (sf) return (sf.result?.suggestions || sf.args?.suggestions || []).slice(0, AGENT_LIMITS.followupsMax);
-  const last = [...trace].reverse().find((t) => t.ok && MUTATING.has(t.name));
-  switch (last?.name) {
-    case 'add_tile': return ['Add another tile', 'Resize the section', 'Add a note'];
-    case 'add_section': return ['Add a tile to it', 'Rename the section', 'Add another section'];
-    case 'add_note': return ['Change its colour', 'Make it bigger', 'Add another note'];
-    case 'resize_card': return ['Make it bigger', 'Make it smaller', 'Move it'];
-    case 'undo': return ['Redo that', 'Make another change'];
-    case 'redo': return ['Undo that', 'Make another change'];
-    case 'add_workspace': return ['Switch to it', 'Add a section to it', 'Rename it'];
-    case 'switch_workspace': return ['Add a section', 'Add a tile', 'Add a note'];
-    case 'move_to_workspace': return ['Switch to that workspace', 'Move another', 'Undo that'];
-    case 'rename_workspace': return ['Switch to it', 'Undo that'];
-    case 'remove_workspace':
-    case 'remove_tile':
-    case 'remove_section':
-    case 'remove_note': return ['Undo that', 'Add something new'];
-    case 'update_section': return ['Change its colours', 'Edit the description', 'Undo that'];
-    case 'update_tile':
-    case 'update_note':
-    case 'rename_section': return ['Undo that', 'Edit another'];
-    case 'move_tile':
-    case 'move_section': return ['Move another', 'Undo that'];
-    default: return ['Add a tile', 'Add a note'];
-  }
-}
-
-// Chat with the agent. Refuses any model not on the validated allowlist.
-// Every turn is logged in full to data/chatlog.db (see `npm run logs`).
-app.post('/api/agent/chat', wrap(async (req, res) => {
-  const { model, messages, session } = req.body || {};
-  if (!model) return res.status(HTTP_STATUS.badRequest).json({ error: 'model is required' });
-  if (!Array.isArray(messages) || !messages.length) {
-    return res.status(HTTP_STATUS.badRequest).json({ error: 'messages[] is required' });
-  }
-  const safeMessages = sanitizeChatMessages(messages);
-  if (!latestUserMessage(safeMessages)) {
-    return res.status(HTTP_STATUS.badRequest).json({ error: 'messages[] must include at least one user message' });
-  }
-  if (!isApproved(model)) {
-    return res.status(HTTP_STATUS.forbidden).json({
-      error: `"${model}" has not passed pre-validation. Run: npm run validate -- "${model}"`,
-    });
-  }
-  const started = Date.now();
-  const userMsg = latestUserMessage(safeMessages);
-  try {
-    const result = await runAgent({ model, store, messages: safeMessages, ollama });
-    logTurn({ session, model, userMsg, messages: safeMessages, reply: result.reply, trace: result.trace, steps: result.steps, ms: Date.now() - started });
-    res.json({
-      reply: result.reply,
-      trace: result.trace,
-      steps: result.steps,
-      toolCalls: result.toolCalls ?? result.trace.length,
-      followups: followupsFromTrace(result.trace),
-      dashboard: store.getState(), // so the UI can refresh after agent edits
-    });
-  } catch (err) {
-    logTurn({ session, model, userMsg, messages: safeMessages, ms: Date.now() - started, error: err.message });
-    throw err;
-  }
-}));
+// Agent chat (whole-reply + streaming) — see src/routes/agent.js.
+mountAgentRoutes(app, { store, ollama, events, wrap });
 
 // no-cache + ETag: the browser always revalidates, so updated JS/CSS/HTML load
 // immediately (a 304 when unchanged) — no more stale modules / hard-refreshing.

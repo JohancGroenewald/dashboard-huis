@@ -2,7 +2,7 @@
 // follows its anchor (flipping above when out of room) and closes on Esc,
 // outside click, or board re-render — the old tether/drag machinery is gone
 // because the popover now stays put next to its anchor.
-import { h, esc } from '../lib/dom.js';
+import { h } from '../lib/dom.js';
 import { NOTE_TRANSPARENT_COLOR } from '../constants.js';
 import { subscribe } from '../state/store.js';
 import { pushEscLayer } from '../keys.js';
@@ -68,7 +68,7 @@ export function openPalette({ anchor, title, rows, toggles = [], onSwatch, onTog
 
   const closeBtn = h('button', { class: 'palette-close', type: 'button', title: 'Close', onclick: () => closePalette() }, '✕');
   pop = h('div', { class: 'palette-popover' },
-    h('div', { class: 'palette-head' }, h('span', { class: 'palette-origin' }, esc(title)), closeBtn),
+    h('div', { class: 'palette-head' }, h('span', { class: 'palette-origin' }, title), closeBtn),
     body);
   document.body.append(pop);
 

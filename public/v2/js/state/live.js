@@ -13,8 +13,10 @@ const touched = new Map(); // id -> { until, kind }
 const pendingIds = new Set(); // a tool call is running against these
 
 function cardEl(id) {
-  const item = document.querySelector(`#board [gs-id="${CSS.escape(id)}"]`);
-  return item?.querySelector('.card, .note-ghost') || null;
+  const safe = CSS.escape(id);
+  const item = document.querySelector(`#board [gs-id="${safe}"], #board .tile-chip[data-id="${safe}"]`);
+  if (!item) return null;
+  return item.classList.contains('tile-chip') ? item : (item.querySelector('.card, .note-ghost') || null);
 }
 
 function applyPulse(id, kind) {
