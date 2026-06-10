@@ -55,7 +55,7 @@ export function noteInner(note) {
   return `<div class="card note-card${isTransparent ? ' transparent' : ''}" data-id="${note.id}" style="${style}">
     <div class="sec-head note-head">
       <span class="card-grip" title="Drag note">⠿</span>
-      <span class="note-title" title="${esc(note.text || 'Note')}">${esc(noteTitle(note))}</span>
+      <span class="note-title" title="${esc(note.text || 'Note')}">Note</span>
       <button class="ctl ai-btn note-ai" type="button" title="Dashy: act on this note">✦</button>
       <button class="ctl note-style" type="button" title="Note colours">🎨</button>
       <button class="ctl note-hide" type="button" title="Hide note">🙈</button>
@@ -141,7 +141,6 @@ export function wireNote(el, note) {
   ta.addEventListener('blur', () => {
     if (ta.value === note.text) return;
     note.text = ta.value;
-    titleEl.textContent = noteTitle(note);
     titleEl.title = note.text || 'Note';
     api(`/api/notes/${note.id}`, jsonBody({ text: ta.value }, 'PATCH')).catch(() => toast('Could not save note', { error: true }));
   });

@@ -30,8 +30,39 @@
   animation: pop-in var(--t-fast) var(--ease);
 }
 .palette-popover.hidden { display: none; }
+.palette-popover.dragging { user-select: none; box-shadow: var(--shadow-3); }
 @keyframes pop-in { from { opacity: 0; transform: scale(0.97); } to { opacity: 1; transform: none; } }
-.palette-head { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--edge-soft); margin-bottom: 8px; }
+.palette-head { display: flex; align-items: center; gap: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--edge-soft); margin-bottom: 8px; cursor: grab; user-select: none; touch-action: none; }
+.palette-popover.dragging .palette-head { cursor: grabbing; }
+.palette-grip { color: var(--muted); font-size: var(--fs-1); line-height: 1; }
+
+/* The cable tying the palette to the card it styles. --tether-color is set
+   live from swatch hover/pick, so the wire previews the colour in transit. */
+.palette-tether { position: fixed; inset: 0; width: 100vw; height: 100vh; overflow: visible; pointer-events: none; z-index: var(--z-dropdown); }
+.palette-tether.hidden { display: none; }
+.palette-tether-shadow { fill: none; stroke: rgba(0, 0, 0, 0.45); stroke-width: 5px; stroke-linecap: round; opacity: 0.42; }
+.palette-tether-line {
+  fill: none; stroke: var(--tether-color, var(--accent-2)); stroke-width: 2px;
+  stroke-linecap: round; stroke-dasharray: 6 8; opacity: 0.72;
+  transition: stroke var(--t-fast);
+}
+.palette-tether.taut .palette-tether-line { stroke-dasharray: 12 5; opacity: 0.9; }
+.palette-tether-dot { fill: var(--surface-1); stroke: var(--tether-color, var(--accent-2)); stroke-width: 2px; transition: stroke var(--t-fast); }
+.palette-tether-ring {
+  fill: var(--surface-1); stroke: var(--tether-color, var(--accent-2)); stroke-width: 2px;
+  transition: stroke var(--t-fast);
+  animation: tether-breathe 2.4s ease-in-out infinite;
+}
+@keyframes tether-breathe { 0%, 100% { stroke-opacity: 0.55; } 50% { stroke-opacity: 1; } }
+
+/* Picking a swatch: dashes flow along the wire toward the card. */
+.palette-tether.flow .palette-tether-line { animation: tether-flow 0.7s linear; opacity: 1; }
+@keyframes tether-flow { from { stroke-dashoffset: 84; } to { stroke-dashoffset: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .palette-tether-ring { animation: none; }
+  .palette-tether.flow .palette-tether-line { animation: none; }
+}
 .palette-origin { flex: 1; min-width: 0; color: var(--text); font-size: 12.5px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .palette-close { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: var(--fs-1); padding: 0 2px; }
 .palette-close:hover { color: var(--text); }
