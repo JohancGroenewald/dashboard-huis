@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="/v2/css/popover.css" />
     <link rel="stylesheet" href="/v2/css/views.css" />
     <link rel="stylesheet" href="/v2/css/dock.css" />
+    <link rel="stylesheet" href="/v2/css/cmdk.css" />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text y='14' font-size='14'>🏠</text></svg>" />
   </head>
   <body>
@@ -109,6 +110,17 @@
             </form>
           </div>
         </aside>
+      </div>
+    </div>
+
+    <div id="cmdk" class="cmdk-backdrop hidden">
+      <div class="cmdk-panel">
+        <div class="cmdk-input-row">
+          <span class="cmdk-icon">⌕</span>
+          <input id="cmdk-input" type="text" placeholder="Search, act, or ask the copilot…" autocomplete="off" />
+          <kbd>esc</kbd>
+        </div>
+        <div id="cmdk-results" class="cmdk-results"></div>
       </div>
     </div>
 

@@ -10,6 +10,7 @@ import { initLive } from './state/live.js';
 import { initDock } from './dock/dock.js';
 import { initModels } from './dock/models.js';
 import { initChat } from './dock/chat.js';
+import { initCmdk } from './cmdk.js';
 import { renderModelsView } from './views/models.js';
 import { renderAbilitiesView } from './views/abilities.js';
 import { renderRequestsView, initRequests } from './views/requests.js';
@@ -61,10 +62,6 @@ $('#redo-btn').addEventListener('click', () => history('/api/redo'));
 setKeyHandler('undo', () => history('/api/undo'));
 setKeyHandler('redo', () => history('/api/redo'));
 
-// Placeholder until M5 lands: ⌘K.
-const comingSoon = (what) => () => toast(`${what} arrives in a later milestone.`);
-$('#cmdk-pill').addEventListener('click', comingSoon('⌘K'));
-setKeyHandler('cmdk', comingSoon('⌘K'));
 
 // ---- boot ----
 setInteractionCheck(isInteracting);
@@ -75,6 +72,7 @@ initLive();
 initDock();
 initModels();
 initChat();
+initCmdk();
 loadDashboard();
 loadHealth();
 tick();
