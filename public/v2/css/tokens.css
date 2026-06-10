@@ -1,0 +1,82 @@
+/* Design tokens: the single vocabulary every v2 stylesheet draws from.
+   Two accents by rule: --accent (blue) marks HUMAN actions and selection;
+   --ai (violet) marks everything the copilot does or can do. Keeping the two
+   apart is what makes AI activity legible as its own layer on the board. */
+:root {
+  /* Surfaces: page → panel → raised → overlay */
+  --surface-0: #0b0e13;
+  --surface-1: #131820;
+  --surface-2: #1b222d;
+  --surface-3: #232c39;
+  --edge: #2a3340;
+  --edge-soft: #222a35;
+  --edge-strong: #38465a;
+
+  --text: #e8eef5;
+  --muted: #8b97a7;
+
+  /* Human accent */
+  --accent: #4c8dff;
+  --accent-2: #7aa9ff;
+
+  /* AI accent — reserved for copilot affordances and activity */
+  --ai: #a371f7;
+  --ai-2: #c3a1fa;
+  --ai-dim: rgba(163, 113, 247, 0.16);
+  --ai-gradient: linear-gradient(140deg, #4c8dff 0%, #a371f7 100%);
+
+  /* Status */
+  --up: #3fb950;
+  --down: #f85149;
+  --warn: #d29922;
+  --unknown: #6e7681;
+
+  /* Type scale */
+  --fs-0: 12px;
+  --fs-1: 13px;
+  --fs-2: 15px;
+  --fs-3: 17px;
+  --fs-4: 20px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, sfmono-regular, "Menlo", monospace;
+
+  /* Spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+
+  /* Radii */
+  --r-1: 6px;
+  --r-2: 10px;
+  --r-3: 14px;
+
+  /* Elevation */
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-2: 0 6px 20px rgba(0, 0, 0, 0.35);
+  --shadow-3: 0 18px 54px rgba(0, 0, 0, 0.55);
+
+  /* Motion */
+  --t-fast: 120ms;
+  --t-med: 200ms;
+  --t-slow: 320ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+
+  /* Z ladder */
+  --z-grid-active: 10000;
+  --z-topbar: 10020;
+  --z-dock: 10030;
+  --z-dropdown: 10040;
+  --z-popover: 10050;
+  --z-cmdk: 10060;
+  --z-toast: 10070;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms;
+    --t-med: 0ms;
+    --t-slow: 0ms;
+  }
+}

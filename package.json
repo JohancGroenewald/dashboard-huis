@@ -20,7 +20,7 @@
     "lint": "npm run lint:js && npm run lint:css && npm run lint:html && npm run lint:json && npm run check-loc",
     "lint:js": "eslint .",
     "lint:css": "stylelint 'public/**/*.css'",
-    "lint:html": "htmlhint public/index.html",
+    "lint:html": "htmlhint 'public/**/*.html'",
     "lint:json": "node scripts/check-json.mjs",
     "check-loc": "node scripts/check-loc.mjs",
     "prepare": "git config core.hooksPath .githooks || true",

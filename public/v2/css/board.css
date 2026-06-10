@@ -1,0 +1,167 @@
+/* The board: GridStack cards (sections + notes), tile chips, AI activity
+   pulses, grid guides, and the empty-state hero. */
+
+.grid-stack { background: transparent; }
+.grid-stack-item-content { inset: 0; overflow: visible; }
+
+/* Grid guides (toggle): background-size is set from JS to the live cell size. */
+.grid-stack.show-grid {
+  background-image:
+    linear-gradient(to right, rgba(124, 160, 255, 0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(124, 160, 255, 0.1) 1px, transparent 1px);
+  background-position: 0 0;
+  min-height: calc(100vh - 110px);
+}
+
+/* ---- Cards ---- */
+.card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background: linear-gradient(180deg, var(--surface-1) 0%, #10141c 100%);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-1);
+  padding: var(--sp-3);
+  overflow: hidden;
+  transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.card:hover { border-color: var(--edge-strong); }
+
+.card-grip { color: var(--muted); cursor: grab; font-size: var(--fs-1); line-height: 1; opacity: 0.55; user-select: none; }
+.card:hover .card-grip { opacity: 0.85; }
+.grid-stack.locked .card-grip { display: none; }
+
+/* ---- Section cards ---- */
+.section-card { padding: 10px; }
+.sec-head { display: flex; align-items: center; gap: var(--sp-2); padding: 0 2px var(--sp-2); border-bottom: 1px solid var(--edge-soft); margin-bottom: 9px; }
+.sec-name { flex: 1; font-weight: 650; font-size: 14.5px; cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.sec-head .ctl { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: var(--fs-1); padding: 0 4px; border-radius: var(--r-1); opacity: 0; transition: opacity var(--t-fast), color var(--t-fast); }
+.section-card:hover .sec-head .ctl { opacity: 0.85; }
+.sec-head .ctl:hover { color: var(--accent); opacity: 1; }
+.sec-head .ctl.danger:hover { color: var(--down); }
+.sec-head .ctl.ai-btn:hover { color: var(--ai-2); }
+.sec-collapse { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: var(--fs-0); padding: 0 2px; line-height: 1; }
+.sec-collapse:hover { color: var(--text); }
+.sec-count { color: var(--muted); font-size: 11px; background: var(--surface-2); border: 1px solid var(--edge); border-radius: 999px; padding: 0 7px; }
+.section-card.collapsed .sec-head { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.section-card.collapsed .sec-tiles, .section-card.collapsed .sec-desc { display: none; }
+.sec-desc { color: var(--muted); font-size: var(--fs-0); padding: 0 2px var(--sp-2); cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sec-desc.empty { opacity: 0; transition: opacity var(--t-fast); }
+.section-card:hover .sec-desc.empty { opacity: 0.45; }
+
+.sec-tiles { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--sp-2); align-content: start; border-radius: var(--r-2); }
+.sec-tiles.drop { outline: 2px dashed var(--accent); outline-offset: -2px; }
+.sec-empty { color: var(--muted); font-size: 12.5px; font-style: italic; grid-column: 1 / -1; padding: var(--sp-4) var(--sp-1); text-align: center; }
+
+/* ---- Tile chips ---- */
+.tile-chip {
+  position: relative; display: flex; align-items: center; gap: 9px;
+  background: var(--surface-2); border: 1px solid var(--edge); border-radius: var(--r-2);
+  padding: 9px 10px; cursor: pointer; transition: border-color var(--t-fast), transform 50ms;
+}
+.tile-chip:hover { border-color: var(--accent); }
+.tile-chip:active { transform: scale(0.99); }
+.tile-chip .tile-icon { font-size: var(--fs-4); width: 26px; text-align: center; flex: none; }
+.tile-chip .tile-meta { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.tile-name { font-weight: 650; font-size: var(--fs-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tile-desc { color: var(--muted); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--unknown); flex: none; }
+.dot.up { background: var(--up); box-shadow: 0 0 7px var(--up); }
+.dot.down { background: var(--down); box-shadow: 0 0 7px var(--down); }
+.chip-ctl { position: absolute; top: 3px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; opacity: 0; transition: opacity var(--t-fast), color var(--t-fast); }
+.chip-del { right: 4px; }
+.chip-ai { right: 20px; }
+.chip-bold { right: 36px; font-weight: 700; }
+.tile-chip:hover .chip-ctl { opacity: 0.85; }
+.tile-chip:hover .chip-bold.on { color: var(--accent-2); opacity: 1; }
+.chip-del:hover { color: var(--down); opacity: 1; }
+.chip-bold:hover { color: var(--accent); opacity: 1; }
+.chip-ai:hover { color: var(--ai-2); opacity: 1; }
+
+/* ---- Note cards ---- */
+.note-card { color: #2a2300; }
+.note-card .card-grip { color: rgba(0, 0, 0, 0.45); }
+.note-title { flex: 1; min-width: 0; font-weight: 650; font-size: 14.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-head { border-bottom: 0; margin-bottom: 0; padding-bottom: var(--sp-1); }
+.note-head .ctl { color: rgba(0, 0, 0, 0.5); }
+.note-head .ctl:hover { color: #000; }
+.note-head .ctl.danger:hover { color: #a11; }
+.note-card:hover .note-head .ctl { opacity: 0.85; }
+.note-card textarea {
+  flex: 1; width: 100%; background: transparent; border: 0; resize: none;
+  color: inherit; font: inherit; outline: none; min-height: 0; padding: 0; border-radius: 0;
+}
+.note-card.transparent { box-shadow: none; }
+.note-card.transparent .card-grip,
+.note-card.transparent .note-head .ctl { color: var(--muted); }
+.note-card.transparent .note-head .ctl:hover { color: var(--text); }
+.note-card.transparent .note-head .ctl.danger:hover { color: var(--down); }
+
+/* Hidden-note ghost placeholder */
+.note-ghost { position: relative; height: 100%; border: 2px dashed var(--edge); border-radius: var(--r-3); cursor: pointer; opacity: 0.5; transition: opacity var(--t-fast), border-color var(--t-fast); }
+.note-ghost:hover { opacity: 0.95; border-color: var(--accent); }
+.note-ghost .ghost-eye { position: absolute; top: 6px; right: 8px; font-size: var(--fs-1); line-height: 1; }
+
+/* ---- AI activity on the board ---- */
+/* A card the copilot just changed: violet pulse + corner badge. */
+.ai-touched { animation: ai-pulse 1.6s var(--ease); border-radius: var(--r-3); }
+@keyframes ai-pulse {
+  0%, 30% { outline: 3px solid var(--ai); outline-offset: 3px; box-shadow: 0 0 24px var(--ai-dim); }
+  100% { outline: 3px solid transparent; outline-offset: 3px; }
+}
+.ai-badge {
+  position: absolute; top: -8px; right: 10px; z-index: 3;
+  background: var(--ai-gradient); color: #fff; font-size: 10px; font-weight: 650;
+  border-radius: 999px; padding: 1px 8px; box-shadow: var(--shadow-1);
+  animation: ai-badge-fade 3.2s var(--ease) forwards;
+}
+@keyframes ai-badge-fade { 0%, 70% { opacity: 1; } 100% { opacity: 0; } }
+/* A card the copilot is about to change (tool call running). */
+.ai-pending { outline: 2px dashed var(--ai); outline-offset: 3px; border-radius: var(--r-3); }
+
+/* Jump-to-find highlight (human action → blue) */
+.flash { animation: flash-pulse 1.6s ease-out; border-radius: var(--r-3); }
+@keyframes flash-pulse {
+  0%, 25% { outline: 3px solid var(--accent); outline-offset: 3px; }
+  100% { outline: 3px solid transparent; outline-offset: 3px; }
+}
+
+/* ---- GridStack chrome ---- */
+.grid-stack-item.ui-draggable-dragging,
+.grid-stack-item.ui-resizable-resizing { z-index: var(--z-grid-active); }
+.grid-stack-item > .ui-resizable-handle { z-index: 2; }
+.grid-stack-item > .ui-resizable-se {
+  width: 26px; height: 26px; right: 0; bottom: 0;
+  background-image: none; opacity: 0.45; transition: opacity var(--t-fast); transform: none;
+}
+.grid-stack-item > .ui-resizable-se::before {
+  content: ''; position: absolute; right: 5px; bottom: 5px;
+  width: 13px; height: 13px;
+  border-right: 3px solid var(--muted);
+  border-bottom: 3px solid var(--muted);
+  border-bottom-right-radius: 9px;
+}
+.grid-stack-item:hover > .ui-resizable-se { opacity: 0.85; }
+.grid-stack-item > .ui-resizable-se:hover { opacity: 1; }
+.grid-stack-item > .ui-resizable-se:hover::before { border-color: var(--accent-2); }
+.grid-stack.locked .ui-resizable-handle { display: none !important; }
+
+/* ---- Empty workspace hero ---- */
+.empty-hero { text-align: center; color: var(--muted); margin-top: 14vh; }
+.empty-hero-icon {
+  font-size: 36px; line-height: 1; margin-bottom: var(--sp-3);
+  background: var(--ai-gradient); background-clip: text; -webkit-background-clip: text; color: transparent;
+}
+.empty-hero p { margin: var(--sp-1) 0; font-size: var(--fs-2); }
+.empty-hero-sub { font-size: var(--fs-1); }
+.empty-hero .prompt-chips { display: flex; gap: var(--sp-2); justify-content: center; margin-top: var(--sp-4); flex-wrap: wrap; }
+
+/* AI prompt chips (empty states, dock suggestions) */
+.prompt-chip {
+  background: transparent; border: 1px dashed var(--ai); color: var(--ai-2);
+  border-radius: 999px; padding: 6px 14px; cursor: pointer; font-size: var(--fs-1);
+  transition: background var(--t-fast), color var(--t-fast);
+}
+.prompt-chip:hover { background: var(--ai-dim); color: var(--text); }
