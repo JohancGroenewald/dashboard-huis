@@ -50,6 +50,7 @@
 
 /* ---- Conversation log ---- */
 .dock-log { flex: 1; overflow-y: auto; padding: var(--sp-4) 14px; display: flex; flex-direction: column; gap: 14px; }
+.turn { display: flex; flex-direction: column; gap: 6px; }
 .row { display: flex; gap: var(--sp-2); align-items: flex-end; max-width: 100%; }
 .row.user { justify-content: flex-end; }
 .row .avatar { width: 27px; height: 27px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--edge); display: grid; place-items: center; font-size: 14px; flex: none; }

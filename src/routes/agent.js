@@ -141,11 +141,13 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
         onEvent: (ev) => {
           if (ev.type === 'delta') send('delta', { text: ev.text });
           else if (ev.type === 'tool-start') {
-            send('step', { i: ev.i, name: ev.name, args: ev.args });
-            activity({ phase: 'tool-start', name: ev.name, ids: idsFromCall(ev.args) });
+            const ids = idsFromCall(ev.args);
+            send('step', { i: ev.i, name: ev.name, ids });
+            activity({ phase: 'tool-start', name: ev.name, ids });
           } else if (ev.type === 'tool-result') {
-            send('result', { i: ev.i, ok: ev.ok, summary: stepSummary(ev), error: ev.error });
-            activity({ phase: 'tool-result', name: ev.name, ok: ev.ok, ids: idsFromCall(ev.args, ev.result) });
+            const ids = idsFromCall(ev.args, ev.result);
+            send('result', { i: ev.i, ok: ev.ok, summary: stepSummary(ev), error: ev.error, ids });
+            activity({ phase: 'tool-result', name: ev.name, ok: ev.ok, ids });
           }
         },
       });
