@@ -5,6 +5,7 @@ import { api, jsonBody } from '../lib/api.js';
 import { FONT_WEIGHTS } from '../constants.js';
 import { store, subscribe, loadDashboard } from '../state/store.js';
 import { deleteWithUndo } from './editor.js';
+import { openAiMenu } from './ai-menu.js';
 
 function healthTitle(h) {
   if (!h) return 'checking…';
@@ -21,6 +22,7 @@ export function tileChip(tile) {
     <span class="tile-meta"><span class="tile-name" style="font-weight:${tile.bold ? FONT_WEIGHTS.semiBold : FONT_WEIGHTS.normal}">${esc(tile.name)}</span>${tile.description ? `<span class="tile-desc">${esc(tile.description)}</span>` : ''}</span>
     ${dot}
     <button class="chip-ctl chip-bold${tile.bold ? ' on' : ''}" type="button" title="Bold label">B</button>
+    <button class="chip-ctl chip-ai" type="button" title="Copilot: act on this tile">✦</button>
     <button class="chip-ctl chip-del" type="button" title="Delete tile">✕</button>
   </div>`;
 }
@@ -36,6 +38,18 @@ export function wireTileZone(el, section) {
       const isBold = e.currentTarget.classList.contains('on');
       await api(`/api/tiles/${chip.dataset.id}`, jsonBody({ bold: !isBold }, 'PATCH'));
       await loadDashboard();
+    });
+    chip.querySelector('.chip-ai').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openAiMenu({
+        anchor: e.currentTarget,
+        item: { type: 'tile', id: chip.dataset.id, label: chip.dataset.name },
+        prompts: [
+          'Write a description for this tile',
+          'Move this tile to a better section',
+          'Give this tile a fitting icon',
+        ],
+      });
     });
     chip.querySelector('.chip-del').addEventListener('click', (e) => {
       e.stopPropagation();

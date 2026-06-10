@@ -34,3 +34,8 @@
 .cmdk-row.ask .ck-icon { color: var(--ai-2); }
 .cmdk-row.ask.sel { background: var(--ai-dim); }
 .cmdk-empty { color: var(--muted); font-size: var(--fs-1); padding: 10px; }
+
+@media (max-width: 900px) {
+  .cmdk-backdrop { padding-top: 0; }
+  .cmdk-panel { width: 100vw; border-radius: 0 0 var(--r-3) var(--r-3); border-top: 0; }
+}

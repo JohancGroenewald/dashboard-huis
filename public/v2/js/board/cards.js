@@ -10,6 +10,7 @@ import {
 import { loadDashboard } from '../state/store.js';
 import { tileChip, wireTileZone } from './tiles.js';
 import { openPalette } from './palette.js';
+import { openAiMenu } from './ai-menu.js';
 import { inlineEdit, addTileTo, deleteWithUndo } from './editor.js';
 
 export function sectionInner(section) {
@@ -29,6 +30,7 @@ export function sectionInner(section) {
       <span class="card-grip" title="Drag section">⠿</span>
       <span class="sec-name"${nameStyle} title="Click to rename">${esc(section.name)}</span>
       ${section.collapsed && n ? `<span class="sec-count" title="${n} tile(s)">${n}</span>` : ''}
+      <button class="ctl ai-btn sec-ai" type="button" title="Copilot: act on this section">✦</button>
       <button class="ctl sec-style" type="button" title="Card colours">🎨</button>
       <button class="ctl sec-add" type="button" title="Add tile to this section">＋</button>
       <button class="ctl danger sec-del" type="button" title="Delete section">✕</button>
@@ -54,6 +56,7 @@ export function noteInner(note) {
     <div class="sec-head note-head">
       <span class="card-grip" title="Drag note">⠿</span>
       <span class="note-title" title="${esc(note.text || 'Note')}">${esc(noteTitle(note))}</span>
+      <button class="ctl ai-btn note-ai" type="button" title="Copilot: act on this note">✦</button>
       <button class="ctl note-style" type="button" title="Note colours">🎨</button>
       <button class="ctl note-hide" type="button" title="Hide note">🙈</button>
       <button class="ctl danger note-del" type="button" title="Delete note">✕</button>
@@ -109,6 +112,18 @@ export function wireSection(el, section) {
       },
     });
   });
+  el.querySelector('.sec-ai').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAiMenu({
+      anchor: e.currentTarget,
+      item: { type: 'section', id: section.id, label: section.name },
+      prompts: [
+        'Write a short description for this section',
+        'Tidy and group these tiles',
+        'Recolour this section to fit its content',
+      ],
+    });
+  });
   el.querySelector('.sec-add').addEventListener('click', () => addTileTo(section.id));
   el.querySelector('.sec-del').addEventListener('click', () => {
     const n = section.tiles.length;
@@ -158,6 +173,18 @@ export function wireNote(el, note) {
         card.style.fontWeight = checked ? '700' : '';
         api(`/api/notes/${note.id}`, jsonBody({ bold: checked }, 'PATCH')).catch(() => {});
       },
+    });
+  });
+  el.querySelector('.note-ai').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAiMenu({
+      anchor: e.currentTarget,
+      item: { type: 'note', id: note.id, label: noteTitle(note) },
+      prompts: [
+        'Summarize this note',
+        'Split this into separate notes',
+        'Tidy up the wording',
+      ],
     });
   });
   el.querySelector('.note-hide').addEventListener('click', async () => {

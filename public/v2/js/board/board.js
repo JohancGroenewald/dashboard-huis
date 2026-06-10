@@ -25,6 +25,10 @@ let cellH = Math.min(
 );
 let autoArrange = localStorage.getItem(STORAGE_KEYS.autoArrange) !== '0';
 let showGrid = localStorage.getItem(STORAGE_KEYS.showGrid) === '1';
+// Narrow screens stack everything in one column; layouts are never persisted
+// in that mode, so the real 12-column positions survive untouched.
+const oneColQuery = window.matchMedia(`(max-width: ${GRID_UI.oneColumnBelowPx}px)`);
+let oneColumn = false;
 
 // True while the user is mid-interaction on the board — remote updates are
 // deferred (state/store.js) until this clears.
@@ -46,7 +50,7 @@ function updateGridOverlay() {
 }
 
 function persistLayout() {
-  if (rendering) return;
+  if (rendering || oneColumn) return;
   clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
     const items = grid.save(false).map((n) => {
@@ -167,6 +171,13 @@ export function initBoard() {
     gridEl
   );
   grid.on('change', persistLayout);
+  const applyColumns = () => {
+    oneColumn = oneColQuery.matches;
+    grid.column(oneColumn ? 1 : GRID_UI.columns, oneColumn ? 'list' : 'moveScale');
+    updateGridOverlay();
+  };
+  oneColQuery.addEventListener('change', applyColumns);
+  if (oneColQuery.matches) applyColumns();
   // A finished drag/resize or leaving an editable field releases any deferred
   // remote update.
   grid.on('dragstop resizestop', () => setTimeout(flushDeferred));

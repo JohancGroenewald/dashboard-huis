@@ -80,3 +80,16 @@
   background: var(--surface-2); border: 1px solid var(--accent); color: inherit;
   border-radius: var(--r-1); padding: 1px 6px; font: inherit; width: 100%; min-width: 0;
 }
+
+/* ---- Per-card ✦ menu ---- */
+.ai-menu {
+  position: fixed; width: 240px; z-index: var(--z-popover);
+  background: var(--surface-1); border: 1px solid var(--ai); border-radius: var(--r-2);
+  box-shadow: var(--shadow-2); padding: 6px;
+  animation: pop-in var(--t-fast) var(--ease);
+}
+.ai-menu-head {
+  color: var(--ai-2); font-size: 11px; font-weight: 650;
+  padding: 4px 10px 6px; border-bottom: 1px solid var(--edge-soft); margin-bottom: 4px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}

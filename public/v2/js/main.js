@@ -9,7 +9,7 @@ import { initBoard, isInteracting } from './board/board.js';
 import { initLive } from './state/live.js';
 import { initDock } from './dock/dock.js';
 import { initModels } from './dock/models.js';
-import { initChat } from './dock/chat.js';
+import { initChat, sendChat } from './dock/chat.js';
 import { initCmdk } from './cmdk.js';
 import { renderModelsView } from './views/models.js';
 import { renderAbilitiesView } from './views/abilities.js';
@@ -59,6 +59,11 @@ document.addEventListener('click', (e) => {
 
 $('#undo-btn').addEventListener('click', () => history('/api/undo'));
 $('#redo-btn').addEventListener('click', () => history('/api/redo'));
+
+// Empty-workspace hero: sample prompts go straight to the copilot.
+for (const b of document.querySelectorAll('.empty-hero .prompt-chip')) {
+  b.addEventListener('click', () => sendChat(b.textContent));
+}
 setKeyHandler('undo', () => history('/api/undo'));
 setKeyHandler('redo', () => history('/api/redo'));
 
