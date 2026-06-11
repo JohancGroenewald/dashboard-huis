@@ -5,6 +5,9 @@ import {
   DEFAULT_DASHBOARD, FEATURE_REQUEST_STATUSES, HEALTH_TYPES as HEALTH_TYPE_VALUES,
   NOTE_COLOR_NAMES, SCHEMA_LIMITS, SECTION_HEADING_EFFECTS, WORKSPACE_BACKGROUND_EFFECTS,
 } from './constants.js';
+// The same compiler the browser renders with — one grammar, validated here at
+// the tool boundary. A deliberate import across the src/public seam.
+import { compileMathExpr, MATH_EXPR_LIMITS } from '../public/js/lib/mathexpr.js';
 
 const HEALTH_TYPES = new Set(HEALTH_TYPE_VALUES);
 const HEADING_EFFECTS = new Set(SECTION_HEADING_EFFECTS);
@@ -60,13 +63,22 @@ export function normalizeWorkspaceBackground(raw = {}) {
   const palette = Array.isArray(raw.palette)
     ? raw.palette.slice(0, 6).map((c, i) => checkColor(c, `workspace.background.palette[${i}]`)).filter(Boolean)
     : [];
-  return {
+  const out = {
     effect,
     palette,
     speed: checkUnitNumber(raw.speed, 'workspace.background.speed'),
     density: checkUnitNumber(raw.density, 'workspace.background.density'),
     intensity: checkUnitNumber(raw.intensity, 'workspace.background.intensity'),
   };
+  if (effect === 'formula') {
+    const formula = checkString(raw.formula, 'workspace.background.formula', { max: MATH_EXPR_LIMITS.maxChars });
+    if (!formula) fail('"workspace.background.formula" is required for effect "formula"');
+    // Compile against the whitelist grammar so a bad formula bounces back to
+    // the model as a tool error instead of a blank background.
+    try { compileMathExpr(formula); } catch (err) { fail(`"workspace.background.formula": ${err.message}`); }
+    out.formula = formula;
+  }
+  return out;
 }
 
 function checkUrl(val, field, { required = true } = {}) {

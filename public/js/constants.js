@@ -130,6 +130,7 @@ export const WORKSPACE_BACKGROUND_EFFECTS = {
   orbits: 'orbits',
   plasma: 'plasma',
   stars: 'stars',
+  formula: 'formula',
 };
 
 export const FEATURE_REQUEST_STATUSES = ['open', 'planned', 'done', 'rejected'];

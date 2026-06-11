@@ -1,8 +1,10 @@
 // Workspace math-art backgrounds. Dashy can set a constrained effect spec on a
 // workspace; the browser renders it on a full-viewport canvas behind the board.
-// No model-authored JavaScript is executed here.
+// Model-authored "formula" backgrounds run through the whitelist compiler in
+// lib/mathexpr.js — never as raw JavaScript.
 import { $ } from '../lib/dom.js';
 import { WORKSPACE_BACKGROUND_EFFECTS } from '../constants.js';
+import { compileMathExpr } from '../lib/mathexpr.js';
 import { store, subscribe } from '../state/store.js';
 
 const DEFAULT_PALETTE = ['#4c8dff', '#69d28a', '#a371f7', '#f0b429'];
@@ -130,6 +132,72 @@ function drawStars(bg, t) {
   ctx.globalAlpha = 1;
 }
 
+// ---- model-authored formula fields ----
+// The expression is evaluated on a coarse grid into ImageData, then scaled up
+// with smoothing — a few thousand evals per frame, cheap for a compiled fn.
+let exprCache = { src: '', fn: null };
+let lutCache = { key: '', lut: null };
+let field = null;
+
+function compiled(src) {
+  if (exprCache.src !== src) {
+    let fn = null;
+    try { fn = compileMathExpr(src); } catch { /* schema validated it; stay blank on drift */ }
+    exprCache = { src, fn };
+  }
+  return exprCache.fn;
+}
+
+// Palette → 64-step gradient lookup table (resolves CSS colour names too).
+function paletteLut(bg) {
+  const key = JSON.stringify(colors(bg));
+  if (lutCache.key === key) return lutCache.lut;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 1;
+  const g = c.getContext('2d');
+  const grad = g.createLinearGradient(0, 0, 64, 0);
+  const p = colors(bg);
+  p.forEach((col, i) => grad.addColorStop(p.length === 1 ? 0 : i / (p.length - 1), col));
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 64, 1);
+  lutCache = { key, lut: g.getImageData(0, 0, 64, 1).data };
+  return lutCache.lut;
+}
+
+function drawFormula(bg, t) {
+  const fn = compiled(bg.formula || '');
+  if (!fn) return;
+  const lut = paletteLut(bg);
+  const W = 96 + Math.round(clamp(bg.density ?? 1, 0, 5) * 24); // 96..216 cells wide
+  const H = Math.max(2, Math.round(W * canvas.height / canvas.width));
+  if (!field) field = document.createElement('canvas');
+  if (field.width !== W || field.height !== H) { field.width = W; field.height = H; }
+  const fctx = field.getContext('2d');
+  const img = fctx.createImageData(W, H);
+  const d = img.data;
+  const aspect = canvas.width / canvas.height;
+  let i = 0;
+  for (let py = 0; py < H; py++) {
+    const y = (py / (H - 1)) * 2 - 1;
+    for (let px = 0; px < W; px++) {
+      const x = ((px / (W - 1)) * 2 - 1) * aspect;
+      const v = fn(x, y, Math.hypot(x, y), Math.atan2(y, x), t);
+      const u = Number.isFinite(v) ? Math.min(1, Math.max(0, (v + 1) / 2)) : 0;
+      const li = (Math.min(63, Math.floor(u * 63))) * 4;
+      d[i++] = lut[li];
+      d[i++] = lut[li + 1];
+      d[i++] = lut[li + 2];
+      d[i++] = 255;
+    }
+  }
+  fctx.putImageData(img, 0, 0);
+  ctx.globalAlpha = Math.min(0.5, 0.14 + clamp(bg.intensity ?? 1, 0, 5) * 0.08);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(field, 0, 0, canvas.width, canvas.height);
+  ctx.globalAlpha = 1;
+}
+
 function paint(now = performance.now()) {
   const bg = activeBackground();
   const speed = clamp(bg.speed ?? 1, 0, 5);
@@ -141,6 +209,7 @@ function paint(now = performance.now()) {
   else if (bg.effect === WORKSPACE_BACKGROUND_EFFECTS.orbits) drawOrbits(bg, t);
   else if (bg.effect === WORKSPACE_BACKGROUND_EFFECTS.plasma) drawPlasma(bg, t);
   else if (bg.effect === WORKSPACE_BACKGROUND_EFFECTS.stars) drawStars(bg, t);
+  else if (bg.effect === WORKSPACE_BACKGROUND_EFFECTS.formula) drawFormula(bg, t);
   if (!reduceMotion.matches) raf = requestAnimationFrame(paint);
 }
 

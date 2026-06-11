@@ -54,3 +54,17 @@ test('workspace background rejects unknown effects and unsafe colours', () => {
   assert.throws(() => normalizeWorkspaceBackground({ effect: 'script' }), /workspace\.background\.effect/);
   assert.throws(() => normalizeWorkspaceBackground({ effect: 'waves', palette: ['url(https://example.test/x)'] }), /hex colour or CSS colour name/);
 });
+
+test('workspace background formula compiles under the whitelist grammar', () => {
+  const bg = normalizeWorkspaceBackground({ effect: 'formula', formula: 'sin(8*r - 2*t) * exp(-r)' });
+  assert.equal(bg.effect, 'formula');
+  assert.equal(bg.formula, 'sin(8*r - 2*t) * exp(-r)');
+  // Non-formula effects never carry a formula along.
+  assert.equal('formula' in normalizeWorkspaceBackground({ effect: 'waves', formula: 'sin(x)' }), false);
+});
+
+test('workspace background formula rejects non-math input', () => {
+  assert.throws(() => normalizeWorkspaceBackground({ effect: 'formula' }), /formula" is required/);
+  assert.throws(() => normalizeWorkspaceBackground({ effect: 'formula', formula: 'alert(1)' }), /unknown function/);
+  assert.throws(() => normalizeWorkspaceBackground({ effect: 'formula', formula: 'x.constructor' }), /workspace\.background\.formula/);
+});

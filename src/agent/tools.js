@@ -95,10 +95,10 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       updated: store.renameWorkspace(resolveWorkspace(workspace).id, name),
     }),
 
-    set_workspace_background: ({ workspace, effect, palette, speed, density, intensity }) => {
+    set_workspace_background: ({ workspace, effect, formula, palette, speed, density, intensity }) => {
       const w = resolveWorkspace(workspace);
       return {
-        updated: store.updateWorkspaceBackground(w.id, { effect, palette, speed, density, intensity }),
+        updated: store.updateWorkspaceBackground(w.id, { effect, formula, palette, speed, density, intensity }),
         workspace: { id: w.id, name: w.name },
       };
     },

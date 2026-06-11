@@ -44,12 +44,13 @@ export const toolSpecs = [
     function: {
       name: 'set_workspace_background',
       description:
-        'Set or clear a full-workspace animated math-art canvas background. This is a constrained renderer, not raw JavaScript: choose an effect and visual parameters. Use effect="none" to clear the background.',
+        'Set or clear a full-workspace animated math-art canvas background. Choose a preset effect, or write your own maths with effect="formula": one expression over x, y (screen coords, −1..1), r (radius), a (angle), t (seconds), using sin cos tan sqrt abs exp log pow min max floor sign hypot tanh fract atan2, constants pi/tau/e and + - * / % ^. Its value maps −1..1 onto the palette. Example: sin(8*r - 2*t) * exp(-r) + 0.3*sin(x*5+t). Use effect="none" to clear the background.',
       parameters: {
         type: 'object',
         properties: {
           workspace: { type: 'string', description: 'Workspace id or name.' },
-          effect: { type: 'string', enum: ['none', 'waves', 'orbits', 'plasma', 'stars'], description: 'Background formula/effect.' },
+          effect: { type: 'string', enum: ['none', 'waves', 'orbits', 'plasma', 'stars', 'formula'], description: 'Preset effect, or "formula" to supply your own expression.' },
+          formula: { type: 'string', description: 'Required when effect="formula": the math expression to render.' },
           palette: { type: 'array', items: { type: 'string' }, description: 'Up to 6 colour names or hex colours.' },
           speed: { type: 'number', description: 'Animation speed from 0 to 5. Use 1 for normal.' },
           density: { type: 'number', description: 'How busy the pattern is, from 0 to 5. Use 1 for normal.' },
