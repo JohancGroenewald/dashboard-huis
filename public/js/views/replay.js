@@ -8,7 +8,8 @@ import { api } from '../lib/api.js';
 import { mdToHtml } from '../lib/markdown.js';
 import { fmtMs } from '../lib/format.js';
 import { LOGS_UI } from '../constants.js';
-import { subscribe } from '../state/store.js';
+import { store, subscribe } from '../state/store.js';
+import { showView } from '../workspaces.js';
 
 const KIND = { chat: '💬', validate: '🧪', redteam: '🛡️' };
 // Per-frame display time at 1× (ms); the scheduler divides by the speed.
@@ -17,6 +18,7 @@ const SPEEDS = [1, 2, 4];
 
 let rows = [];
 let row = null;
+let pendingId = null; // run to auto-select on the next load (set by replayRun)
 let frames = [];
 let idx = 0;
 let playing = false;
@@ -203,7 +205,8 @@ function renderList() {
     const meta = [r.model || '?', r.task, r.ms ? fmtMs(r.ms) : '']
       .filter(Boolean).join(' · ');
     const verdict = r.kind !== 'chat' && r.pass !== null ? (r.pass ? ' ✓' : ' ✗') : '';
-    return `<button type="button" class="rp-item ${r.error ? 'bad' : ''}" data-id="${r.id}">
+    const sel = row && String(r.id) === String(row.id) ? ' sel' : '';
+    return `<button type="button" class="rp-item${sel} ${r.error ? 'bad' : ''}" data-id="${r.id}">
       <span class="rp-item-top">${KIND[r.kind] || '·'} ${esc(meta)}${verdict}</span>
       <span class="rp-item-msg">${esc((r.user_msg || '').slice(0, LOGS_UI.userPreviewChars))}</span>
     </button>`;
@@ -235,6 +238,8 @@ export async function renderReplayView() {
 }
 
 async function loadRows() {
+  const want = pendingId;
+  pendingId = null;
   try {
     rows = await api(`/api/logs?limit=${LOGS_UI.apiLimit}`);
   } catch {
@@ -243,10 +248,22 @@ async function loadRows() {
     return;
   }
   renderList();
+  const target = want ? rows.find((r) => String(r.id) === want) : null;
+  if (target) { selectRow(target); return; }
   renderStage();
   // Auto-load the most recent run so the stage isn't empty.
   if (rows.length && !row) selectRow(rows[0]);
 }
 
+// Jump straight to one run's playback (used by the Logs view's 🎬 buttons).
+export function replayRun(id) {
+  pendingId = String(id);
+  showView('replay');
+}
+
 // Pause whenever we leave the Replay view so no timer runs in the background.
 subscribe('view', (v) => { if (v !== 'replay') stop(); });
+
+// A finished copilot run is already logged by the time its 'done' event
+// arrives, so refresh the rail in place; the current playback is untouched.
+subscribe('agent', (a) => { if (a.phase === 'done' && store.view === 'replay') loadRows(); });
