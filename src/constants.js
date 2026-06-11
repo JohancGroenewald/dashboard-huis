@@ -50,7 +50,7 @@ export const PATH_NAMES = {
 };
 
 export const SERVER_LIMITS = {
-  jsonBodyLimit: '1mb',
+  jsonBodyLimit: '25mb', // pasted screenshots ride as base64 in chat messages
   logsDefaultLimit: 40,
   logsMaxLimit: 200,
 };
@@ -81,6 +81,8 @@ export const OLLAMA_LIMITS = {
 export const CHAT_MESSAGE_LIMITS = {
   maxMessages: 40,
   maxContentChars: 8_000,
+  maxImagesPerMessage: 4,
+  maxImageChars: 12_000_000, // base64 chars ≈ 9MB binary per image
 };
 
 export const CHATLOG_CLI_LIMITS = {

@@ -44,9 +44,13 @@
 .pill-badge { color: var(--text); }
 .model-menu { position: absolute; right: 0; top: calc(100% + 6px); width: 290px; max-height: 50vh; overflow-y: auto; background: var(--surface-1); border: 1px solid var(--edge); border-radius: var(--r-2); box-shadow: var(--shadow-2); z-index: var(--z-popover); padding: 5px; }
 .model-menu.hidden { display: none; }
-.mm-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); padding: 8px 9px; border-radius: 8px; cursor: pointer; font-size: var(--fs-1); }
+/* Columns: name flexes with ellipsis; eye and speed sit in fixed slots. */
+.mm-item { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); padding: 8px 9px; border-radius: 8px; cursor: pointer; font-size: var(--fs-1); }
 .mm-item:hover { background: var(--surface-2); }
-.mm-badge { color: var(--muted); font-size: var(--fs-0); white-space: nowrap; }
+.mm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm-eye { flex: none; width: 18px; text-align: center; opacity: 0.85; }
+.mm-badge { flex: none; color: var(--muted); font-size: var(--fs-0); white-space: nowrap; }
+.mm-ms { display: inline-block; min-width: 40px; font-variant-numeric: tabular-nums; }
 .mm-empty { color: var(--muted); font-size: 12.5px; padding: 10px; }
 
 /* ---- Conversation log ---- */
@@ -123,6 +127,10 @@
 .dock-bar-row { display: flex; gap: var(--sp-2); align-items: stretch; }
 .attachments { display: flex; flex-wrap: wrap; gap: 6px; }
 .attach-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface-2); border: 1px solid var(--ai); color: var(--ai-2); border-radius: 999px; padding: 3px 6px 3px 10px; font-size: var(--fs-0); }
+.attach-chip.image { padding-left: 4px; }
+.attach-chip img { width: 26px; height: 26px; object-fit: cover; border-radius: 999px; }
+.msg-imgs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.msg-imgs img { max-width: 150px; max-height: 110px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.25); }
 .attach-x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: var(--fs-0); }
 .attach-x:hover { color: var(--down); }
 .dock-bar textarea {

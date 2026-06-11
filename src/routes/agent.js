@@ -92,7 +92,9 @@ function chatRequest(req, res) {
     });
     return null;
   }
-  return { model, safeMessages, session, userMsg };
+  // For the chatlog: megabytes of base64 become an image count.
+  const logMessages = safeMessages.map((m) => (m.images ? { ...m, images: m.images.length } : m));
+  return { model, safeMessages, logMessages, session, userMsg };
 }
 
 export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
@@ -112,7 +114,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
     const started = Date.now();
     try {
       const result = await runAgent({ model: r.model, store, messages: r.safeMessages, ollama, runTool: broadcastAgentMutation });
-      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.safeMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started });
+      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started });
       res.json({
         reply: result.reply,
         trace: result.trace,
@@ -122,7 +124,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
         dashboard: store.getState(), // so the UI can refresh after agent edits
       });
     } catch (err) {
-      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.safeMessages, ms: Date.now() - started, error: err.message });
+      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, ms: Date.now() - started, error: err.message });
       throw err;
     }
   }));
@@ -162,7 +164,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
           }
         },
       });
-      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.safeMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started });
+      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started });
       const mutated = result.trace.some((t) => t.ok && MUTATING.has(t.name));
       const usedHistory = result.trace.some((t) => t.ok && (t.name === 'undo' || t.name === 'redo'));
       send('done', {
@@ -178,7 +180,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
         canRevert: mutated && !usedHistory && store.rev > revBefore,
       });
     } catch (err) {
-      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.safeMessages, ms: Date.now() - started, error: err.message });
+      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, ms: Date.now() - started, error: err.message });
       send('error', { message: err.message });
     } finally {
       activity({ phase: 'done' });

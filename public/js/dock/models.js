@@ -6,18 +6,22 @@ import { fmtMs, speedTier } from '../lib/format.js';
 import { STORAGE_KEYS } from '../constants.js';
 
 let active = '';
+let vision = {}; // model → can it see images (from /api/models)
 
 export const activeModel = () => active;
+export const modelHasVision = (m) => Boolean(vision[m]);
 
 function setModel(m, ms) {
   active = m;
   if (m) localStorage.setItem(STORAGE_KEYS.model, m);
-  $('#model-btn-label').innerHTML = m ? `${esc(m)}${ms ? ` <span class="pill-badge">${speedTier(ms)} ~${fmtMs(ms)}</span>` : ''}` : 'no models';
+  const eye = vision[m] ? ' <span title="Understands images">👁</span>' : '';
+  $('#model-btn-label').innerHTML = m ? `${esc(m)}${eye}${ms ? ` <span class="pill-badge">${speedTier(ms)} ~${fmtMs(ms)}</span>` : ''}` : 'no models';
 }
 
 export async function loadModels() {
   try {
-    const { approved, details } = await api('/api/models');
+    const { approved, details, vision: v } = await api('/api/models');
+    vision = v || {};
     const menu = $('#model-menu');
     if (!approved.length) {
       menu.innerHTML = '<div class="mm-empty">No validated models yet. Run <code>npm run validate -- --all</code> on the server — only models that pass the safety gate may drive the board.</div>';
@@ -27,8 +31,9 @@ export async function loadModels() {
     menu.innerHTML = approved
       .map((m) => {
         const ms = details?.[m]?.msPerAction;
-        const badge = ms ? `<span class="mm-badge">${speedTier(ms)} ~${fmtMs(ms)}</span>` : '';
-        return `<button type="button" class="mm-item" data-model="${esc(m)}">${esc(m)}${badge}</button>`;
+        const eye = `<span class="mm-eye"${vision[m] ? ' title="Understands images"' : ''}>${vision[m] ? '👁' : ''}</span>`;
+        const badge = `<span class="mm-badge">${ms ? `${speedTier(ms)} <span class="mm-ms">~${fmtMs(ms)}</span>` : ''}</span>`;
+        return `<button type="button" class="mm-item" data-model="${esc(m)}"><span class="mm-name">${esc(m)}</span>${eye}${badge}</button>`;
       })
       .join('');
     for (const it of menu.querySelectorAll('.mm-item')) {

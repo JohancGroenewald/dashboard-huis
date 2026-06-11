@@ -6,8 +6,8 @@ import { streamSse } from '../lib/sse.js';
 import { mdToHtml } from '../lib/markdown.js';
 import { DOCK_UI, SPEED_LIMITS, STORAGE_KEYS } from '../constants.js';
 import { store, loadDashboard } from '../state/store.js';
-import { activeModel } from './models.js';
-import { addAttachment, consumeAttachments } from './attachments.js';
+import { activeModel, modelHasVision } from './models.js';
+import { addAttachment, addImageAttachment, hasImageAttachments, consumeAttachments } from './attachments.js';
 import { createStepTimeline, showRunBar } from './steps.js';
 import { openDock } from './dock.js';
 
@@ -39,16 +39,23 @@ function wireSuggestions() {
 }
 
 function saveChat() {
-  try { localStorage.setItem(STORAGE_KEYS.chat, JSON.stringify({ session: SESSION, history })); } catch { /* quota */ }
+  // Pasted images are session-only: too big for localStorage, gone on reload.
+  const slim = history.map(({ images, ...m }) => m);
+  try { localStorage.setItem(STORAGE_KEYS.chat, JSON.stringify({ session: SESSION, history: slim })); } catch { /* quota */ }
 }
 
-function addMsg(role, text) {
+function addMsg(role, text, thumbs = []) {
   log.querySelector('.intro')?.remove();
   const row = h('div', { class: `row ${role}` });
   if (role === 'assistant' || role === 'error') row.append(h('div', { class: 'avatar' }, role === 'error' ? '⚠️' : '✦'));
   const bubble = h('div', { class: 'bubble' });
   if (role === 'assistant') bubble.innerHTML = mdToHtml(text);
   else bubble.textContent = text;
+  if (thumbs.length) {
+    const wrap = h('div', { class: 'msg-imgs' });
+    for (const t of thumbs) wrap.append(h('img', { src: t, alt: '' }));
+    bubble.append(wrap);
+  }
   row.append(bubble);
   log.append(row);
   scroll();
@@ -140,13 +147,17 @@ export async function sendChat(text) {
   if (busy) return;
   openDock({ focus: false });
   if (!activeModel()) { addMsg('error', 'No validated model selected.'); return; }
+  if (hasImageAttachments() && !modelHasVision(activeModel())) {
+    addMsg('error', `${activeModel()} can't see images — pick a 👁 model from the picker, or remove the screenshot.`);
+    return; // chips stay attached so switching model and resending just works
+  }
   clearChips();
   inputHistory.push(text);
   histIdx = -1;
 
-  const content = consumeAttachments(text);
-  history.push({ role: 'user', content });
-  addMsg('user', content);
+  const { text: content, images, thumbs } = consumeAttachments(text);
+  history.push({ role: 'user', content, ...(images.length ? { images } : {}) });
+  addMsg('user', content, thumbs);
   saveChat();
 
   busy = true;
@@ -208,6 +219,16 @@ export function initChat() {
 
   const caretEnd = () => input.setSelectionRange(input.value.length, input.value.length);
   input.addEventListener('input', () => { autoGrow(); histIdx = -1; });
+  // Pasting a screenshot attaches it as an image chip for the next prompt.
+  input.addEventListener('paste', (e) => {
+    const files = [...(e.clipboardData?.items || [])]
+      .filter((it) => it.kind === 'file' && it.type.startsWith('image/'))
+      .map((it) => it.getAsFile())
+      .filter(Boolean);
+    if (!files.length) return;
+    e.preventDefault();
+    for (const f of files) addImageAttachment(f);
+  });
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#dock-form').requestSubmit(); return; }
     const atStart = input.selectionStart === 0 && input.selectionEnd === 0;

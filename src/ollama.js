@@ -20,6 +20,17 @@ export class Ollama {
     return (data.models || []).map((m) => m.name).sort();
   }
 
+  // Model metadata; capabilities lists e.g. 'completion', 'vision', 'tools'.
+  async show(model) {
+    const res = await fetch(`${this.host}/api/show`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model }),
+    });
+    if (!res.ok) throw new Error(`ollama /api/show ${model} → ${res.status}`);
+    return res.json();
+  }
+
   // Preload a model into memory (cold loads of large models can take minutes).
   // Empty messages make Ollama load weights and return without generating.
   // Pass options (e.g. num_ctx) to size the context/KV-cache at load time.

@@ -19,6 +19,27 @@ test('chat sanitizer keeps only user and assistant text messages', () => {
   assert.equal(latestUserMessage(clean), 'resize the card');
 });
 
+test('chat sanitizer keeps bounded images on user messages only', () => {
+  const clean = sanitizeChatMessages([
+    { role: 'user', content: 'transcribe this', images: ['data:image/png;base64,AAAA', 'BBBB', 7, ''] },
+    { role: 'assistant', content: 'done', images: ['CCCC'] },
+    { role: 'user', content: '', images: ['DDDD'] },
+  ]);
+
+  assert.deepEqual(clean, [
+    { role: 'user', content: 'transcribe this', images: ['AAAA', 'BBBB'] }, // data-URL prefix stripped
+    { role: 'assistant', content: 'done' }, // images never ride on assistant turns
+    { role: 'user', content: '', images: ['DDDD'] }, // image-only user turn survives
+  ]);
+});
+
+test('chat sanitizer caps the number of images per message', () => {
+  const clean = sanitizeChatMessages([
+    { role: 'user', content: 'look', images: ['1', '2', '3', '4', '5', '6'] },
+  ]);
+  assert.deepEqual(clean[0].images, ['1', '2', '3', '4']);
+});
+
 test('chat sanitizer bounds history and content length', () => {
   const clean = sanitizeChatMessages(
     [

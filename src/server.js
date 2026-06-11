@@ -175,6 +175,20 @@ app.get('/api/logs', wrap((req, res) => {
 }));
 
 // ---- models & agent ------------------------------------------------------
+// Capabilities are immutable per model tag; ask Ollama once and remember.
+const visionCache = new Map();
+async function visionFlags(models) {
+  const out = {};
+  await Promise.all(models.map(async (m) => {
+    if (!visionCache.has(m)) {
+      try { visionCache.set(m, ((await ollama.show(m)).capabilities || []).includes('vision')); }
+      catch { return; } // ollama offline — report unknown as false, retry next time
+    }
+    out[m] = visionCache.get(m);
+  }));
+  return out;
+}
+
 app.get('/api/models', wrap(async (req, res) => {
   const approved = listApproved();
   let installed = [];
@@ -185,6 +199,8 @@ app.get('/api/models', wrap(async (req, res) => {
     approved: Object.keys(approved),
     installed,
     details: approved,
+    vision: await visionFlags(Object.keys(approved)), // model → can it see images
+
     results: listResults(), // every tested model + outcome (pass or fail)
     supervised: listSupervised(), // failed-model + trusted-supervisor pairings
     delegated: listDelegated(), // trusted-orchestrator ▸ untrusted-sub-agent pairings
