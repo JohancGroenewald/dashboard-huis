@@ -7,7 +7,7 @@ import { $, esc } from '../lib/dom.js';
 import { api } from '../lib/api.js';
 import { mdToHtml } from '../lib/markdown.js';
 import { fmtMs } from '../lib/format.js';
-import { LOGS_UI } from '../constants.js';
+import { LOGS_UI, STORAGE_KEYS } from '../constants.js';
 import { store, subscribe } from '../state/store.js';
 import { showView } from '../workspaces.js';
 
@@ -19,6 +19,14 @@ const SPEEDS = [1, 2, 4];
 let rows = [];
 let row = null;
 let pendingId = null; // run to auto-select on the next load (set by replayRun)
+// Off by default: fake-model and aborted runs show unless ticked away.
+let hideFake = localStorage.getItem(STORAGE_KEYS.replayHideFake) === '1';
+let hideAborted = localStorage.getItem(STORAGE_KEYS.replayHideAborted) === '1';
+
+const logsUrl = (limit) =>
+  `/api/logs?limit=${limit}`
+  + (hideFake ? `&excludeModel=${encodeURIComponent(LOGS_UI.fakeModel)}` : '')
+  + (hideAborted ? `&excludeError=${encodeURIComponent(LOGS_UI.abortedError)}` : '');
 let frames = [];
 let idx = 0;
 let playing = false;
@@ -223,7 +231,14 @@ export async function renderReplayView() {
     <div class="sys-summary">Replay — watch a logged run play back step by step</div>
     <div class="rp-wrap">
       <div class="rp-side">
-        <div class="rp-side-head"><span>Recent runs</span><button id="rp-refresh" class="rp-tbtn" type="button" title="Refresh">⟳</button></div>
+        <div class="rp-side-head">
+          <span>Recent runs</span>
+          <span class="rp-side-tools">
+            <label class="rp-filter" title="Hide the validation harness's fake-model runs"><input id="rp-nofake" type="checkbox" /> hide fake</label>
+            <label class="rp-filter" title="Hide runs that were cancelled or timed out"><input id="rp-noaborted" type="checkbox" /> hide aborted</label>
+            <button id="rp-refresh" class="rp-tbtn" type="button" title="Refresh">⟳</button>
+          </span>
+        </div>
         <div id="rp-list" class="rp-list"></div>
       </div>
       <div class="rp-main">
@@ -232,21 +247,52 @@ export async function renderReplayView() {
       </div>
     </div>`;
   $('#rp-refresh').addEventListener('click', loadRows);
+  const noFake = $('#rp-nofake');
+  noFake.checked = hideFake;
+  noFake.addEventListener('change', () => {
+    hideFake = noFake.checked;
+    localStorage.setItem(STORAGE_KEYS.replayHideFake, hideFake ? '1' : '0');
+    loadRows();
+  });
+  const noAborted = $('#rp-noaborted');
+  noAborted.checked = hideAborted;
+  noAborted.addEventListener('change', () => {
+    hideAborted = noAborted.checked;
+    localStorage.setItem(STORAGE_KEYS.replayHideAborted, hideAborted ? '1' : '0');
+    loadRows();
+  });
   row = null;
   frames = [];
   await loadRows();
+}
+
+function setFresh(on) {
+  const btn = $('#rp-refresh');
+  if (!btn) return;
+  btn.classList.toggle('fresh', on);
+  btn.title = on ? 'New runs available — refresh' : 'Refresh';
+}
+
+// Quietly check whether newer runs exist than the rail shows; if so, light
+// up the refresh button rather than yanking the list around mid-browse.
+async function checkFresh() {
+  try {
+    const [latest] = await api(logsUrl(1));
+    if (latest && !rows.some((r) => String(r.id) === String(latest.id))) setFresh(true);
+  } catch { /* offline — the rail already says so */ }
 }
 
 async function loadRows() {
   const want = pendingId;
   pendingId = null;
   try {
-    rows = await api(`/api/logs?limit=${LOGS_UI.apiLimit}`);
+    rows = await api(logsUrl(LOGS_UI.apiLimit));
   } catch {
     rows = [];
     $('#rp-list').innerHTML = '<div class="rp-empty">Logs are offline.</div>';
     return;
   }
+  setFresh(false);
   renderList();
   const target = want ? rows.find((r) => String(r.id) === want) : null;
   if (target) { selectRow(target); return; }
@@ -265,5 +311,5 @@ export function replayRun(id) {
 subscribe('view', (v) => { if (v !== 'replay') stop(); });
 
 // A finished copilot run is already logged by the time its 'done' event
-// arrives, so refresh the rail in place; the current playback is untouched.
-subscribe('agent', (a) => { if (a.phase === 'done' && store.view === 'replay') loadRows(); });
+// arrives; glow the refresh button instead of reloading the rail in place.
+subscribe('agent', (a) => { if (a.phase === 'done' && store.view === 'replay') checkFresh(); });

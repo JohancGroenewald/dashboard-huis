@@ -9,6 +9,8 @@ export const STORAGE_KEYS = {
   autoArrange: 'dash2-autoarrange',
   showGrid: 'dash2-showgrid',
   modelsCollapsed: 'dash2-models-collapsed',
+  replayHideFake: 'dash2-replay-hidefake',
+  replayHideAborted: 'dash2-replay-hideaborted',
 };
 
 export const REFRESH_INTERVALS = {
@@ -75,6 +77,10 @@ export const CMDK_UI = {
 
 export const LOGS_UI = {
   apiLimit: 40,
+  // The validation harness's stub model — its runs are test noise in the log.
+  fakeModel: 'fake-model',
+  // Fetch-abort message logged when a run is cancelled or times out.
+  abortedError: 'This operation was aborted',
   errorPreviewChars: 160,
   replyPreviewChars: 160,
   userPreviewChars: 160,
