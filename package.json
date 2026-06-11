@@ -16,7 +16,7 @@
     "supervise": "node src/validation/supervised-cli.js",
     "delegate": "node src/validation/delegated-cli.js",
     "parallel": "node src/validation/parallel-cli.js",
-    "test": "node --test",
+    "test": "rm -f /tmp/huis-test-chatlog.db* && DASH_CHATLOG_DB=/tmp/huis-test-chatlog.db node --test",
     "lint": "npm run lint:js && npm run lint:css && npm run lint:html && npm run lint:json && npm run check-loc",
     "lint:js": "eslint .",
     "lint:css": "stylelint 'public/**/*.css'",
