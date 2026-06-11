@@ -56,7 +56,13 @@ function addMsg(role, text, thumbs = []) {
     for (const t of thumbs) wrap.append(h('img', { src: t, alt: '' }));
     bubble.append(wrap);
   }
-  row.append(bubble);
+  if (role === 'user') {
+    // Retry resends the prompt text as-is (pasted images are session-only).
+    const retry = h('button', { class: 'msg-retry', type: 'button', title: 'Send this prompt again', onclick: () => sendChat(text) }, '↻');
+    row.append(retry, bubble);
+  } else {
+    row.append(bubble);
+  }
   log.append(row);
   scroll();
   return bubble;

@@ -18,6 +18,7 @@
   /* Human accent */
   --accent: #4c8dff;
   --accent-2: #7aa9ff;
+  --accent-dim: rgba(76, 141, 255, 0.16);
 
   /* AI accent — reserved for copilot affordances and activity */
   --ai: #a371f7;

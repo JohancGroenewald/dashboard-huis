@@ -109,6 +109,6 @@ export function compileMathExpr(src) {
 
   const code = expr();
   if (pos < tokens.length) throw new Error(`unexpected "${tokens[pos].value}" after the expression`);
-  // eslint-disable-next-line no-new-func -- code is emitted only from the whitelist above
+  // new Function is safe here: code is emitted only from the whitelist above.
   return new Function('x', 'y', 'r', 'a', 't', `"use strict"; return (${code});`);
 }

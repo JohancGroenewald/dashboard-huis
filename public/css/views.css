@@ -110,7 +110,7 @@
 .rp-transcript .row.user { justify-content: flex-end; }
 .rp-transcript .avatar { width: 27px; height: 27px; border-radius: 8px; background: var(--ai-dim); border: 1px solid var(--ai); color: var(--ai-2); display: grid; place-items: center; font-size: 14px; flex: none; }
 .rp-transcript .bubble { padding: 10px 13px; border-radius: var(--r-3); max-width: 78%; line-height: 1.5; font-size: 14px; overflow-wrap: break-word; }
-.rp-transcript .row.user .bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 5px; }
+.rp-transcript .row.user .bubble { background: var(--accent-dim); border: 1px solid rgba(76, 141, 255, 0.45); color: var(--text); border-bottom-right-radius: 5px; }
 .rp-transcript .row.assistant .bubble { background: var(--surface-2); border: 1px solid var(--edge); border-bottom-left-radius: 5px; }
 .rp-transcript .row.assistant .bubble code { background: rgba(0, 0, 0, 0.32); padding: 1px 5px; border-radius: 5px; font-family: var(--font-mono); font-size: 12.5px; }
 .rp-transcript .row.assistant .bubble a { color: var(--accent-2); }
