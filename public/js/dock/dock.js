@@ -8,18 +8,27 @@ import { subscribe } from '../state/store.js';
 
 const dock = $('#dock');
 let width = DOCK_UI.defaultWidth;
+let composerH = 0; // 0 = the CSS default; set by dragging the composer's top edge
 let popEsc = null;
 
 function clampWidth(w) {
   return Math.min(Math.max(w, DOCK_UI.minWidth), Math.round(window.innerWidth * DOCK_UI.maxViewportFraction));
 }
 
+function clampComposerH(h) {
+  return Math.min(Math.max(h, DOCK_UI.composerMinHeight), Math.round(window.innerHeight * DOCK_UI.composerMaxViewportFraction));
+}
+
 function persist() {
-  localStorage.setItem(STORAGE_KEYS.dock, JSON.stringify({ state: dock.dataset.state, width }));
+  localStorage.setItem(STORAGE_KEYS.dock, JSON.stringify({ state: dock.dataset.state, width, composerH }));
 }
 
 function applyWidth() {
   dock.style.setProperty('--dock-w', `${clampWidth(width)}px`);
+}
+
+function applyComposerH() {
+  if (composerH) dock.style.setProperty('--composer-h', `${clampComposerH(composerH)}px`);
 }
 
 export const isOpen = () => dock.dataset.state === 'open';
@@ -51,50 +60,72 @@ export function collapseDock() {
 
 export const toggleDock = () => (isOpen() ? collapseDock() : openDock());
 
-function wireResizer() {
-  const resizer = $('#dock-resizer');
+// Shared edge-drag plumbing. Ends the drag however it finishes: pointerup,
+// pointercancel, or losing capture (alt-tab, releasing over browser chrome) —
+// without these the dragging flag sticks and hovering the handle keeps
+// resizing with no button held. Moves coalesce to one update per frame.
+function wireDrag(el, { onStart, onMove, onEnd }) {
   let dragging = false;
   let raf = 0;
-  // Ends the drag however it finishes: pointerup, pointercancel, or losing
-  // capture (alt-tab, releasing over browser chrome). Without these the
-  // dragging flag sticks and hovering the handle resizes with no button held.
+  let last = null;
   const stop = () => {
     if (!dragging) return;
     dragging = false;
-    resizer.classList.remove('active');
-    persist();
-    refreshGridWidth();
+    el.classList.remove('active');
+    onEnd?.();
   };
-  resizer.addEventListener('pointerdown', (e) => {
+  el.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
     e.preventDefault(); // no text-selection sweep while dragging
     dragging = true;
-    resizer.classList.add('active');
-    resizer.setPointerCapture(e.pointerId);
+    el.classList.add('active');
+    el.setPointerCapture(e.pointerId);
+    onStart?.(e);
   });
-  resizer.addEventListener('pointermove', (e) => {
+  el.addEventListener('pointermove', (e) => {
     if (!dragging) return;
-    width = clampWidth(window.innerWidth - e.clientX);
-    // Coalesce to one board relayout per frame; pointermove can fire faster.
-    if (!raf) raf = requestAnimationFrame(() => { raf = 0; applyWidth(); refreshGridWidth(); });
+    last = e;
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; onMove(last); });
   });
-  resizer.addEventListener('pointerup', stop);
-  resizer.addEventListener('pointercancel', stop);
-  resizer.addEventListener('lostpointercapture', stop);
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointercancel', stop);
+  el.addEventListener('lostpointercapture', stop);
+}
+
+function wireResizer() {
+  wireDrag($('#dock-resizer'), {
+    onMove: (e) => { width = clampWidth(window.innerWidth - e.clientX); applyWidth(); refreshGridWidth(); },
+    onEnd: () => { persist(); refreshGridWidth(); },
+  });
+}
+
+// Dragging the composer's top edge sets its resting height; the auto-grow in
+// chat.js still expands it further when the draft outgrows that floor.
+function wireComposerResizer() {
+  const input = $('#dock-input');
+  let start = null;
+  wireDrag($('#dock-bar-resizer'), {
+    onStart: (e) => { start = { y: e.clientY, h: composerH || input.offsetHeight }; },
+    onMove: (e) => { composerH = clampComposerH(start.h + (start.y - e.clientY)); applyComposerH(); },
+    onEnd: persist,
+  });
 }
 
 export function initDock() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.dock) || 'null');
     if (saved?.width) width = saved.width;
+    if (saved?.composerH) composerH = saved.composerH;
     if (saved?.state === 'open') { dock.dataset.state = 'open'; popEsc = pushEscLayer(() => collapseDock()); }
   } catch { /* corrupt */ }
   applyWidth();
+  applyComposerH();
 
   $('#dock-expand').addEventListener('click', () => openDock());
   $('#dock-collapse').addEventListener('click', () => collapseDock());
   setKeyHandler('toggleDock', toggleDock);
   wireResizer();
+  wireComposerResizer();
   window.addEventListener('resize', applyWidth);
 
   // Copilot activity from anywhere (another tab's run): blink the rail dot.
