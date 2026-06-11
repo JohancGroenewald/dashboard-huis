@@ -61,6 +61,7 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
           color: sec.color || '',
           borderColor: sec.borderColor || '',
           headingColor: sec.headingColor || '',
+          headingEffect: sec.headingEffect || 'none',
           bold: sec.bold,
           collapsed: sec.collapsed,
           workspaceId: sec.workspaceId,
@@ -118,9 +119,9 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       updated: store.updateSection(resolveSection(section).id, { name }),
     }),
 
-    update_section: ({ section, description, color, borderColor, headingColor, bold }) => {
+    update_section: ({ section, description, color, borderColor, headingColor, headingEffect, bold }) => {
       const patch = {};
-      for (const [k, v] of Object.entries({ description, color, borderColor, headingColor, bold })) {
+      for (const [k, v] of Object.entries({ description, color, borderColor, headingColor, headingEffect, bold })) {
         if (v !== undefined) patch[k] = v;
       }
       return { updated: store.updateSection(resolveSection(section).id, patch) };

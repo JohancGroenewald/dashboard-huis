@@ -110,5 +110,9 @@ export const SECTION_PALETTES = {
   border: STYLE_COLORS,
   heading: STYLE_COLORS,
 };
+export const SECTION_HEADING_EFFECTS = {
+  none: 'none',
+  rainbow: 'rainbow',
+};
 
 export const FEATURE_REQUEST_STATUSES = ['open', 'planned', 'done', 'rejected'];

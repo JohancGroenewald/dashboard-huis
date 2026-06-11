@@ -18,10 +18,13 @@ test('valid section patch applies after validation', () => {
   const store = new Store({ persist: false }).load();
   const section = store.getState().sections[0];
 
-  const updated = store.updateSection(section.id, { name: 'Infra', color: 'green' });
+  const updated = store.updateSection(section.id, { name: 'Infra', color: 'green', headingEffect: 'rainbow' });
 
   assert.equal(updated.name, 'Infra');
   assert.equal(updated.color, 'green');
+  assert.equal(updated.headingEffect, 'rainbow');
+  assert.throws(() => store.updateSection(section.id, { headingEffect: 'sparkle' }), /section\.headingEffect/);
+  assert.equal(store.getState().sections[0].headingEffect, 'rainbow');
 });
 
 test('rev bumps on commits and undo/redo, but not on view-only writes', () => {

@@ -141,6 +141,7 @@ export const SCHEMA_LIMITS = {
 
 export const HEALTH_TYPES = ['http', 'tcp', 'none'];
 export const FEATURE_REQUEST_STATUSES = ['open', 'planned', 'done', 'rejected'];
+export const SECTION_HEADING_EFFECTS = ['none', 'rainbow'];
 
 export const NOTE_COLOR_NAMES = {
   '#f6d365': 'yellow',

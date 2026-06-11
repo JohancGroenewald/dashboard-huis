@@ -40,3 +40,13 @@ test('move_to_workspace still accepts note ids', () => {
 
   assert.equal(result.moved.workspaceId, 'b');
 });
+
+test('update_section can enable rainbow heading effect', () => {
+  const store = duplicateSectionStore();
+  const handlers = makeToolHandlers(store);
+
+  const result = handlers.update_section({ section: 's1', headingEffect: 'rainbow' });
+
+  assert.equal(result.updated.headingEffect, 'rainbow');
+  assert.equal(store.getState().sections.find((s) => s.id === 's1').headingEffect, 'rainbow');
+});

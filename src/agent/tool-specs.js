@@ -112,7 +112,7 @@ export const toolSpecs = [
     type: 'function',
     function: {
       name: 'update_section',
-      description: "Set a section's description and/or its card colours. Only provided fields change. Colours accept a CSS colour name (e.g. \"blue\") or hex (e.g. \"#1a2233\"); pass an empty string to clear one back to the default.",
+      description: "Set a section's description, card colours, heading style, and/or heading effect. Only provided fields change. Colours accept a CSS colour name (e.g. \"blue\") or hex (e.g. \"#1a2233\"); pass an empty string to clear one back to the default. Use headingEffect=\"rainbow\" for cycling rainbow heading colours, or \"none\" to disable it.",
       parameters: {
         type: 'object',
         properties: {
@@ -121,6 +121,7 @@ export const toolSpecs = [
           color: { type: 'string', description: 'Card background (fill) colour.' },
           borderColor: { type: 'string', description: 'Card outline (border) colour.' },
           headingColor: { type: 'string', description: 'Heading (title) text colour.' },
+          headingEffect: { type: 'string', enum: ['none', 'rainbow'], description: 'Animated heading effect. Use "rainbow" to cycle heading colours, or "none" for a normal static heading.' },
           bold: { type: 'boolean', description: 'Whether the heading is bold.' },
         },
         required: ['section'],

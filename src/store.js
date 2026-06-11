@@ -226,10 +226,11 @@ export class Store {
       max: SCHEMA_LIMITS.sectionDescriptionChars,
     });
     if (patch.bold !== undefined) next.bold = Boolean(patch.bold);
+    if (patch.headingEffect !== undefined) next.headingEffect = patch.headingEffect;
     for (const k of ['color', 'borderColor', 'headingColor']) {
       if (patch[k] !== undefined) next[k] = checkColor(patch[k], `section.${k}`);
     }
-    Object.assign(s, next);
+    Object.assign(s, normalizeSection({ ...s, ...next, id: s.id, tiles: s.tiles }));
     this.#commit();
     return structuredClone(s);
   }

@@ -3,10 +3,11 @@
 import crypto from 'node:crypto';
 import {
   DEFAULT_DASHBOARD, FEATURE_REQUEST_STATUSES, HEALTH_TYPES as HEALTH_TYPE_VALUES,
-  NOTE_COLOR_NAMES, SCHEMA_LIMITS,
+  NOTE_COLOR_NAMES, SCHEMA_LIMITS, SECTION_HEADING_EFFECTS,
 } from './constants.js';
 
 const HEALTH_TYPES = new Set(HEALTH_TYPE_VALUES);
+const HEADING_EFFECTS = new Set(SECTION_HEADING_EFFECTS);
 const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const COLOR_NAME = /^[a-zA-Z]+$/;
 
@@ -36,6 +37,12 @@ export function checkColor(val, field, { required = false } = {}) {
   if (HEX_COLOR.test(s)) return s.toLowerCase();
   if (COLOR_NAME.test(s)) return s.toLowerCase();
   fail(`"${field}" must be a hex colour or CSS colour name`);
+}
+
+function checkHeadingEffect(val) {
+  const effect = val ?? 'none';
+  if (!HEADING_EFFECTS.has(effect)) fail(`"section.headingEffect" must be one of ${[...HEADING_EFFECTS].join(', ')}`);
+  return effect;
 }
 
 function checkUrl(val, field, { required = true } = {}) {
@@ -124,6 +131,7 @@ export function normalizeSection(raw) {
     color: checkColor(raw.color, 'section.color'),
     borderColor: checkColor(raw.borderColor, 'section.borderColor'),
     headingColor: checkColor(raw.headingColor, 'section.headingColor'),
+    headingEffect: checkHeadingEffect(raw.headingEffect),
     bold: raw.bold === undefined ? true : Boolean(raw.bold), // headings bold by default
     collapsed: Boolean(raw.collapsed),
     layout: normalizeLayout(raw.layout),

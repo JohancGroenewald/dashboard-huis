@@ -25,3 +25,12 @@ test('tile URLs reject protocol-relative external hosts', () => {
     /must be http\(s\) or a \/path/
   );
 });
+
+test('section heading effect accepts only known effects', () => {
+  assert.equal(normalizeSection({ name: 'Ops', headingEffect: 'rainbow', tiles: [] }).headingEffect, 'rainbow');
+  assert.equal(normalizeSection({ name: 'Ops', tiles: [] }).headingEffect, 'none');
+  assert.throws(
+    () => normalizeSection({ name: 'Ops', headingEffect: 'blink', tiles: [] }),
+    /section\.headingEffect/
+  );
+});

@@ -5,7 +5,7 @@ import { esc, toast } from '../lib/dom.js';
 import { api, jsonBody } from '../lib/api.js';
 import {
   FONT_WEIGHTS, GRID_UI, NOTE_COLORS, NOTE_DEFAULT_COLOR, NOTE_TEXT_COLORS,
-  NOTE_TRANSPARENT_COLOR, SECTION_PALETTES,
+  NOTE_TRANSPARENT_COLOR, SECTION_HEADING_EFFECTS, SECTION_PALETTES,
 } from '../constants.js';
 import { loadDashboard } from '../state/store.js';
 import { tileChip, wireTileZone } from './tiles.js';
@@ -20,7 +20,8 @@ export function sectionInner(section) {
     section.color ? `background:${esc(section.color)}` : '',
     section.borderColor ? `border-color:${esc(section.borderColor)}` : '',
   ].filter(Boolean).join(';');
-  const nameStyle = ` style="font-weight:${section.bold ? FONT_WEIGHTS.semiBold : FONT_WEIGHTS.normal}${section.headingColor ? `;color:${esc(section.headingColor)}` : ''}"`;
+  const rainbow = section.headingEffect === SECTION_HEADING_EFFECTS.rainbow;
+  const nameStyle = ` style="font-weight:${section.bold ? FONT_WEIGHTS.semiBold : FONT_WEIGHTS.normal}${section.headingColor && !rainbow ? `;color:${esc(section.headingColor)}` : ''}"`;
   const desc = section.description
     ? `<div class="sec-desc" title="Click to edit description">${esc(section.description)}</div>`
     : '<div class="sec-desc empty" title="Add a description">＋ description</div>';
@@ -28,7 +29,7 @@ export function sectionInner(section) {
     <div class="sec-head">
       <button class="sec-collapse" type="button" title="${section.collapsed ? 'Expand' : 'Collapse'} section">${section.collapsed ? '▸' : '▾'}</button>
       <span class="card-grip" title="Drag section">⠿</span>
-      <span class="sec-name"${nameStyle} title="Click to rename">${esc(section.name)}</span>
+      <span class="sec-name${rainbow ? ' rainbow-heading' : ''}"${nameStyle} title="Click to rename">${esc(section.name)}</span>
       ${section.collapsed && n ? `<span class="sec-count" title="${n} tile(s)">${n}</span>` : ''}
       <button class="ctl ai-btn sec-ai" type="button" title="Dashy: act on this section">✦</button>
       <button class="ctl sec-style" type="button" title="Card colours">🎨</button>
@@ -72,6 +73,7 @@ export function ghostInner() {
 export function wireSection(el, section) {
   const card = el.querySelector('.section-card');
   const nameEl = el.querySelector('.sec-name');
+  const rainbow = section.headingEffect === SECTION_HEADING_EFFECTS.rainbow;
 
   el.querySelector('.sec-collapse').addEventListener('click', async (e) => {
     e.stopPropagation();
@@ -97,18 +99,29 @@ export function wireSection(el, section) {
         { label: 'Outline', prop: 'borderColor', colors: SECTION_PALETTES.border, current: section.borderColor },
         { label: 'Heading', prop: 'headingColor', colors: SECTION_PALETTES.heading, current: section.headingColor },
       ],
-      toggles: [{ label: 'Bold heading', prop: 'bold', checked: section.bold }],
+      toggles: [
+        { label: 'Bold heading', prop: 'bold', checked: section.bold },
+        { label: 'Rainbow heading', prop: 'headingEffect', checked: rainbow },
+      ],
       onSwatch: ({ prop, color }) => {
         section[prop] = color;
         if (prop === 'color') card.style.background = color;
         else if (prop === 'borderColor') card.style.borderColor = color;
-        else if (prop === 'headingColor') nameEl.style.color = color;
+        else if (prop === 'headingColor' && section.headingEffect !== SECTION_HEADING_EFFECTS.rainbow) nameEl.style.color = color;
         api(`/api/sections/${section.id}`, jsonBody({ [prop]: color }, 'PATCH')).catch(() => toast('Could not save colour', { error: true }));
       },
-      onToggle: ({ checked }) => {
-        section.bold = checked;
-        nameEl.style.fontWeight = checked ? FONT_WEIGHTS.semiBold : FONT_WEIGHTS.normal;
-        api(`/api/sections/${section.id}`, jsonBody({ bold: checked }, 'PATCH')).catch(() => {});
+      onToggle: ({ prop, checked }) => {
+        if (prop === 'bold') {
+          section.bold = checked;
+          nameEl.style.fontWeight = checked ? FONT_WEIGHTS.semiBold : FONT_WEIGHTS.normal;
+          api(`/api/sections/${section.id}`, jsonBody({ bold: checked }, 'PATCH')).catch(() => {});
+          return;
+        }
+        const headingEffect = checked ? SECTION_HEADING_EFFECTS.rainbow : SECTION_HEADING_EFFECTS.none;
+        section.headingEffect = headingEffect;
+        nameEl.classList.toggle('rainbow-heading', checked);
+        nameEl.style.color = checked ? '' : (section.headingColor || '');
+        api(`/api/sections/${section.id}`, jsonBody({ headingEffect }, 'PATCH')).catch(() => {});
       },
     });
   });
