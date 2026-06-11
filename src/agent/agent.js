@@ -22,9 +22,19 @@ function parseArgs(raw) {
 //   { type:'delta', text }                       — a streamed reply fragment
 //   { type:'tool-start', i, name, args }         — a tool call is starting
 //   { type:'tool-result', i, name, args, ok, result|error }
-// Without onEvent the behavior (and the Ollama request) is exactly as before,
-// so the validation harness and orchestration modes are unaffected.
-export async function runAgent({ model, store, messages, ollama = new Ollama(), maxToolCalls, maxSteps, options, onEvent }) {
+// Without onEvent/runTool the behavior (and the Ollama request) is exactly as
+// before, so the validation harness and orchestration modes are unaffected.
+export async function runAgent({
+  model,
+  store,
+  messages,
+  ollama = new Ollama(),
+  maxToolCalls,
+  maxSteps,
+  options,
+  onEvent,
+  runTool = (fn) => fn(),
+}) {
   const handlers = makeToolHandlers(store, { requestedBy: model });
   const convo = [{ role: 'system', content: systemPrompt(store) }, ...messages];
   const trace = []; // { name, args, ok, result|error }
@@ -64,7 +74,7 @@ export async function runAgent({ model, store, messages, ollama = new Ollama(), 
         entry = { name, args, ok: false, error: `unknown tool: ${name}` };
       } else {
         try {
-          entry = { name, args, ok: true, result: await handler(args) };
+          entry = { name, args, ok: true, result: await runTool(() => handler(args), { i: toolCalls, name, args }) };
         } catch (err) {
           entry = { name, args, ok: false, error: err.message };
         }

@@ -95,13 +95,22 @@ function chatRequest(req, res) {
 }
 
 export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
+  // Agent tool calls should update every open tab, including the tab that asked
+  // for the run. The chat UI does not locally apply tool results, so tagging
+  // these broadcasts as a same-tab echo would make the requester wait until the
+  // final catch-up fetch.
+  const broadcastAgentMutation = (fn) => {
+    events.lastClientId = null;
+    return fn();
+  };
+
   // Whole-reply chat (legacy UI, curl, and the stream fallback path).
   app.post('/api/agent/chat', wrap(async (req, res) => {
     const r = chatRequest(req, res);
     if (!r) return;
     const started = Date.now();
     try {
-      const result = await runAgent({ model: r.model, store, messages: r.safeMessages, ollama });
+      const result = await runAgent({ model: r.model, store, messages: r.safeMessages, ollama, runTool: broadcastAgentMutation });
       logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.safeMessages, reply: result.reply, trace: result.trace, steps: result.steps, ms: Date.now() - started });
       res.json({
         reply: result.reply,
@@ -138,6 +147,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
         store,
         messages: r.safeMessages,
         ollama,
+        runTool: broadcastAgentMutation,
         onEvent: (ev) => {
           if (ev.type === 'delta') send('delta', { text: ev.text });
           else if (ev.type === 'tool-start') {

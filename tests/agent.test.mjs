@@ -85,3 +85,33 @@ test('onEvent streams deltas and tool lifecycle without changing the result', as
   assert.equal(done.result.added.name, 'From stream');
   assert.equal(store.getState().sections.some((s) => s.name === 'From stream'), true);
 });
+
+test('runTool wraps tool handler execution', async () => {
+  const store = new Store({ persist: false }).load();
+  let round = 0;
+  const ollama = {
+    async chatStream() {
+      round += 1;
+      if (round === 1) return { role: 'assistant', content: '', tool_calls: [toolCall('add_section', { name: 'Wrapped' })] };
+      return { role: 'assistant', content: 'Done.' };
+    },
+  };
+  const seen = [];
+
+  const result = await runAgent({
+    model: 'test-model',
+    store,
+    messages: [{ role: 'user', content: 'add a section' }],
+    ollama,
+    onEvent: () => {},
+    runTool: async (fn, call) => {
+      seen.push(`before:${call.name}`);
+      const value = await fn();
+      seen.push(`after:${call.name}`);
+      return value;
+    },
+  });
+
+  assert.equal(result.trace[0].result.added.name, 'Wrapped');
+  assert.deepEqual(seen, ['before:add_section', 'after:add_section']);
+});

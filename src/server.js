@@ -37,10 +37,15 @@ const app = express();
 app.use(express.json({ limit: config.jsonBodyLimit }));
 
 // Remember which tab is talking to us; store.onChange fires synchronously
-// inside the mutation, so this is accurate for REST calls (agent runs set it
-// explicitly around the run).
+// inside normal REST mutations, so this is accurate for echo suppression there.
+// Agent tool mutations clear this marker so their live updates reach the tab
+// that asked for the run too.
 app.use('/api', (req, res, next) => {
-  events.lastClientId = req.get('x-client-id') || null;
+  const sourceClient = req.get('x-client-id') || null;
+  events.lastClientId = sourceClient;
+  res.on('finish', () => {
+    if (events.lastClientId === sourceClient) events.lastClientId = null;
+  });
   next();
 });
 
