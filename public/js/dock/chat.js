@@ -40,7 +40,7 @@ function wireSuggestions() {
 
 function saveChat() {
   // Pasted images are session-only: too big for localStorage, gone on reload.
-  const slim = history.map(({ images, ...m }) => m);
+  const slim = history.map(({ images: _images, ...m }) => m);
   try { localStorage.setItem(STORAGE_KEYS.chat, JSON.stringify({ session: SESSION, history: slim })); } catch { /* quota */ }
 }
 
