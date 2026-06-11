@@ -38,8 +38,15 @@
 
 /* ---- Requests ---- */
 .fr-wrap { max-width: 1100px; }
-.fr-form { display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3); max-width: 560px; border: 1px solid var(--edge); border-radius: var(--r-3); margin-bottom: var(--sp-4); }
-.fr-form button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px; cursor: pointer; }
+/* Manual entry: a slim composer bar spanning the top, not a block. */
+.fr-form { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2); border: 1px solid var(--edge); border-radius: var(--r-3); margin-bottom: var(--sp-4); }
+#fr-title { flex: 0 1 300px; }
+#fr-detail { flex: 1; resize: none; }
+.fr-form .primary-btn { flex: none; }
+@media (max-width: 700px) {
+  .fr-form { flex-direction: column; align-items: stretch; }
+  #fr-title { flex: none; }
+}
 .fr-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: var(--sp-3); }
 .fr { background: var(--surface-2); border: 1px solid var(--edge); border-left: 3px solid var(--unknown); border-radius: 8px; padding: 10px; }
 .fr.open { border-left-color: var(--accent); }
