@@ -227,7 +227,7 @@ function renderTransport() {
     <button id="rp-play" class="rp-tbtn" type="button" title="Play / pause">${playing ? '⏸' : '▶'}</button>
     <button id="rp-speed" class="rp-tbtn" type="button" title="Speed">${speed}×</button>
     <input id="rp-scrub" class="rp-scrub" type="range" min="0" max="${frames.length - 1}" value="${idx}" />
-    <span class="rp-count">${idx + 1}/${frames.length}</span>`;
+    <span id="rp-count" class="rp-count">${idx + 1}/${frames.length}</span>`;
   $('#rp-restart').addEventListener('click', restart);
   $('#rp-play').addEventListener('click', togglePlay);
   $('#rp-speed').addEventListener('click', cycleSpeed);
