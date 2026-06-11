@@ -54,8 +54,20 @@ export const toggleDock = () => (isOpen() ? collapseDock() : openDock());
 function wireResizer() {
   const resizer = $('#dock-resizer');
   let dragging = false;
+  let raf = 0;
+  // Ends the drag however it finishes: pointerup, pointercancel, or losing
+  // capture (alt-tab, releasing over browser chrome). Without these the
+  // dragging flag sticks and hovering the handle resizes with no button held.
+  const stop = () => {
+    if (!dragging) return;
+    dragging = false;
+    resizer.classList.remove('active');
+    persist();
+    refreshGridWidth();
+  };
   resizer.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
+    e.preventDefault(); // no text-selection sweep while dragging
     dragging = true;
     resizer.classList.add('active');
     resizer.setPointerCapture(e.pointerId);
@@ -63,17 +75,12 @@ function wireResizer() {
   resizer.addEventListener('pointermove', (e) => {
     if (!dragging) return;
     width = clampWidth(window.innerWidth - e.clientX);
-    applyWidth();
-    refreshGridWidth();
+    // Coalesce to one board relayout per frame; pointermove can fire faster.
+    if (!raf) raf = requestAnimationFrame(() => { raf = 0; applyWidth(); refreshGridWidth(); });
   });
-  resizer.addEventListener('pointerup', (e) => {
-    if (!dragging) return;
-    dragging = false;
-    resizer.classList.remove('active');
-    resizer.releasePointerCapture(e.pointerId);
-    persist();
-    refreshGridWidth();
-  });
+  resizer.addEventListener('pointerup', stop);
+  resizer.addEventListener('pointercancel', stop);
+  resizer.addEventListener('lostpointercapture', stop);
 }
 
 export function initDock() {

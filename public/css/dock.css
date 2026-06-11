@@ -25,7 +25,7 @@
 
 /* ---- Panel ---- */
 .dock-panel { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.dock-resizer { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 2; }
+.dock-resizer { position: absolute; left: -3px; top: 0; bottom: 0; width: 6px; cursor: col-resize; z-index: 2; touch-action: none; }
 .dock-resizer:hover, .dock-resizer.active { background: var(--ai-dim); }
 
 .dock-head { display: flex; align-items: center; gap: 10px; padding: var(--sp-3) 14px; border-bottom: 1px solid var(--edge); }
