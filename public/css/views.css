@@ -21,10 +21,13 @@
 .mw-empty { color: var(--muted); font-size: 12.5px; font-style: italic; padding: 6px 2px; }
 
 /* ---- Abilities ---- */
-.ab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--sp-3); }
-.ab-card { background: linear-gradient(180deg, var(--surface-1) 0%, #10141c 100%); border: 1px solid var(--edge); border-radius: var(--r-3); box-shadow: var(--shadow-1); padding: var(--sp-3); }
+/* Cards fill the viewport width first (no sys-view cap), then the rows
+   stretch so the grid fills the remaining height. */
+#view-abilities { max-width: none; min-height: 100%; display: flex; flex-direction: column; }
+.ab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); grid-auto-rows: 1fr; gap: var(--sp-3); flex: 1; }
+.ab-card { background: linear-gradient(180deg, var(--surface-1) 0%, #10141c 100%); border: 1px solid var(--edge); border-radius: var(--r-3); box-shadow: var(--shadow-1); padding: var(--sp-3); display: flex; flex-direction: column; }
 .ab-name { font-weight: 650; font-family: var(--font-mono); font-size: var(--fs-1); color: var(--ai-2); }
-.ab-desc { color: var(--muted); font-size: 12.5px; margin: 2px 0 6px; line-height: 1.4; }
+.ab-desc { color: var(--muted); font-size: 12.5px; margin: 2px 0 6px; line-height: 1.4; flex: 1; }
 .ab-params { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .ab-param { font-size: 11px; padding: 1px 7px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--edge); color: var(--muted); }
 .ab-param.req { color: var(--text); border-color: var(--edge-strong); }
