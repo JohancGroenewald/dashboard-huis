@@ -59,21 +59,49 @@ export function wireTileZone(el, section) {
       e.dataTransfer.setData('text/tile', chip.dataset.id);
       e.dataTransfer.effectAllowed = 'move';
     });
+    chip.addEventListener('dragend', () => {
+      // The drop may land in another section (or nowhere); sweep every zone.
+      for (const z of document.querySelectorAll('.sec-tiles.drop')) z.classList.remove('drop');
+      clearDropMarks(document);
+    });
   }
 
   const zone = el.querySelector('.sec-tiles');
+  // Tiles flow left-to-right in a wrapping grid, so the cursor's side of the
+  // hovered chip decides insert-before vs insert-after in flow order.
+  const insertAfter = (chip, e) => e.clientX > chip.getBoundingClientRect().left + chip.offsetWidth / 2;
   zone.addEventListener('dragover', (e) => {
-    if (e.dataTransfer.types.includes('text/tile')) { e.preventDefault(); zone.classList.add('drop'); }
+    if (!e.dataTransfer.types.includes('text/tile')) return;
+    e.preventDefault();
+    zone.classList.add('drop');
+    clearDropMarks(zone);
+    const t = e.target.closest('.tile-chip');
+    if (t) t.classList.add(insertAfter(t, e) ? 'drop-after' : 'drop-before');
   });
-  zone.addEventListener('dragleave', () => zone.classList.remove('drop'));
+  zone.addEventListener('dragleave', () => { zone.classList.remove('drop'); clearDropMarks(zone); });
   zone.addEventListener('drop', async (e) => {
     zone.classList.remove('drop');
+    clearDropMarks(zone);
     const tileId = e.dataTransfer.getData('text/tile');
     if (!tileId) return;
     e.preventDefault();
-    await api(`/api/tiles/${tileId}/move`, jsonBody({ section_id: section.id }));
+    const chips = [...zone.querySelectorAll('.tile-chip')];
+    const target = e.target.closest('.tile-chip');
+    let position; // undefined → append at the end (the pre-reorder behavior)
+    if (target) {
+      position = chips.indexOf(target) + (insertAfter(target, e) ? 1 : 0);
+      const from = chips.findIndex((c) => c.dataset.id === tileId);
+      // moveTile removes the tile before inserting, shifting later indexes.
+      if (from !== -1 && from < position) position -= 1;
+      if (from !== -1 && from === position) return; // dropped where it already sits
+    }
+    await api(`/api/tiles/${tileId}/move`, jsonBody({ section_id: section.id, position }));
     await loadDashboard();
   });
+}
+
+function clearDropMarks(root) {
+  for (const c of root.querySelectorAll('.drop-before, .drop-after')) c.classList.remove('drop-before', 'drop-after');
 }
 
 // Patch health dots in place — no board re-render for a poll tick.
