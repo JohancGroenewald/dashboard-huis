@@ -119,6 +119,17 @@
 .rp-transcript .step.pending { opacity: 0.4; }
 .rp-transcript .step.pending .step-status { color: var(--muted); }
 
+/* The model's reasoning: per-round thinking, interim remarks, call details. */
+.rp-think { font-size: 12px; line-height: 1.5; color: var(--muted); font-style: italic; background: rgba(255, 255, 255, 0.02); border-left: 2px solid var(--edge-strong); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 7px 11px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+.rp-think-tag { display: block; font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; opacity: 0.75; }
+.rp-transcript .row.assistant.interim .bubble { background: transparent; border: 1px dashed var(--edge-strong); color: var(--muted); }
+.rp-transcript .step.expandable { cursor: pointer; }
+.rp-transcript .step.expandable:hover { border-left-color: var(--ai); color: var(--text); }
+.step-caret { margin-left: auto; color: var(--muted); font-size: 10px; flex: none; }
+.rp-transcript .step-detail { margin: 0 0 6px 22px; font-size: 11px; }
+.rp-transcript .step-detail-k { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; font-size: 10px; margin-top: 4px; }
+.rp-transcript .step-detail pre { margin: 2px 0; background: rgba(0, 0, 0, 0.3); border: 1px solid var(--edge); border-radius: var(--r-1); padding: 6px 9px; max-height: 200px; overflow: auto; font-family: var(--font-mono); font-size: 11px; white-space: pre-wrap; overflow-wrap: anywhere; }
+
 .rp-filmstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: var(--sp-3); padding-top: var(--sp-2); border-top: 1px solid var(--edge-soft); }
 .rp-cell { font-family: var(--font-mono); font-size: 11px; padding: 2px 8px; border-radius: var(--r-1); border: 1px solid var(--edge); color: var(--muted); transition: all var(--t-fast); }
 .rp-cell.idle { opacity: 0.45; }

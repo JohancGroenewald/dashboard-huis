@@ -82,6 +82,7 @@ export class Ollama {
       const decoder = new TextDecoder();
       let buf = '';
       let content = '';
+      let thinking = '';
       let role = 'assistant';
       const toolCalls = [];
       const handleLine = (line) => {
@@ -91,6 +92,7 @@ export class Ollama {
         const m = chunk.message;
         if (m?.role) role = m.role;
         if (m?.content) { content += m.content; onToken?.(m.content); }
+        if (m?.thinking) thinking += m.thinking;
         if (Array.isArray(m?.tool_calls)) toolCalls.push(...m.tool_calls);
       };
       for (;;) {
@@ -105,7 +107,7 @@ export class Ollama {
         }
       }
       handleLine(buf.trim());
-      return { role, content, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) };
+      return { role, content, ...(thinking ? { thinking } : {}), ...(toolCalls.length ? { tool_calls: toolCalls } : {}) };
     } finally {
       clearTimeout(timer);
     }

@@ -38,6 +38,7 @@ export async function runAgent({
   const handlers = makeToolHandlers(store, { requestedBy: model });
   const convo = [{ role: 'system', content: systemPrompt(store) }, ...messages];
   const trace = []; // { name, args, ok, result|error }
+  const rounds = []; // per chat round: { thinking, content, calls } — calls counts executed ones
   const limit = resolveToolCallLimit(maxToolCalls, maxSteps);
   let steps = 0;
   let toolCalls = 0;
@@ -48,10 +49,12 @@ export async function runAgent({
       : await ollama.chat({ model, messages: convo, tools: toolSpecs, options });
     convo.push(msg);
     steps += 1;
+    const round = { thinking: msg.thinking || '', content: msg.content || '', calls: 0 };
+    rounds.push(round);
 
     const calls = msg.tool_calls || [];
     if (calls.length === 0) {
-      return { reply: msg.content || '', trace, steps, toolCalls, convo };
+      return { reply: msg.content || '', trace, rounds, steps, toolCalls, convo };
     }
 
     for (const call of calls) {
@@ -59,6 +62,7 @@ export async function runAgent({
         return {
           reply: '(stopped: reached the maximum number of tool calls)',
           trace,
+          rounds,
           steps,
           toolCalls,
           convo,
@@ -81,6 +85,7 @@ export async function runAgent({
       }
       onEvent?.({ type: 'tool-result', i: toolCalls, ...entry });
       trace.push(entry);
+      round.calls += 1;
       toolCalls += 1;
       convo.push({
         role: 'tool',
@@ -94,6 +99,7 @@ export async function runAgent({
   return {
     reply: '(stopped: reached the maximum number of tool calls)',
     trace,
+    rounds,
     steps,
     toolCalls,
     convo,

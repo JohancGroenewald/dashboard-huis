@@ -160,14 +160,16 @@ app.get('/api/logs', wrap((req, res) => {
   if (req.query.excludeModel) { where.push('model != ?'); params.push(req.query.excludeModel); }
   // error is NULL on successful rows; a bare != would drop those too.
   if (req.query.excludeError) { where.push('(error IS NULL OR error != ?)'); params.push(req.query.excludeError); }
-  let sql = 'SELECT id, ts, kind, model, task, user_msg, reply, trace, steps, ms, pass, error FROM chat_log';
+  let sql = 'SELECT id, ts, kind, model, task, user_msg, reply, trace, rounds, steps, ms, pass, error FROM chat_log';
   if (where.length) sql += ` WHERE ${where.join(' AND ')}`;
   sql += ' ORDER BY id DESC LIMIT ?';
   params.push(limit);
   const rows = query(sql, params).map((r) => {
     let trace = [];
+    let rounds = [];
     try { trace = JSON.parse(r.trace || '[]'); } catch { /* ignore */ }
-    return { ...r, trace };
+    try { rounds = JSON.parse(r.rounds || '[]'); } catch { /* ignore */ }
+    return { ...r, trace, rounds };
   });
   res.json(rows);
 }));

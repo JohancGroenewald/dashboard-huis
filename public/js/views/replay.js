@@ -13,7 +13,7 @@ import { showView } from '../workspaces.js';
 
 const KIND = { chat: '💬', validate: '🧪', redteam: '🛡️' };
 // Per-frame display time at 1× (ms); the scheduler divides by the speed.
-const DUR = { prompt: 600, toolStart: 480, toolDone: 320, reply: 55, end: 500 };
+const DUR = { prompt: 600, toolStart: 480, toolDone: 320, think: 30, say: 50, reply: 55, end: 500 };
 const SPEEDS = [1, 2, 4];
 
 let rows = [];
@@ -56,24 +56,42 @@ function stepSummary(e) {
   return args.length > 60 ? `${args.slice(0, 60)}…` : args;
 }
 
-// Flatten one run into an ordered list of frames.
-function buildFrames(r) {
+// Word-chunked frames for a streamed text block (~24 frames max per block).
+function pushTextFrames(f, kind, r, text) {
+  const total = countWords(text || '');
+  if (!total) return;
+  const stepN = Math.max(1, Math.round(total / 24));
+  for (let n = stepN; n < total; n += stepN) f.push({ kind, r, upto: n });
+  f.push({ kind, r, upto: total });
+}
+
+// Flatten one run into an ordered list of frames. With rounds logged, each
+// chat round plays as: thinking → interim remark → its tool calls; the final
+// round's content is the reply itself, which streams at the end as before.
+function buildFrames(run) {
   const f = [{ kind: 'prompt' }];
-  const trace = r.trace || [];
-  trace.forEach((_, i) => { f.push({ kind: 'tool', i, phase: 'start' }); f.push({ kind: 'tool', i, phase: 'done' }); });
-  const total = countWords(r.reply || '');
-  if (total) {
-    const stepN = Math.max(1, Math.round(total / 24)); // ~24 reply frames max
-    for (let n = stepN; n < total; n += stepN) f.push({ kind: 'reply', upto: n });
-    f.push({ kind: 'reply', upto: total });
-  }
+  const trace = run.trace || [];
+  const rounds = Array.isArray(run.rounds) ? run.rounds : [];
+  let ti = 0;
+  rounds.forEach((rd, ri) => {
+    pushTextFrames(f, 'think', ri, rd.thinking);
+    if (rd.calls) {
+      pushTextFrames(f, 'say', ri, rd.content);
+      for (let c = 0; c < rd.calls && ti < trace.length; c += 1, ti += 1) {
+        f.push({ kind: 'tool', i: ti, phase: 'start' }, { kind: 'tool', i: ti, phase: 'done' });
+      }
+    }
+  });
+  // Old rows have no rounds; play any unclaimed tool calls flat, as before.
+  for (; ti < trace.length; ti += 1) f.push({ kind: 'tool', i: ti, phase: 'start' }, { kind: 'tool', i: ti, phase: 'done' });
+  pushTextFrames(f, 'reply', null, run.reply);
   f.push({ kind: 'end' });
   return f;
 }
 
 // Cumulative stage state after playing frames[0..idx].
 function stateAt(i) {
-  const st = { steps: new Map(), replyWords: 0, ended: false };
+  const st = { steps: new Map(), text: new Map(), replyWords: 0, ended: false };
   for (let k = 0; k <= i && k < frames.length; k++) {
     const f = frames[k];
     if (f.kind === 'tool') {
@@ -81,21 +99,50 @@ function stateAt(i) {
       if (f.phase === 'start') s.started = true; else s.done = true;
       st.steps.set(f.i, s);
     } else if (f.kind === 'reply') st.replyWords = f.upto;
+    else if (f.kind === 'think' || f.kind === 'say') st.text.set(`${f.kind}-${f.r}`, f.upto);
     else if (f.kind === 'end') st.ended = true;
   }
   return st;
 }
+
+const openSteps = new Set(); // indexes whose args/result detail is expanded
 
 function stepRow(e, i, state) {
   const s = state.steps.get(i);
   const status = !s?.started ? 'pending' : !s.done ? 'running' : (e.ok ? 'ok' : 'bad');
   const glyph = status === 'pending' ? '·' : status === 'running' ? '◌' : e.ok ? '✓' : '✗';
   const sub = s?.done ? stepSummary(e) : '';
-  return `<div class="step ${status}">
+  const open = s?.done && openSteps.has(i);
+  const row = `<div class="step ${status}${s?.done ? ' expandable' : ''}"${s?.done ? ` data-step="${i}" title="${open ? 'Hide' : 'Show'} call details"` : ''}>
     <span class="step-status">${glyph}</span>
     <span class="step-name">${esc(e.name || '?')}</span>
     <span class="step-sub">${esc(sub)}</span>
+    ${s?.done ? `<span class="step-caret">${open ? '▾' : '▸'}</span>` : ''}
   </div>`;
+  if (!open) return row;
+  return row + `<div class="step-detail">
+    <div class="step-detail-k">args</div>
+    <pre>${esc(JSON.stringify(e.args ?? {}, null, 1))}</pre>
+    <div class="step-detail-k">${e.ok ? 'result' : 'error'}</div>
+    <pre>${esc(JSON.stringify((e.ok ? e.result : { error: e.error }) ?? null, null, 1))}</pre>
+  </div>`;
+}
+
+// The model's hidden reasoning for one round, revealed word by word.
+function thinkBlock(text, ri, st) {
+  const shown = st.text.get(`think-${ri}`) || 0;
+  if (!shown) return '';
+  const partial = shown < countWords(text);
+  return `<div class="rp-think"><span class="rp-think-tag">💭 thinking</span>${esc(sliceWords(text, shown))}${partial ? '<span class="cursor"></span>' : ''}</div>`;
+}
+
+// What the model said out loud alongside its tool calls (not the final reply).
+function sayBubble(text, ri, st) {
+  const shown = st.text.get(`say-${ri}`) || 0;
+  if (!shown) return '';
+  const full = shown >= countWords(text);
+  const body = full ? mdToHtml(text) : `${esc(sliceWords(text, shown))}<span class="cursor"></span>`;
+  return `<div class="row assistant interim"><div class="avatar">✦</div><div class="bubble">${body}</div></div>`;
 }
 
 function renderStage() {
@@ -103,14 +150,30 @@ function renderStage() {
   if (!row) { stage.innerHTML = '<div class="rp-empty">Pick a run on the left to play it back.</div>'; return; }
   const st = stateAt(idx);
   const trace = row.trace || [];
+  const rounds = Array.isArray(row.rounds) ? row.rounds : [];
   const verdict = row.kind !== 'chat' && row.pass !== null ? (row.pass ? '✓ pass' : '✗ fail') : '';
   const total = countWords(row.reply || '');
-  const typing = st.replyWords > 0 && st.replyWords < total && !st.ended;
+  const cur = frames[idx];
+  const typing = !st.ended && (cur?.kind === 'think' || cur?.kind === 'say' || cur?.kind === 'reply');
   const replyHtml = row.error
     ? `<div class="rp-error">⚠️ ${esc(row.error)}</div>`
-    : st.ended || st.replyWords >= total
+    : st.ended || (total && st.replyWords >= total)
       ? mdToHtml(row.reply || '(no reply)')
       : (st.replyWords > 0 ? `${esc(sliceWords(row.reply, st.replyWords))}<span class="cursor"></span>` : '');
+
+  // Interleave each round's thinking / interim remark with its tool calls.
+  let ti = 0;
+  let flow = '';
+  rounds.forEach((rd, ri) => {
+    flow += thinkBlock(rd.thinking || '', ri, st);
+    if (rd.calls) {
+      flow += sayBubble(rd.content || '', ri, st);
+      flow += `<div class="steps">${trace.slice(ti, ti + rd.calls).map((e, k) => stepRow(e, ti + k, st)).join('')}</div>`;
+      ti += rd.calls;
+    }
+  });
+  const rest = trace.slice(ti).map((e, k) => stepRow(e, ti + k, st)).join('');
+  if (rest) flow += `<div class="steps">${rest}</div>`;
 
   stage.innerHTML = `
     <div class="rp-stage-head">
@@ -119,16 +182,30 @@ function renderStage() {
       ${verdict ? `<span class="rp-chip ${row.pass ? 'ok' : 'bad'}">${verdict}</span>` : ''}
       ${row.ms ? `<span class="rp-chip">${fmtMs(row.ms)}</span>` : ''}
       <span class="rp-chip">${trace.length} tool call${trace.length === 1 ? '' : 's'}</span>
+      ${rounds.length ? `<span class="rp-chip">${rounds.length} round${rounds.length === 1 ? '' : 's'}</span>` : ''}
     </div>
     <div class="rp-transcript">
       <div class="row user"><div class="bubble">${esc(row.user_msg || '(no prompt)')}</div></div>
-      ${trace.length ? `<div class="steps">${trace.map((e, i) => stepRow(e, i, st)).join('')}</div>` : ''}
+      ${flow}
       ${replyHtml ? `<div class="row assistant"><div class="avatar">✦</div><div class="bubble">${replyHtml}</div></div>` : ''}
     </div>
     ${trace.length ? filmstrip(trace, st) : ''}`;
+  for (const el of stage.querySelectorAll('.step[data-step]')) {
+    el.addEventListener('click', () => {
+      const i = Number(el.dataset.step);
+      if (openSteps.has(i)) openSteps.delete(i); else openSteps.add(i);
+      renderStage();
+    });
+  }
   if (typing) {
     const log = $('#rp-stage .rp-transcript');
     if (log) log.scrollTop = log.scrollHeight;
+    // Long thinking blocks scroll internally; keep the tail in view while
+    // they stream (innerHTML rebuilds reset inner scroll positions).
+    if (cur?.kind === 'think' && log) {
+      const ths = log.querySelectorAll('.rp-think');
+      if (ths.length) { const t = ths[ths.length - 1]; t.scrollTop = t.scrollHeight; }
+    }
   }
 }
 
@@ -170,8 +247,9 @@ function stop() { clearTimeout(timer); timer = null; playing = false; }
 function scheduleNext() {
   if (!playing) return;
   if (idx >= frames.length - 1) { playing = false; renderTransport(); return; }
-  const dur = ({ prompt: DUR.prompt, end: DUR.end, reply: DUR.reply }[frames[idx + 1].kind])
-    ?? (frames[idx + 1].phase === 'start' ? DUR.toolStart : DUR.toolDone);
+  const next = frames[idx + 1];
+  const dur = ({ prompt: DUR.prompt, end: DUR.end, reply: DUR.reply, think: DUR.think, say: DUR.say }[next.kind])
+    ?? (next.phase === 'start' ? DUR.toolStart : DUR.toolDone);
   timer = setTimeout(() => { idx += 1; renderFrame(); scheduleNext(); }, dur / speed);
 }
 
@@ -200,6 +278,7 @@ function seek(n) {
 function selectRow(r) {
   stop();
   row = r;
+  openSteps.clear();
   frames = buildFrames(r);
   idx = 0;
   for (const b of document.querySelectorAll('#rp-list .rp-item')) b.classList.toggle('sel', b.dataset.id === String(r.id));

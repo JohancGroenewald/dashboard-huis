@@ -112,7 +112,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
     const started = Date.now();
     try {
       const result = await runAgent({ model: r.model, store, messages: r.safeMessages, ollama, runTool: broadcastAgentMutation });
-      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.safeMessages, reply: result.reply, trace: result.trace, steps: result.steps, ms: Date.now() - started });
+      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.safeMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started });
       res.json({
         reply: result.reply,
         trace: result.trace,
@@ -162,7 +162,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
           }
         },
       });
-      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.safeMessages, reply: result.reply, trace: result.trace, steps: result.steps, ms: Date.now() - started });
+      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.safeMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started });
       const mutated = result.trace.some((t) => t.ok && MUTATING.has(t.name));
       const usedHistory = result.trace.some((t) => t.ok && (t.name === 'undo' || t.name === 'redo'));
       send('done', {

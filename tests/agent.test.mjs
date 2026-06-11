@@ -57,7 +57,7 @@ test('onEvent streams deltas and tool lifecycle without changing the result', as
     async chatStream({ onToken }) {
       round += 1;
       if (round === 1) {
-        return { role: 'assistant', content: '', tool_calls: [toolCall('add_section', { name: 'From stream' })] };
+        return { role: 'assistant', thinking: 'needs a section', content: 'Adding it now.', tool_calls: [toolCall('add_section', { name: 'From stream' })] };
       }
       for (const t of ['All ', 'done.']) onToken(t);
       return { role: 'assistant', content: 'All done.' };
@@ -77,6 +77,11 @@ test('onEvent streams deltas and tool lifecycle without changing the result', as
   assert.equal(result.reply, 'All done.');
   assert.equal(result.trace.length, 1);
   assert.equal(result.trace[0].ok, true);
+  // Each round's reasoning is preserved for the replay view.
+  assert.deepEqual(result.rounds, [
+    { thinking: 'needs a section', content: 'Adding it now.', calls: 1 },
+    { thinking: '', content: 'All done.', calls: 0 },
+  ]);
   assert.deepEqual(events.filter((e) => e.type === 'delta').map((e) => e.text), ['All ', 'done.']);
   const start = events.find((e) => e.type === 'tool-start');
   const done = events.find((e) => e.type === 'tool-result');

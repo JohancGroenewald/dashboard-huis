@@ -17,9 +17,10 @@ function ndjsonServer(chunks) {
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
 }
 
-test('chatStream assembles streamed content and split tool_calls', async () => {
+test('chatStream assembles streamed content, thinking and split tool_calls', async () => {
   const server = await ndjsonServer([
-    { message: { role: 'assistant', content: 'Hel' } },
+    { message: { role: 'assistant', thinking: 'let me ' } },
+    { message: { thinking: 'see', content: 'Hel' } },
     { message: { content: 'lo' } },
     { message: { content: '', tool_calls: [{ function: { name: 'a', arguments: {} } }] } },
     { message: { content: '', tool_calls: [{ function: { name: 'b', arguments: '{"x":1}' } }] }, done: true },
@@ -29,6 +30,7 @@ test('chatStream assembles streamed content and split tool_calls', async () => {
     const tokens = [];
     const msg = await ollama.chatStream({ model: 'm', messages: [], onToken: (t) => tokens.push(t) });
     assert.equal(msg.content, 'Hello');
+    assert.equal(msg.thinking, 'let me see');
     assert.deepEqual(tokens, ['Hel', 'lo']);
     assert.equal(msg.tool_calls.length, 2);
     assert.equal(msg.tool_calls[1].function.name, 'b');
