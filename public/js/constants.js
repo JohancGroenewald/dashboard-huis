@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   gridCellHeight: 'dash2-cellh',
   autoArrange: 'dash2-autoarrange',
   showGrid: 'dash2-showgrid',
+  modelsCollapsed: 'dash2-models-collapsed',
 };
 
 export const REFRESH_INTERVALS = {

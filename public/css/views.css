@@ -3,7 +3,11 @@
 /* ---- Models ---- */
 .mw-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; align-items: start; }
 .mw-section { background: linear-gradient(180deg, var(--surface-1) 0%, #10141c 100%); border: 1px solid var(--edge); border-radius: var(--r-3); box-shadow: var(--shadow-1); padding: var(--sp-3); }
-.mw-sec-head { display: flex; align-items: center; gap: var(--sp-2); padding: 0 2px 8px; border-bottom: 1px solid var(--edge-soft); margin-bottom: 10px; }
+.mw-sec-head { display: flex; align-items: center; gap: var(--sp-2); padding: 0 2px 8px; border-bottom: 1px solid var(--edge-soft); margin-bottom: 10px; cursor: pointer; }
+.mw-collapse { border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: var(--fs-0); padding: 0 2px; line-height: 1; }
+.mw-sec-head:hover .mw-collapse { color: var(--text); }
+.mw-section.collapsed .mw-sec-head { border-bottom: 0; margin-bottom: 0; padding-bottom: 0; }
+.mw-section.collapsed .mw-tiles { display: none; }
 .mw-sec-name { flex: 1; font-weight: 650; font-size: 14.5px; }
 .mw-count { color: var(--muted); font-size: var(--fs-0); background: var(--surface-2); border: 1px solid var(--edge); border-radius: 999px; padding: 0 8px; }
 .mw-tiles { display: grid; gap: var(--sp-2); }
