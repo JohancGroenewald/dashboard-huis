@@ -13,7 +13,7 @@ import { isApproved } from '../validation/registry.js';
 const MUTATING = new Set([
   'add_tile', 'add_section', 'add_note', 'update_tile', 'update_note', 'rename_section', 'update_section',
   'remove_tile', 'remove_section', 'remove_note', 'move_tile', 'move_section', 'resize_card',
-  'add_workspace', 'rename_workspace', 'remove_workspace', 'switch_workspace', 'move_to_workspace',
+  'add_workspace', 'rename_workspace', 'set_workspace_background', 'remove_workspace', 'switch_workspace', 'move_to_workspace',
   'undo', 'redo',
 ]);
 
@@ -34,6 +34,7 @@ export function followupsFromTrace(trace = []) {
     case 'switch_workspace': return ['Add a section', 'Add a tile', 'Add a note'];
     case 'move_to_workspace': return ['Switch to that workspace', 'Move another', 'Undo that'];
     case 'rename_workspace': return ['Switch to it', 'Undo that'];
+    case 'set_workspace_background': return ['Try a calmer background', 'Clear the background', 'Undo that'];
     case 'remove_workspace':
     case 'remove_tile':
     case 'remove_section':

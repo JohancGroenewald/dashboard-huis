@@ -6,6 +6,7 @@ import { store, subscribe, loadDashboard, setHealth, setInteractionCheck, applyD
 import { setKeyHandler } from './keys.js';
 import { initWorkspaces, registerView } from './workspaces.js';
 import { initBoard, isInteracting } from './board/board.js';
+import { initWorkspaceBackground } from './board/background.js';
 import { initLive } from './state/live.js';
 import { initDock } from './dock/dock.js';
 import { initModels } from './dock/models.js';
@@ -73,6 +74,7 @@ setKeyHandler('redo', () => history('/api/redo'));
 // ---- boot ----
 setInteractionCheck(isInteracting);
 initBoard();
+initWorkspaceBackground();
 initWorkspaces();
 initRequests();
 initLive();

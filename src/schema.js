@@ -3,11 +3,12 @@
 import crypto from 'node:crypto';
 import {
   DEFAULT_DASHBOARD, FEATURE_REQUEST_STATUSES, HEALTH_TYPES as HEALTH_TYPE_VALUES,
-  NOTE_COLOR_NAMES, SCHEMA_LIMITS, SECTION_HEADING_EFFECTS,
+  NOTE_COLOR_NAMES, SCHEMA_LIMITS, SECTION_HEADING_EFFECTS, WORKSPACE_BACKGROUND_EFFECTS,
 } from './constants.js';
 
 const HEALTH_TYPES = new Set(HEALTH_TYPE_VALUES);
 const HEADING_EFFECTS = new Set(SECTION_HEADING_EFFECTS);
+const BACKGROUND_EFFECTS = new Set(WORKSPACE_BACKGROUND_EFFECTS);
 const HEX_COLOR = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 const COLOR_NAME = /^[a-zA-Z]+$/;
 
@@ -43,6 +44,29 @@ function checkHeadingEffect(val) {
   const effect = val ?? 'none';
   if (!HEADING_EFFECTS.has(effect)) fail(`"section.headingEffect" must be one of ${[...HEADING_EFFECTS].join(', ')}`);
   return effect;
+}
+
+function checkUnitNumber(val, field, fallback = 1) {
+  if (val === undefined || val === null || val === '') return fallback;
+  const n = Number(val);
+  if (!Number.isFinite(n)) fail(`"${field}" must be a number`);
+  return Math.min(Math.max(n, 0), 5);
+}
+
+export function normalizeWorkspaceBackground(raw = {}) {
+  if (!isPlainObject(raw)) fail('"workspace.background" must be an object');
+  const effect = raw.effect ?? 'none';
+  if (!BACKGROUND_EFFECTS.has(effect)) fail(`"workspace.background.effect" must be one of ${[...BACKGROUND_EFFECTS].join(', ')}`);
+  const palette = Array.isArray(raw.palette)
+    ? raw.palette.slice(0, 6).map((c, i) => checkColor(c, `workspace.background.palette[${i}]`)).filter(Boolean)
+    : [];
+  return {
+    effect,
+    palette,
+    speed: checkUnitNumber(raw.speed, 'workspace.background.speed'),
+    density: checkUnitNumber(raw.density, 'workspace.background.density'),
+    intensity: checkUnitNumber(raw.intensity, 'workspace.background.intensity'),
+  };
 }
 
 function checkUrl(val, field, { required = true } = {}) {
@@ -116,6 +140,7 @@ export function normalizeWorkspace(raw) {
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     name: checkString(raw.name, 'workspace.name', { max: SCHEMA_LIMITS.workspaceNameChars }),
+    background: normalizeWorkspaceBackground(raw.background),
   };
 }
 

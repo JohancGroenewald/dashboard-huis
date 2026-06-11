@@ -50,3 +50,19 @@ test('update_section can enable rainbow heading effect', () => {
   assert.equal(result.updated.headingEffect, 'rainbow');
   assert.equal(store.getState().sections.find((s) => s.id === 's1').headingEffect, 'rainbow');
 });
+
+test('set_workspace_background updates a workspace math-art spec', () => {
+  const store = duplicateSectionStore();
+  const handlers = makeToolHandlers(store);
+
+  const result = handlers.set_workspace_background({
+    workspace: 'B',
+    effect: 'stars',
+    palette: ['#123456', 'gold'],
+    density: 2,
+  });
+
+  assert.equal(result.workspace.name, 'B');
+  assert.equal(result.updated.effect, 'stars');
+  assert.equal(store.getState().workspaces.find((w) => w.name === 'B').background.palette[1], 'gold');
+});

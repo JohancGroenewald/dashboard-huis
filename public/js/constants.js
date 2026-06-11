@@ -115,4 +115,12 @@ export const SECTION_HEADING_EFFECTS = {
   rainbow: 'rainbow',
 };
 
+export const WORKSPACE_BACKGROUND_EFFECTS = {
+  none: 'none',
+  waves: 'waves',
+  orbits: 'orbits',
+  plasma: 'plasma',
+  stars: 'stars',
+};
+
 export const FEATURE_REQUEST_STATUSES = ['open', 'planned', 'done', 'rejected'];

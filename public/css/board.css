@@ -3,6 +3,19 @@
 
 .grid-stack { background: transparent; }
 .grid-stack-item-content { inset: 0; overflow: visible; }
+#view-board { position: relative; min-height: calc(100vh - 110px); }
+#board, #empty-hero { position: relative; z-index: 1; }
+.workspace-bg {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity var(--t-med);
+}
+.workspace-bg.active { opacity: 0.42; }
 
 /* Grid guides (toggle): background-size is set from JS to the live cell size. */
 .grid-stack.show-grid {

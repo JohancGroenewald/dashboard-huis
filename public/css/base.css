@@ -33,7 +33,7 @@ kbd {
 /* ---- Frame: topbar over a board+dock row ---- */
 .app { display: flex; flex-direction: column; height: 100vh; }
 .main-row { display: flex; flex: 1; min-height: 0; }
-.board-wrap { flex: 1; min-width: 0; overflow-y: auto; padding: var(--sp-4) 18px 40px; scrollbar-gutter: stable; }
+.board-wrap { flex: 1; min-width: 0; overflow-y: auto; padding: var(--sp-4) 18px 40px; scrollbar-gutter: stable; position: relative; }
 
 /* ---- Topbar ---- */
 .topbar {

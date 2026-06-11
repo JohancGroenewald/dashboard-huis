@@ -53,7 +53,7 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       return {
         title: s.title,
         activeWorkspaceId: s.activeWorkspaceId,
-        workspaces: s.workspaces.map((w) => ({ id: w.id, name: w.name, active: w.id === s.activeWorkspaceId })),
+        workspaces: s.workspaces.map((w) => ({ id: w.id, name: w.name, active: w.id === s.activeWorkspaceId, background: w.background })),
         sections: s.sections.map((sec) => ({
           id: sec.id,
           name: sec.name,
@@ -94,6 +94,14 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
     rename_workspace: ({ workspace, name }) => ({
       updated: store.renameWorkspace(resolveWorkspace(workspace).id, name),
     }),
+
+    set_workspace_background: ({ workspace, effect, palette, speed, density, intensity }) => {
+      const w = resolveWorkspace(workspace);
+      return {
+        updated: store.updateWorkspaceBackground(w.id, { effect, palette, speed, density, intensity }),
+        workspace: { id: w.id, name: w.name },
+      };
+    },
 
     remove_workspace: ({ workspace }) => ({ removed: store.removeWorkspace(resolveWorkspace(workspace).id) }),
 

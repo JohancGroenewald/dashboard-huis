@@ -44,6 +44,20 @@ test('rev bumps on commits and undo/redo, but not on view-only writes', () => {
   assert.equal(store.rev, 3);
 });
 
+test('workspace background updates are validated and undoable', () => {
+  const store = new Store({ persist: false }).load();
+  const wsId = store.getState().workspaces[0].id;
+
+  const bg = store.updateWorkspaceBackground(wsId, { effect: 'waves', palette: ['#abcdef'], speed: 2 });
+
+  assert.equal(bg.effect, 'waves');
+  assert.equal(store.rev, 1);
+  assert.throws(() => store.updateWorkspaceBackground(wsId, { effect: 'eval' }), /workspace\.background\.effect/);
+  assert.equal(store.getState().workspaces[0].background.effect, 'waves');
+  store.undo();
+  assert.equal(store.getState().workspaces[0].background.effect, 'none');
+});
+
 test('onChange fires for commits and flags view-only writes', () => {
   const store = new Store({ persist: false }).load();
   const seen = [];

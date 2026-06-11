@@ -10,7 +10,7 @@ import path from 'node:path';
 import { CONFIG_DEFAULTS, SCHEMA_LIMITS, STORE_LIMITS } from './constants.js';
 import {
   fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote,
-  normalizeFeatureRequest, normalizeWorkspace, normalizeLayout, defaultState, colorName,
+  normalizeFeatureRequest, normalizeWorkspace, normalizeWorkspaceBackground, normalizeLayout, defaultState, colorName,
 } from './schema.js';
 
 export class Store {
@@ -168,6 +168,13 @@ export class Store {
     w.name = checkString(name, 'workspace.name', { max: SCHEMA_LIMITS.workspaceNameChars });
     this.#commit();
     return structuredClone(w);
+  }
+
+  updateWorkspaceBackground(id, background) {
+    const w = this.#workspace(id);
+    w.background = normalizeWorkspaceBackground({ ...w.background, ...background });
+    this.#commit();
+    return structuredClone(w.background);
   }
 
   removeWorkspace(id) {

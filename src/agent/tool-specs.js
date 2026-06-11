@@ -42,6 +42,26 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'set_workspace_background',
+      description:
+        'Set or clear a full-workspace animated math-art canvas background. This is a constrained renderer, not raw JavaScript: choose an effect and visual parameters. Use effect="none" to clear the background.',
+      parameters: {
+        type: 'object',
+        properties: {
+          workspace: { type: 'string', description: 'Workspace id or name.' },
+          effect: { type: 'string', enum: ['none', 'waves', 'orbits', 'plasma', 'stars'], description: 'Background formula/effect.' },
+          palette: { type: 'array', items: { type: 'string' }, description: 'Up to 6 colour names or hex colours.' },
+          speed: { type: 'number', description: 'Animation speed from 0 to 5. Use 1 for normal.' },
+          density: { type: 'number', description: 'How busy the pattern is, from 0 to 5. Use 1 for normal.' },
+          intensity: { type: 'number', description: 'Opacity/brightness strength, from 0 to 5. Use 1 for normal.' },
+        },
+        required: ['workspace', 'effect'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'remove_workspace',
       description: 'Delete a workspace. Only works if it has no sections or notes (move or delete those first) and it is not the last workspace.',
       parameters: {
