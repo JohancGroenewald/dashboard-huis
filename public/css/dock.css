@@ -33,15 +33,16 @@
   width: 34px; height: 34px; border-radius: var(--r-2); display: grid; place-items: center;
   font-size: var(--fs-3); color: #fff; background: var(--ai-gradient); flex: none;
 }
-.dock-id { flex: 1; min-width: 0; }
-.dock-title { font-weight: 650; font-size: var(--fs-2); line-height: 1.15; }
+.dock-id { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-2); }
+.dock-title { font-weight: 650; font-size: var(--fs-2); line-height: 1.15; flex: none; }
 
-.model-picker { position: relative; margin-top: 3px; }
+.model-picker { position: relative; min-width: 0; }
 .model-btn { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; background: var(--surface-2); border: 1px solid var(--edge); color: var(--muted); border-radius: 999px; padding: 3px 10px; font-size: var(--fs-0); cursor: pointer; }
+#model-btn-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .model-btn:hover { border-color: var(--ai); color: var(--text); }
 .model-btn .caret { opacity: 0.7; }
 .pill-badge { color: var(--text); }
-.model-menu { position: absolute; left: 0; top: calc(100% + 6px); width: 290px; max-height: 50vh; overflow-y: auto; background: var(--surface-1); border: 1px solid var(--edge); border-radius: var(--r-2); box-shadow: var(--shadow-2); z-index: var(--z-popover); padding: 5px; }
+.model-menu { position: absolute; right: 0; top: calc(100% + 6px); width: 290px; max-height: 50vh; overflow-y: auto; background: var(--surface-1); border: 1px solid var(--edge); border-radius: var(--r-2); box-shadow: var(--shadow-2); z-index: var(--z-popover); padding: 5px; }
 .model-menu.hidden { display: none; }
 .mm-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; text-align: left; background: transparent; border: 0; color: var(--text); padding: 8px 9px; border-radius: 8px; cursor: pointer; font-size: var(--fs-1); }
 .mm-item:hover { background: var(--surface-2); }
