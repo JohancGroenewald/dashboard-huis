@@ -17,6 +17,7 @@ import { renderAbilitiesView } from './views/abilities.js';
 import { renderRequestsView, initRequests } from './views/requests.js';
 import { renderLogsView } from './views/logs.js';
 import { renderReplayView } from './views/replay.js';
+import { renderPromptsView } from './views/prompts.js';
 
 function tick() {
   $('#clock').textContent = new Date().toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' });
@@ -44,6 +45,7 @@ registerView('abilities', renderAbilitiesView);
 registerView('requests', renderRequestsView);
 registerView('logs', renderLogsView);
 registerView('replay', renderReplayView);
+registerView('prompts', renderPromptsView);
 
 // ---- shell wiring ----
 subscribe('dashboard', () => {

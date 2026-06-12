@@ -102,6 +102,7 @@ function buildActions() {
     { icon: '🗒️', label: 'Open Requests', hay: 'requests features open view', run: () => showView('requests') },
     { icon: '🧾', label: 'Open Logs', hay: 'logs conversations open view', run: () => showView('logs') },
     { icon: '🎬', label: 'Open Replay', hay: 'replay playback recording runs open view', run: () => showView('replay') },
+    { icon: '📜', label: 'Open Prompts', hay: 'prompts system prompt edit review open view', run: () => showView('prompts') },
   ];
   return actions;
 }

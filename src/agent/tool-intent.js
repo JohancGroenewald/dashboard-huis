@@ -2,6 +2,7 @@
 // was trying to use the dashboard tool surface.
 import { config } from '../config.js';
 import { AGENT_LIMITS } from '../constants.js';
+import { renderPrompt } from '../prompts.js';
 import { toolNames } from './tools.js';
 
 const truncate = (s, n) => {
@@ -18,31 +19,9 @@ function traceSummary(trace = []) {
   return truncate(lines.join('\n'), AGENT_LIMITS.toolIntentTraceChars);
 }
 
+// Template lives in src/prompts.js (editable from the Prompts view).
 function classifierSystem() {
-  return `You are a strict binary classifier for a local dashboard copilot.
-
-Question: did this assistant turn intend to use a dashboard tool?
-Dashboard tools are: ${toolNames.join(', ')}.
-
-Return only JSON:
-{"intended":true|false,"confidence":0..1,"tool":"tool_name or null","reason":"short reason"}
-
-Classify intended=true when:
-- any tool call appears in the trace, including failed, blocked, or unknown-tool calls,
-- the assistant says it did, will, is going to, needs to inspect/search/read, or is about to perform a dashboard action,
-- the assistant asks the user to choose among options that should be clickable via offer_choices.
-
-Classify intended=false when:
-- it is ordinary information, refusal, or out-of-scope conversation,
-- it asks a clarifying question before acting,
-- it gives advice, recommendations, or hypothetical possibilities using words like could/should/might without claiming it will perform an action.
-
-Examples:
-- Trace includes "failed rename_section(...)" -> intended=true.
-- Reply says "I need to inspect the dashboard first" -> intended=true, tool=get_dashboard or search_dashboard.
-- Reply says "You could group those apps into a Media section" -> intended=false.
-
-If tool calls are in the trace, intended must be true.`;
+  return renderPrompt('tool-intent', { tools: toolNames.join(', ') });
 }
 
 function classifierUser({ userText, reply, trace }) {

@@ -13,6 +13,7 @@ import { Ollama } from './ollama.js';
 import { toolSpecs } from './agent/tools.js';
 import { query } from './chatlog.js';
 import { mountAgentRoutes } from './routes/agent.js';
+import { listPrompts, setPromptOverride } from './prompts.js';
 import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -176,6 +177,10 @@ app.get('/api/logs', wrap((req, res) => {
   });
   res.json(rows);
 }));
+
+// ---- editable model prompts ------------------------------------------------
+app.get('/api/prompts', wrap((req, res) => res.json(listPrompts())));
+app.put('/api/prompts/:id', wrap((req, res) => res.json(setPromptOverride(req.params.id, req.body?.template))));
 
 // ---- models & agent ------------------------------------------------------
 // Capabilities are immutable per model tag; ask Ollama once and remember.

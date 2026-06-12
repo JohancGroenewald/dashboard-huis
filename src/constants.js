@@ -82,6 +82,10 @@ export const OLLAMA_LIMITS = {
   errorBodyPreviewChars: 300,
 };
 
+export const PROMPT_LIMITS = {
+  maxChars: 20_000,
+};
+
 export const CHAT_MESSAGE_LIMITS = {
   maxMessages: 40,
   maxContentChars: 8_000,
