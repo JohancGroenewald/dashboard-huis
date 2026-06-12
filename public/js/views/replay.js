@@ -209,14 +209,10 @@ function renderStage() {
     });
   }
   if (typing) {
+    // Think blocks have no inner scroller; keeping the transcript pinned to
+    // its bottom keeps the streaming tail in view for all text kinds.
     const log = $('#rp-stage .rp-transcript');
     if (log) log.scrollTop = log.scrollHeight;
-    // Long thinking blocks scroll internally; keep the tail in view while
-    // they stream (innerHTML rebuilds reset inner scroll positions).
-    if (cur?.kind === 'think' && log) {
-      const ths = log.querySelectorAll('.rp-think');
-      if (ths.length) { const t = ths[ths.length - 1]; t.scrollTop = t.scrollHeight; }
-    }
   }
 }
 
@@ -255,13 +251,23 @@ function renderFrame() {
 
 function stop() { clearTimeout(timer); timer = null; playing = false; }
 
+const frameDur = (f) =>
+  ({ prompt: DUR.prompt, end: DUR.end, reply: DUR.reply, think: DUR.think, say: DUR.say }[f.kind])
+  ?? (f.phase === 'start' ? DUR.toolStart : DUR.toolDone);
+
 function scheduleNext() {
   if (!playing) return;
   if (idx >= frames.length - 1) { playing = false; renderTransport(); return; }
-  const next = frames[idx + 1];
-  const dur = ({ prompt: DUR.prompt, end: DUR.end, reply: DUR.reply, think: DUR.think, say: DUR.say }[next.kind])
-    ?? (next.phase === 'start' ? DUR.toolStart : DUR.toolDone);
-  timer = setTimeout(() => { idx += 1; renderFrame(); scheduleNext(); }, dur / speed);
+  // Batch micro-frames into ≥16ms ticks: at 4× a think frame is ~7ms, and a
+  // full stage rebuild per frame at that rate is wasted work. Only the cheap
+  // text frames are short enough to batch, so tool beats keep their rhythm.
+  let wait = 0;
+  let steps = 0;
+  while (idx + steps < frames.length - 1 && wait < 16) {
+    wait += frameDur(frames[idx + steps + 1]) / speed;
+    steps += 1;
+  }
+  timer = setTimeout(() => { idx += steps; renderFrame(); scheduleNext(); }, wait);
 }
 
 function play() {
@@ -274,7 +280,14 @@ function play() {
 }
 function pause() { stop(); renderTransport(); }
 function togglePlay() { playing ? pause() : play(); }
-function restart() { stop(); idx = 0; renderFrame(); renderTransport(); }
+// ⏮ seeks to the start and keeps the current play/pause state.
+function restart() {
+  const wasPlaying = playing;
+  stop();
+  idx = 0;
+  if (wasPlaying) play();
+  else { renderFrame(); renderTransport(); }
+}
 function cycleSpeed() {
   speed = SPEEDS[(SPEEDS.indexOf(speed) + 1) % SPEEDS.length];
   renderTransport();
@@ -283,7 +296,10 @@ function seek(n) {
   stop();
   idx = Math.max(0, Math.min(n, frames.length - 1));
   renderFrame();
-  renderTransport();
+  // No renderTransport here: rebuilding the slider mid-drag kills the drag
+  // after one notch. Just flip the play glyph in place (seeking pauses).
+  const playBtn = $('#rp-play');
+  if (playBtn) playBtn.textContent = '▶';
 }
 
 function selectRow(r) {

@@ -83,10 +83,13 @@
 .tchip.intent.unknown { color: #ffd082; border: 1px solid rgba(210, 153, 34, 0.5); }
 
 /* ---- Replay ---- */
-/* The view fills the viewport height; the runs rail and stage stretch with
-   it, and the runs list scrolls inside the rail instead of a fixed 70vh. */
-#view-replay { min-height: 100%; display: flex; flex-direction: column; }
-.rp-wrap { display: grid; grid-template-columns: 560px 1fr; gap: var(--sp-3); flex: 1; min-height: 0; }
+/* The view is exactly viewport-height (a min-height floor would let content
+   re-grow it — flex:1 and 1fr only constrain against a definite height); the
+   rail list and transcript scroll inside their panes instead. */
+#view-replay { height: 100%; display: flex; flex-direction: column; }
+/* minmax(0,1fr) pins the single grid row to the wrap's height — an auto row
+   would size to the rail's full list and grow the page past the viewport. */
+.rp-wrap { display: grid; grid-template-columns: 560px 1fr; grid-template-rows: minmax(0, 1fr); gap: var(--sp-3); flex: 1; min-height: 0; }
 .rp-side { background: var(--surface-1); border: 1px solid var(--edge); border-radius: var(--r-3); overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
 .rp-side-head { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-bottom: 1px solid var(--edge-soft); font-size: var(--fs-0); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
 .rp-side-tools { display: flex; align-items: center; gap: var(--sp-2); }
@@ -101,14 +104,16 @@
 .rp-item-msg { font-size: var(--fs-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .rp-main { display: flex; flex-direction: column; gap: var(--sp-2); }
-.rp-stage { flex: 1; min-height: 340px; background: var(--surface-1); border: 1px solid var(--edge); border-radius: var(--r-3); padding: var(--sp-3); }
+.rp-stage { flex: 1; min-height: 340px; background: var(--surface-1); border: 1px solid var(--edge); border-radius: var(--r-3); padding: var(--sp-3); display: flex; flex-direction: column; }
 .rp-empty { color: var(--muted); font-style: italic; padding: 40px 10px; text-align: center; }
 .rp-stage-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding-bottom: var(--sp-2); border-bottom: 1px solid var(--edge-soft); margin-bottom: var(--sp-3); }
 .rp-badge { background: var(--ai-gradient); color: #fff; font-size: var(--fs-0); font-weight: 650; border-radius: 999px; padding: 2px 10px; }
 .rp-chip { font-size: 11px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--edge); border-radius: 999px; padding: 1px 8px; }
 .rp-chip.ok { color: #b8f0c0; border-color: var(--up); }
 .rp-chip.bad { color: #ffb4ae; border-color: var(--down); }
-.rp-transcript { display: flex; flex-direction: column; gap: 10px; max-height: 50vh; overflow-y: auto; }
+/* The transcript flexes to whatever height the stage has (the old 50vh cap
+   left dead space below once the stage became viewport-tall). */
+.rp-transcript { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow-y: auto; }
 .rp-transcript .row { display: flex; gap: var(--sp-2); align-items: flex-end; }
 .rp-transcript .row.user { justify-content: flex-end; }
 .rp-transcript .avatar { width: 27px; height: 27px; border-radius: 8px; background: var(--ai-dim); border: 1px solid var(--ai); color: var(--ai-2); display: grid; place-items: center; font-size: 14px; flex: none; }
@@ -123,8 +128,12 @@
 .rp-transcript .step.pending .step-status { color: var(--muted); }
 
 /* The model's reasoning: per-round thinking, interim remarks, call details. */
-.rp-think { font-size: 12px; line-height: 1.5; color: var(--muted); font-style: italic; background: rgba(255, 255, 255, 0.02); border-left: 2px solid var(--edge-strong); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 7px 11px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; }
+/* No inner scroller: the transcript is the one scroll container, so think
+   blocks render at full height instead of nesting a second scrollbar. */
+.rp-think { font-size: 12px; line-height: 1.5; color: var(--muted); font-style: italic; background: rgba(255, 255, 255, 0.02); border-left: 2px solid var(--edge-strong); border-radius: 0 var(--r-1) var(--r-1) 0; padding: 7px 11px; white-space: pre-wrap; }
 .rp-think-tag { display: block; font-style: normal; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; opacity: 0.75; }
+/* dock.css only styles .bubble .cursor; the think block needs its own. */
+.rp-think .cursor { display: inline-block; width: 6px; height: 12px; background: var(--ai-2); vertical-align: -2px; margin-left: 2px; animation: cursor-blink 0.8s infinite steps(1); }
 .rp-transcript .row.assistant.interim .bubble { background: transparent; border: 1px dashed var(--edge-strong); color: var(--muted); }
 .rp-transcript .step.expandable { cursor: pointer; }
 .rp-transcript .step.expandable:hover { border-left-color: var(--ai); color: var(--text); }
@@ -150,4 +159,9 @@
 .rp-count { font-size: var(--fs-0); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 48px; text-align: right; }
 
 @media (prefers-reduced-motion: reduce) { .rp-cell.active, .rp-tbtn.fresh { animation: none; } }
-@media (max-width: 900px) { .rp-wrap { grid-template-columns: 1fr; } }
+@media (max-width: 900px) {
+  /* Stacked layout can't fit both panes in the viewport; flow naturally and
+     cap the rail so the stage stays reachable. */
+  .rp-wrap { grid-template-columns: 1fr; grid-template-rows: none; }
+  .rp-list { max-height: 40vh; }
+}
