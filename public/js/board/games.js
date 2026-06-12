@@ -98,11 +98,20 @@ export function wireGame(el, game) {
     try {
       // The screenshot includes the move just played, matching the text board.
       const played = { ...game, board: game.board.map((c, i) => (i === Number(btn.dataset.cell) ? 'X' : c)) };
-      await api(`/api/games/${game.id}/move`, jsonBody({
+      const updated = await api(`/api/games/${game.id}/move`, jsonBody({
         cell: Number(btn.dataset.cell),
         model,
         ...(modelHasVision(model) ? { image: snapshot(played) } : {}),
       }));
+      // Game over? Hand the model the final position to reflect on — it
+      // rewrites its memory with lessons for its future self.
+      if (judge(updated.board).status !== 'playing' && !updated.reflected) {
+        status.textContent = `🧠 ${model} is reflecting on the game…`;
+        await api(`/api/games/${game.id}/reflect`, jsonBody({
+          model,
+          ...(modelHasVision(model) ? { image: snapshot(updated) } : {}),
+        }));
+      }
     } catch (err) {
       toast(err.message, { error: true });
     } finally {

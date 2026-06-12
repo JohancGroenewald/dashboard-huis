@@ -14,7 +14,7 @@ import { toolSpecs } from './agent/tools.js';
 import { query } from './chatlog.js';
 import { mountAgentRoutes } from './routes/agent.js';
 import { listPrompts, setPromptOverride } from './prompts.js';
-import { humanMove, aiMove, resetGame } from './games.js';
+import { humanMove, aiMove, resetGame, reflectOnGame, isModelTurn } from './games.js';
 import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired, isApproved } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -190,7 +190,8 @@ app.post('/api/games/:id/move', wrap(async (req, res) => {
   const { model, image } = req.body || {};
   if (model && !isApproved(model)) { res.status(HTTP_STATUS.forbidden).json({ error: `"${model}" has not passed pre-validation` }); return; }
   let game = humanMove(store, id, Number(req.body?.cell));
-  if (model && game.turn === 'O') {
+  // A game-ending X move leaves no move to answer — don't ask for one.
+  if (model && isModelTurn(game)) {
     thinkingGames.add(id);
     try {
       ({ game } = await aiMove({ store, ollama, gameId: id, model, image }));
@@ -199,6 +200,18 @@ app.post('/api/games/:id/move', wrap(async (req, res) => {
     }
   }
   res.json(game);
+}));
+app.post('/api/games/:id/reflect', wrap(async (req, res) => {
+  const id = req.params.id;
+  const { model, image } = req.body || {};
+  if (!model || !isApproved(model)) { res.status(HTTP_STATUS.forbidden).json({ error: `"${model || '(none)'}" has not passed pre-validation` }); return; }
+  if (thinkingGames.has(id)) { res.status(HTTP_STATUS.conflict).json({ error: 'the model is still thinking' }); return; }
+  thinkingGames.add(id);
+  try {
+    res.json(await reflectOnGame({ store, ollama, gameId: id, model, image }));
+  } finally {
+    thinkingGames.delete(id);
+  }
 }));
 
 // ---- editable model prompts ------------------------------------------------

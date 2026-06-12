@@ -219,6 +219,8 @@ export function normalizeGame(raw) {
     moves,
     memory: checkString(raw.memory, 'game.memory', { required: false, max: SCHEMA_LIMITS.gameMemoryChars }),
     say: checkString(raw.say, 'game.say', { required: false, max: SCHEMA_LIMITS.gameSayChars }),
+    reflected: Boolean(raw.reflected), // post-game reflection already done
+
     layout: normalizeLayout(raw.layout),
     createdAt: raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updatedAt || new Date().toISOString(),

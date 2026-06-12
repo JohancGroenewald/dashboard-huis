@@ -26,16 +26,21 @@ export function humanMove(store, gameId, cell) {
 
 export function resetGame(store, gameId) {
   // Memory survives on purpose: the model gets to learn across rematches.
-  return store.updateGame(gameId, { board: Array(9).fill(''), turn: 'X', moves: [], say: '' });
+  return store.updateGame(gameId, { board: Array(9).fill(''), turn: 'X', moves: [], say: '', reflected: false });
+}
+
+// Whether the model still has a move to make.
+export const isModelTurn = (game) => game.turn === 'O' && judge(game.board).status === 'playing';
+
+function extractJson(text) {
+  try { return JSON.parse(text); } catch { /* sliced below */ }
+  const m = String(text || '').match(/\{[\s\S]*\}/);
+  if (m) { try { return JSON.parse(m[0]); } catch { /* give up */ } }
+  return null;
 }
 
 function extractMove(text, legal) {
-  let data = null;
-  try { data = JSON.parse(text); } catch { /* sliced below */ }
-  if (!data) {
-    const m = String(text || '').match(/\{[\s\S]*\}/);
-    if (m) { try { data = JSON.parse(m[0]); } catch { /* regex below */ } }
-  }
+  const data = extractJson(text);
   const num = Number(data?.move ?? String(text || '').match(/"?move"?\s*[:=]\s*(\d)/)?.[1]);
   const cell = Number.isInteger(num) ? num - 1 : null; // models speak 1-9
   return {
@@ -116,4 +121,63 @@ export async function aiMove({ store, ollama, gameId, model, image }) {
     ms: Date.now() - started,
   });
   return { game: updated, fallback };
+}
+
+// Post-game reflection: show the model the final position (screenshot for
+// vision models) and let it write lessons to its memory for its future self.
+export async function reflectOnGame({ store, ollama, gameId, model, image }) {
+  const game = store.getGame(gameId);
+  const j = judge(game.board);
+  if (j.status === 'playing') fail('the game is not over yet');
+  if (game.reflected) return { game, skipped: true };
+
+  const result = j.status === 'draw' ? 'a draw' : j.winner === 'O' ? 'a WIN for you (O)' : 'a LOSS for you — the user (X) won';
+  const system = renderPrompt('game-reflect', {
+    board: boardText(game.board),
+    result,
+    history: historyText(game.moves),
+    memory: game.memory || '(empty)',
+  });
+  const b64 = typeof image === 'string' && image.length <= CHAT_MESSAGE_LIMITS.maxImageChars
+    ? image.replace(/^data:[^,]*,/, '')
+    : null;
+
+  const started = Date.now();
+  let say = '';
+  let memory = null;
+  let rounds = [];
+  try {
+    const msg = await ollama.chat({
+      model,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: 'Reflect now. Reply with ONLY the JSON.', ...(b64 ? { images: [b64] } : {}) },
+      ],
+      format: 'json',
+      options: { temperature: 0 },
+    });
+    rounds.push({ thinking: msg.thinking || '', content: msg.content || '', calls: 0 });
+    const data = extractJson(msg.content);
+    if (typeof data?.say === 'string') say = data.say.slice(0, SCHEMA_LIMITS.gameSayChars);
+    if (typeof data?.memory === 'string') memory = data.memory.slice(0, SCHEMA_LIMITS.gameMemoryChars);
+  } catch (err) {
+    rounds.push({ thinking: '', content: `(model error: ${err.message})`, calls: 0 });
+  }
+
+  const updated = store.updateGame(gameId, {
+    reflected: true,
+    ...(say ? { say } : {}),
+    ...(memory !== null ? { memory } : {}),
+  });
+  logTask({
+    kind: 'game',
+    model,
+    task: `${game.kind}-reflect`,
+    session: gameId,
+    userMsg: `${boardText(game.board)}\n\nresult: ${result}${b64 ? '\n[final board screenshot attached]' : ''}`,
+    reply: say || '(no reflection parsed)',
+    rounds,
+    ms: Date.now() - started,
+  });
+  return { game: updated, skipped: false };
 }

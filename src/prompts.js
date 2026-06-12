@@ -87,6 +87,23 @@ Your private game memory (notes you kept on earlier turns and rematches — stra
 
 Reply with ONLY this JSON:
 {"move": <one cell number from the legal moves>, "say": "<one short, friendly line of table talk>", "memory": "<replace your private memory: short notes worth keeping for later>"}`,
+
+  'game-reflect': `You just finished a game of kringetjies en kruisies (tic-tac-toe) playing O against the user (X). Reflect honestly on your play — this is for your own benefit in future games.
+
+Final board (. = empty):
+{{BOARD}}
+
+Result: {{RESULT}}
+Moves in order: {{HISTORY}}
+A screenshot of the final position may be attached.
+
+Your private game memory as it stands (you wrote this during play and earlier matches):
+{{MEMORY}}
+
+Think about: where the game was decided, any move you would take back, what the user's style seems to be, and what to do differently next match. Then REWRITE your memory for your future self — keep it short and useful, carry forward what still matters, drop what doesn't.
+
+Reply with ONLY this JSON:
+{"say": "<one short, gracious line about the game for the user to read>", "memory": "<your rewritten private memory: lessons and the user's habits, for the next match>"}`,
 };
 
 export const PROMPT_DEFS = [
@@ -110,6 +127,13 @@ export const PROMPT_DEFS = [
     description: 'Drives the model\'s turns on tic-tac-toe game cards: how it reads the board, what it keeps in its in-game memory, and the JSON it must answer with.',
     placeholders: ['{{BOARD}}', '{{LEGAL}}', '{{HISTORY}}', '{{MEMORY}}'],
     warning: 'The engine expects the JSON shape described at the end ({"move": …}); remove or reshape that and the model\'s answers stop parsing — every turn becomes a random fallback move.',
+  },
+  {
+    id: 'game-reflect',
+    name: 'Post-game reflection',
+    description: 'After a game ends the model sees the final position (screenshot for vision models), reflects on its play, and rewrites its in-game memory for the next match.',
+    placeholders: ['{{BOARD}}', '{{RESULT}}', '{{HISTORY}}', '{{MEMORY}}'],
+    warning: 'The engine expects the JSON shape at the end ({"say": …, "memory": …}); reshape it and reflections stop updating the memory.',
   },
 ];
 
