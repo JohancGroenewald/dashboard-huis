@@ -70,6 +70,7 @@ export const DOCK_UI = {
   maxViewportFraction: 0.6,
   composerMinHeight: 64,
   composerMaxViewportFraction: 0.5,
+  floatDefaultWidth: 420,
   thinkingNoticeDelaySeconds: 3,
   coldModelNoticeSeconds: 12,
   thinkingTimerMs: 1_000,
