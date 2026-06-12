@@ -72,6 +72,7 @@
 
 /* ---- Game cards (kringetjies & kruisies) ---- */
 .game-card { display: flex; flex-direction: column; gap: var(--sp-2); }
+.game-card:hover .sec-head .ctl { opacity: 0.85; }
 .game-title { flex: 1; font-weight: 650; font-size: var(--fs-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .game-status { text-align: center; font-size: var(--fs-1); color: var(--muted); min-height: 18px; }
 .game-card.busy .game-status { color: var(--ai-2); }
