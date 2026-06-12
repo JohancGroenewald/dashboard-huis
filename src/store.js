@@ -102,13 +102,9 @@ export class Store {
     return last || this.getState();
   }
 
-  canUndo() {
-    return this.undoStack.length > 0;
-  }
+  canUndo() { return this.undoStack.length > 0; }
 
-  canRedo() {
-    return this.redoStack.length > 0;
-  }
+  canRedo() { return this.redoStack.length > 0; }
 
   getState() {
     return structuredClone(this.state);
@@ -136,6 +132,12 @@ export class Store {
         type: 'note', id: n.id, color, label: (n.text || '').slice(0, STORE_LIMITS.noteSearchLabelChars) || '(empty note)', layout: n.layout,
         _hay: `note ${color} ${n.text || ''}`,
       });
+    }
+    for (const g of this.state.games) {
+      items.push({ type: 'game', id: g.id, label: 'Kringetjies & kruisies (tic-tac-toe)', layout: g.layout, _hay: `game ${g.kind} tictactoe kringetjies kruisies noughts crosses` });
+    }
+    for (const t of this.state.triggers) {
+      items.push({ type: 'trigger', id: t.id, label: t.name, layout: t.layout, _hay: `trigger button ${t.name}` });
     }
     return items
       .map((it) => {
@@ -181,8 +183,8 @@ export class Store {
   removeWorkspace(id) {
     const w = this.#workspace(id);
     if (this.state.workspaces.length <= 1) fail('cannot remove the last workspace');
-    const used = this.state.sections.some((s) => s.workspaceId === id) || this.state.notes.some((n) => n.workspaceId === id);
-    if (used) fail(`workspace "${w.name}" is not empty — move or delete its sections and notes first`);
+    const used = ['sections', 'notes', 'games', 'triggers'].some((k) => this.state[k].some((x) => x.workspaceId === id));
+    if (used) fail(`workspace "${w.name}" is not empty — move or delete its content first`);
     this.state.workspaces = this.state.workspaces.filter((x) => x.id !== id);
     if (this.state.activeWorkspaceId === id) this.state.activeWorkspaceId = this.state.workspaces[0].id;
     this.#commit();
@@ -202,21 +204,18 @@ export class Store {
     return s;
   }
 
-  moveSectionToWorkspace(sectionId, workspaceId) {
+  #moveToWs(card, workspaceId) {
     this.#workspace(workspaceId);
-    const s = this.#section(sectionId);
-    s.workspaceId = workspaceId;
+    card.workspaceId = workspaceId;
     this.#commit();
-    return structuredClone(s);
+    return structuredClone(card);
   }
 
-  moveNoteToWorkspace(noteId, workspaceId) {
-    this.#workspace(workspaceId);
-    const n = this.#note(noteId);
-    n.workspaceId = workspaceId;
-    this.#commit();
-    return structuredClone(n);
-  }
+  moveSectionToWorkspace(sectionId, workspaceId) { return this.#moveToWs(this.#section(sectionId), workspaceId); }
+
+  moveNoteToWorkspace(noteId, workspaceId) { return this.#moveToWs(this.#note(noteId), workspaceId); }
+
+  moveCardToWorkspace(id, workspaceId) { return this.#moveToWs(this.#card(id), workspaceId); }
 
   addSection({ name, description }) {
     const section = normalizeSection({ name, description, tiles: [], workspaceId: this.state.activeWorkspaceId });
@@ -320,13 +319,19 @@ export class Store {
     return this.#commit();
   }
 
-  // Resize/move a single card (section, note, game, trigger) by merging its layout.
-  resizeCard(id, dims) {
-    const target = this.state.sections.find((s) => s.id === id)
+  // Any top-level card (section, note, game, trigger) by id.
+  #card(id) {
+    const card = this.state.sections.find((s) => s.id === id)
       || this.state.notes.find((n) => n.id === id)
       || this.state.games.find((g) => g.id === id)
       || this.state.triggers.find((t) => t.id === id);
-    if (!target) fail(`card not found: ${id}`);
+    if (!card) fail(`nothing movable matching "${id}" — use the id of a section, note, game, or trigger`);
+    return card;
+  }
+
+  // Resize/move a single card by merging into its layout.
+  resizeCard(id, dims) {
+    const target = this.#card(id);
     target.layout = normalizeLayout({ ...target.layout, ...dims });
     this.#commit();
     return structuredClone(target.layout);

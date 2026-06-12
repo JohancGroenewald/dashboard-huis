@@ -86,7 +86,12 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
           workspaceId: n.workspaceId,
           layout: n.layout,
         })),
+        games: s.games.map((g) => ({ id: g.id, kind: g.kind, workspaceId: g.workspaceId, layout: g.layout })),
+        triggers: s.triggers.map((t) => ({
+          id: t.id, name: t.name, cooldownMs: t.cooldownMs, lastPressedAt: t.lastPressedAt, workspaceId: t.workspaceId, layout: t.layout,
+        })),
         featureRequests: s.featureRequests.map((f) => ({ id: f.id, title: f.title, status: f.status })),
+        problems: s.problems.map((p) => ({ id: p.id, title: p.title, status: p.status })),
       };
     },
 
@@ -123,12 +128,12 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
 
     move_to_workspace: ({ item, workspace }) => {
       const ws = resolveWorkspace(workspace);
-      const s = store.getState();
+      // Sections and triggers resolve by unique name too; notes and games
+      // move by id (use search_dashboard to turn a reference into an id).
       const section = resolveSectionMaybe(item);
-      if (section) return { moved: store.moveSectionToWorkspace(section.id, ws.id) };
-      const note = s.notes.find((n) => n.id === item);
-      if (note) return { moved: store.moveNoteToWorkspace(note.id, ws.id) };
-      throw new Error(`no section or note matching "${item}"`);
+      const byName = store.getState().triggers.filter((t) => t.name.toLowerCase() === String(item).toLowerCase());
+      const id = section?.id || (byName.length === 1 ? byName[0].id : item);
+      return { moved: store.moveCardToWorkspace(id, ws.id) };
     },
 
     add_section: ({ name, description }) => ({ added: store.addSection({ name, description }) }),

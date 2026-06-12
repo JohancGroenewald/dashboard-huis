@@ -151,11 +151,11 @@ export const toolSpecs = [
     type: 'function',
     function: {
       name: 'move_to_workspace',
-      description: 'Move a section (with its tiles) or a sticky note into a different workspace.',
+      description: 'Move a section (with its tiles), sticky note, game, or trigger into a different workspace.',
       parameters: {
         type: 'object',
         properties: {
-          item: { type: 'string', description: 'A section id or name, or a note id, to move.' },
+          item: { type: 'string', description: 'A section id or name, or the id of a note, game, or trigger (use search_dashboard to resolve a name to an id).' },
           workspace: { type: 'string', description: 'Destination workspace id or name.' },
         },
         required: ['item', 'workspace'],

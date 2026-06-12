@@ -46,3 +46,17 @@ test('fmtRemaining reads naturally at every scale', () => {
   assert.equal(fmtRemaining(90 * 60_000), '1h 30m');
   assert.equal(fmtRemaining(26 * 60 * 60_000), '1d 2h');
 });
+
+test('triggers are searchable, movable across workspaces, and block workspace deletion', () => {
+  const store = newStore();
+  const ws = store.addWorkspace({ name: 'Reminders' });
+  const t = store.addTrigger({ name: 'Take Your Eyedrops' });
+  // search_dashboard resolves the name to an id…
+  const hit = store.search('eyedrops').find((m) => m.type === 'trigger');
+  assert.equal(hit?.id, t.id);
+  // …and the generic move relocates it.
+  assert.equal(store.moveCardToWorkspace(t.id, ws.id).workspaceId, ws.id);
+  // A workspace holding a trigger refuses deletion instead of orphaning it.
+  assert.throws(() => store.removeWorkspace(ws.id), /not empty/);
+  assert.throws(() => store.moveCardToWorkspace('nope', ws.id), /nothing movable/);
+});

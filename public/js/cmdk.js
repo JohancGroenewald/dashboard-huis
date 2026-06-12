@@ -12,7 +12,7 @@ import { addTileTo } from './board/editor.js';
 import { sendChat } from './dock/chat.js';
 import { toggleDock } from './dock/dock.js';
 
-const ICON = { tile: '🔗', section: '🗂️', note: '📝', workspace: '🪟' };
+const ICON = { tile: '🔗', section: '🗂️', note: '📝', workspace: '🪟', game: '⭕', trigger: '⏱' };
 let backdrop;
 let input;
 let resultsEl;
@@ -35,6 +35,12 @@ function findItems(q) {
   }
   for (const n of d.notes) {
     items.push({ type: 'note', id: n.id, workspaceId: n.workspaceId, label: (n.text || '(empty note)').slice(0, CMDK_UI.noteLabelPreviewChars), sub: `note · ${wsName(n.workspaceId)}`, hay: `note ${n.text || ''}` });
+  }
+  for (const g of d.games || []) {
+    items.push({ type: 'game', id: g.id, workspaceId: g.workspaceId, label: 'Kringetjies & kruisies', sub: `game · ${wsName(g.workspaceId)}`, hay: 'game tictactoe kringetjies kruisies' });
+  }
+  for (const t of d.triggers || []) {
+    items.push({ type: 'trigger', id: t.id, workspaceId: t.workspaceId, label: t.name, sub: `trigger · ${wsName(t.workspaceId)}`, hay: `trigger ${t.name}` });
   }
   for (const w of d.workspaces) items.push({ type: 'workspace', id: w.id, workspaceId: w.id, label: w.name, sub: 'workspace', hay: `workspace ${w.name}` });
   return items

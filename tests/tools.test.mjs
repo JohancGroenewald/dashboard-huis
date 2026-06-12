@@ -80,3 +80,13 @@ test('report_problem files into the problems queue with the model as reporter', 
   store.removeProblem(p.id);
   assert.equal(store.getState().problems.length, 0);
 });
+
+test('move_to_workspace resolves a trigger by its unique name', () => {
+  const store = new Store({ persist: false }).load();
+  const handlers = makeToolHandlers(store);
+  const ws = store.addWorkspace({ name: 'Reminders' });
+  const t = store.addTrigger({ name: 'Take Your Eyedrops' });
+  const out = handlers.move_to_workspace({ item: 'take your eyedrops', workspace: 'Reminders' });
+  assert.equal(out.moved.id, t.id);
+  assert.equal(out.moved.workspaceId, ws.id);
+});
