@@ -10,8 +10,8 @@ import path from 'node:path';
 import { CONFIG_DEFAULTS, SCHEMA_LIMITS, STORE_LIMITS } from './constants.js';
 import {
   fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote, normalizeGame,
-  normalizeTrigger, normalizeFeatureRequest, normalizeWorkspace, normalizeWorkspaceBackground, normalizeLayout,
-  defaultState, colorName,
+  normalizeTrigger, normalizeFeatureRequest, normalizeProblem, normalizeWorkspace, normalizeWorkspaceBackground,
+  normalizeLayout, defaultState, colorName,
 } from './schema.js';
 
 export class Store {
@@ -359,8 +359,11 @@ export class Store {
     return x;
   }
 
-  #patch(target, normalize, patch, pinned) {
-    Object.assign(target, normalize({ ...target, ...patch, ...pinned, updatedAt: new Date().toISOString() }));
+  // id and createdAt are always pinned; `extra` pins more (e.g. a game's kind).
+  #patch(target, normalize, patch, extra = {}) {
+    Object.assign(target, normalize({
+      ...target, ...patch, id: target.id, createdAt: target.createdAt, ...extra, updatedAt: new Date().toISOString(),
+    }));
     this.#commit();
     return structuredClone(target);
   }
@@ -376,10 +379,7 @@ export class Store {
   // ---- sticky notes -----------------------------------------------------
   addNote(note = {}) { return this.#addCard(this.state.notes, normalizeNote, note); }
 
-  updateNote(id, patch) {
-    const n = this.#note(id);
-    return this.#patch(n, normalizeNote, patch, { id: n.id, createdAt: n.createdAt });
-  }
+  updateNote(id, patch) { return this.#patch(this.#note(id), normalizeNote, patch); }
 
   removeNote(id) { return this.#removeFrom(this.state.notes, id, 'note'); }
 
@@ -388,7 +388,7 @@ export class Store {
 
   updateGame(id, patch) {
     const g = this.#game(id);
-    return this.#patch(g, normalizeGame, patch, { id: g.id, kind: g.kind, createdAt: g.createdAt });
+    return this.#patch(g, normalizeGame, patch, { kind: g.kind });
   }
 
   removeGame(id) { return this.#removeFrom(this.state.games, id, 'game'); }
@@ -400,10 +400,7 @@ export class Store {
   // ---- triggers -----------------------------------------------------------
   addTrigger(trigger = {}) { return this.#addCard(this.state.triggers, normalizeTrigger, trigger); }
 
-  updateTrigger(id, patch) {
-    const t = this.#trigger(id);
-    return this.#patch(t, normalizeTrigger, patch, { id: t.id, createdAt: t.createdAt });
-  }
+  updateTrigger(id, patch) { return this.#patch(this.#trigger(id), normalizeTrigger, patch); }
 
   removeTrigger(id) { return this.#removeFrom(this.state.triggers, id, 'trigger'); }
 
@@ -414,12 +411,16 @@ export class Store {
   // ---- feature requests -------------------------------------------------
   addFeatureRequest(fr) { return this.#addCard(this.state.featureRequests, normalizeFeatureRequest, fr); }
 
-  updateFeatureRequest(id, patch) {
-    const fr = this.#featureRequest(id);
-    return this.#patch(fr, normalizeFeatureRequest, patch, { id: fr.id, createdAt: fr.createdAt });
-  }
+  updateFeatureRequest(id, patch) { return this.#patch(this.#featureRequest(id), normalizeFeatureRequest, patch); }
 
   removeFeatureRequest(id) { return this.#removeFrom(this.state.featureRequests, id, 'feature request'); }
+
+  // ---- problems -----------------------------------------------------------
+  addProblem(p) { return this.#addCard(this.state.problems, normalizeProblem, p); }
+
+  updateProblem(id, patch) { return this.#patch(this.#find(this.state.problems, id, 'problem'), normalizeProblem, patch); }
+
+  removeProblem(id) { return this.#removeFrom(this.state.problems, id, 'problem'); }
 
   // ---- internals --------------------------------------------------------
   #find(list, id, label) {

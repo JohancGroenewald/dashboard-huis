@@ -113,6 +113,7 @@ function buildActions() {
     { icon: '🧪', label: 'Open Models', hay: 'models validation open view', run: () => showView('models') },
     { icon: '🛠️', label: 'Open Abilities', hay: 'abilities tools open view', run: () => showView('abilities') },
     { icon: '🗒️', label: 'Open Requests', hay: 'requests features open view', run: () => showView('requests') },
+    { icon: '🚨', label: 'Open Problems', hay: 'problems defects errors broken open view', run: () => showView('problems') },
     { icon: '🧾', label: 'Open Logs', hay: 'logs conversations open view', run: () => showView('logs') },
     { icon: '🎬', label: 'Open Replay', hay: 'replay playback recording runs open view', run: () => showView('replay') },
     { icon: '📜', label: 'Open Prompts', hay: 'prompts system prompt edit review open view', run: () => showView('prompts') },

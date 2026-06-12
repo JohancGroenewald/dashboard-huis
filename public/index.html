@@ -50,6 +50,7 @@
               <button class="menu-item" type="button" data-view="models">🧪 Models</button>
               <button class="menu-item" type="button" data-view="abilities">🛠️ Abilities</button>
               <button class="menu-item" type="button" data-view="requests">🗒️ Requests<span id="fr-count" class="menu-count hidden"></span></button>
+              <button class="menu-item" type="button" data-view="problems">🚨 Problems<span id="pb-count" class="menu-count hidden"></span></button>
               <button class="menu-item" type="button" data-view="logs">🧾 Logs</button>
               <button class="menu-item" type="button" data-view="replay">🎬 Replay</button>
               <button class="menu-item" type="button" data-view="prompts">📜 Prompts</button>
@@ -84,6 +85,16 @@
                 <button type="submit" class="primary-btn">Add request</button>
               </form>
               <div id="fr-list" class="fr-list"></div>
+            </div>
+          </section>
+          <section id="view-problems" class="view sys-view hidden">
+            <div class="fr-wrap">
+              <form id="pb-form" class="fr-form">
+                <input id="pb-title" type="text" placeholder="Report a problem…" autocomplete="off" />
+                <textarea id="pb-detail" rows="1" placeholder="What happened? (optional)"></textarea>
+                <button type="submit" class="primary-btn">Report</button>
+              </form>
+              <div id="pb-list" class="fr-list"></div>
             </div>
           </section>
           <section id="view-logs" class="view sys-view hidden"></section>

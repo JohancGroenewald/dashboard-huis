@@ -158,6 +158,7 @@ export const SCHEMA_LIMITS = {
 
 export const HEALTH_TYPES = ['http', 'tcp', 'none'];
 export const FEATURE_REQUEST_STATUSES = ['open', 'planned', 'done', 'rejected'];
+export const PROBLEM_STATUSES = ['open', 'investigating', 'resolved', 'dismissed'];
 export const SECTION_HEADING_EFFECTS = ['none', 'rainbow'];
 export const WORKSPACE_BACKGROUND_EFFECTS = ['none', 'waves', 'orbits', 'plasma', 'stars', 'formula'];
 

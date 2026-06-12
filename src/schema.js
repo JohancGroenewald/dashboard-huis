@@ -2,7 +2,7 @@
 // plus helpers shared by the Store. fail() (code EVALIDATION) maps to a 400.
 import crypto from 'node:crypto';
 import {
-  DEFAULT_DASHBOARD, FEATURE_REQUEST_STATUSES, HEALTH_TYPES as HEALTH_TYPE_VALUES,
+  DEFAULT_DASHBOARD, FEATURE_REQUEST_STATUSES, PROBLEM_STATUSES, HEALTH_TYPES as HEALTH_TYPE_VALUES,
   NOTE_COLOR_NAMES, SCHEMA_LIMITS, SECTION_HEADING_EFFECTS, WORKSPACE_BACKGROUND_EFFECTS,
 } from './constants.js';
 // The same compiler the browser renders with — one grammar, validated here at
@@ -252,6 +252,24 @@ export function normalizeTrigger(raw) {
   };
 }
 
+const PB_STATUS = new Set(PROBLEM_STATUSES);
+
+// A reported problem: something the model (or the user) hit that failed —
+// the sibling of the feature-request queue, for defects rather than wishes.
+export function normalizeProblem(raw) {
+  if (!isPlainObject(raw)) fail('problem must be an object');
+  const status = raw.status ?? 'open';
+  if (!PB_STATUS.has(status)) fail(`"status" must be one of ${[...PB_STATUS].join(', ')}`);
+  return {
+    id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
+    title: checkString(raw.title, 'problem.title', { max: SCHEMA_LIMITS.featureTitleChars }),
+    detail: checkString(raw.detail, 'problem.detail', { required: false, max: SCHEMA_LIMITS.featureDetailChars }),
+    reportedBy: checkString(raw.reportedBy, 'problem.reportedBy', { required: false, max: SCHEMA_LIMITS.requestedByChars }) || 'unknown',
+    status,
+    createdAt: raw.createdAt || new Date().toISOString(),
+  };
+}
+
 const FR_STATUS = new Set(FEATURE_REQUEST_STATUSES);
 
 export function normalizeFeatureRequest(raw) {
@@ -281,6 +299,8 @@ export function normalizeState(raw) {
   if (!Array.isArray(triggers)) fail('"triggers" must be an array');
   const featureRequests = raw.featureRequests ?? [];
   if (!Array.isArray(featureRequests)) fail('"featureRequests" must be an array');
+  const problems = raw.problems ?? [];
+  if (!Array.isArray(problems)) fail('"problems" must be an array');
   const rawWorkspaces = raw.workspaces ?? [];
   if (!Array.isArray(rawWorkspaces)) fail('"workspaces" must be an array');
   const title = checkString(raw.title || 'Dashboard', 'title', { max: SCHEMA_LIMITS.dashboardTitleChars });
@@ -292,6 +312,7 @@ export function normalizeState(raw) {
     games: games.map(normalizeGame),
     triggers: triggers.map(normalizeTrigger),
     featureRequests: featureRequests.map(normalizeFeatureRequest),
+    problems: problems.map(normalizeProblem),
     updatedAt: new Date().toISOString(),
   };
   // There is always at least one workspace; older dashboards (no workspaces)
@@ -321,6 +342,7 @@ export function normalizeState(raw) {
   for (const g of state.games) claim(g.id);
   for (const t of state.triggers) claim(t.id);
   for (const fr of state.featureRequests) claim(fr.id);
+  for (const p of state.problems) claim(p.id);
   return state;
 }
 

@@ -208,6 +208,10 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       suggestions: Array.isArray(suggestions) ? suggestions.slice(0, AGENT_LIMITS.followupsMax).map((s) => String(s)) : [],
     }),
 
+    report_problem: ({ title, detail }) => ({
+      filed: store.addProblem({ title, detail, reportedBy: requestedBy, status: 'open' }),
+    }),
+
     request_feature: ({ title, detail }) => ({
       filed: store.addFeatureRequest({ title, detail, requestedBy, status: 'open' }),
     }),

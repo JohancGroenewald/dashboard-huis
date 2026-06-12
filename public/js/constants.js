@@ -150,3 +150,4 @@ export const WORKSPACE_BACKGROUND_EFFECTS = {
 };
 
 export const FEATURE_REQUEST_STATUSES = ['open', 'planned', 'done', 'rejected'];
+export const PROBLEM_STATUSES = ['open', 'investigating', 'resolved', 'dismissed'];

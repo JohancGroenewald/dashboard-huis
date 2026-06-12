@@ -66,3 +66,17 @@ test('set_workspace_background updates a workspace math-art spec', () => {
   assert.equal(result.updated.effect, 'stars');
   assert.equal(store.getState().workspaces.find((w) => w.name === 'B').background.palette[1], 'gold');
 });
+
+test('report_problem files into the problems queue with the model as reporter', () => {
+  const store = new Store({ persist: false }).load();
+  const handlers = makeToolHandlers(store, { requestedBy: 'gemma4:e4b' });
+  const out = handlers.report_problem({ title: 'add_tile keeps failing', detail: 'url rejected: …' });
+  assert.equal(out.filed.status, 'open');
+  assert.equal(out.filed.reportedBy, 'gemma4:e4b');
+  const p = store.getState().problems[0];
+  assert.equal(p.title, 'add_tile keeps failing');
+  assert.throws(() => store.updateProblem(p.id, { status: 'fixed' }), /status/);
+  assert.equal(store.updateProblem(p.id, { status: 'resolved' }).status, 'resolved');
+  store.removeProblem(p.id);
+  assert.equal(store.getState().problems.length, 0);
+});

@@ -217,6 +217,11 @@ app.post('/api/games/:id/reflect', wrap(async (req, res) => {
   }
 }));
 
+// ---- problems ----------------------------------------------------------------
+app.post('/api/problems', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addProblem({ ...req.body, reportedBy: req.body?.reportedBy || 'you' }))));
+app.patch('/api/problems/:id', wrap((req, res) => res.json(store.updateProblem(req.params.id, { status: req.body?.status }))));
+app.delete('/api/problems/:id', wrap((req, res) => res.json(store.removeProblem(req.params.id))));
+
 // ---- triggers ---------------------------------------------------------------
 app.post('/api/triggers', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addTrigger(req.body || {}))));
 app.patch('/api/triggers/:id', wrap((req, res) => {

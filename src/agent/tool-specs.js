@@ -431,6 +431,22 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'report_problem',
+      description:
+        'Report a problem to the dashboard maintainers: a tool call that keeps failing, something that looks broken, or a task you could not complete for a technical reason. Include what you tried and the error. Not for missing capabilities — that is request_feature.',
+      parameters: {
+        type: 'object',
+        properties: {
+          title: { type: 'string', description: 'Short summary of the problem.' },
+          detail: { type: 'string', description: 'What you tried, what happened, any error text.' },
+        },
+        required: ['title'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'request_feature',
       description:
         'File a feature request for the dashboard maintainers. Use this when the user asks for something you cannot do with your current tools, instead of refusing or pretending.',
