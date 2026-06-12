@@ -126,7 +126,7 @@ export class Ollama {
 
   // Non-streaming chat. Pass `tools` to enable tool-calling (model permitting).
   // Returns the assistant message: { role, content, tool_calls? }.
-  async chat({ model, messages, tools, options, timeoutMs = config.ollamaChatTimeoutMs }) {
+  async chat({ model, messages, tools, options, format, timeoutMs = config.ollamaChatTimeoutMs }) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), timeoutMs);
     try {
@@ -138,6 +138,7 @@ export class Ollama {
           model,
           messages,
           tools,
+          format,
           stream: false,
           options: { temperature: OLLAMA_LIMITS.defaultTemperature, ...options },
         }),

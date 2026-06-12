@@ -73,6 +73,16 @@
 .row.assistant .bubble ul { margin: 6px 0; padding-left: 20px; }
 .row.assistant .bubble li { margin: 2px 0; }
 .row.error .bubble { background: #3a1c1c; color: #ffb4ae; }
+.tool-intent-badge {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 6px;
+  margin: 0 0 0 35px; padding: 2px 8px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--edge);
+  color: var(--muted); font-size: 11px; line-height: 1.5;
+}
+.tool-intent-badge.yes { color: #b8f0c0; border-color: rgba(63, 185, 80, 0.5); }
+.tool-intent-badge.no { color: var(--muted); }
+.tool-intent-badge.unknown { color: #ffd082; border-color: rgba(210, 153, 34, 0.55); }
+.tool-intent-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
 .bubble .cursor { display: inline-block; width: 7px; height: 14px; background: var(--ai-2); vertical-align: -2px; margin-left: 2px; animation: cursor-blink 0.8s infinite steps(1); }
 @keyframes cursor-blink { 50% { opacity: 0; } }
 

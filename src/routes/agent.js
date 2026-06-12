@@ -5,6 +5,7 @@
 // affected cards.
 import { AGENT_LIMITS, HTTP_STATUS } from '../constants.js';
 import { runAgent } from '../agent/agent.js';
+import { reviewToolIntent } from '../agent/tool-intent.js';
 import { sseFrame } from '../events.js';
 import { logTurn } from '../chatlog.js';
 import { latestUserMessage, sanitizeChatMessages } from '../messages.js';
@@ -97,6 +98,11 @@ function chatRequest(req, res) {
   return { model, safeMessages, logMessages, session, userMsg };
 }
 
+async function addToolIntent({ result, ollama, userMsg }) {
+  const toolIntent = await reviewToolIntent({ ollama, userText: userMsg, reply: result.reply, trace: result.trace });
+  return { ...result, toolIntent };
+}
+
 export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
   // Agent tool calls should update every open tab, including the tab that asked
   // for the run. The chat UI does not locally apply tool results, so tagging
@@ -113,13 +119,15 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
     if (!r) return;
     const started = Date.now();
     try {
-      const result = await runAgent({ model: r.model, store, messages: r.safeMessages, ollama, runTool: broadcastAgentMutation });
-      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started });
+      const run = await runAgent({ model: r.model, store, messages: r.safeMessages, ollama, runTool: broadcastAgentMutation });
+      const result = await addToolIntent({ result: run, ollama, userMsg: r.userMsg });
+      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started, toolIntent: result.toolIntent });
       res.json({
         reply: result.reply,
         trace: result.trace,
         steps: result.steps,
         toolCalls: result.toolCalls ?? result.trace.length,
+        toolIntent: result.toolIntent,
         followups: followupsFromTrace(result.trace),
         dashboard: store.getState(), // so the UI can refresh after agent edits
       });
@@ -145,7 +153,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
     send('meta', { session: r.session, model: r.model, revBefore });
     activity({ phase: 'start' });
     try {
-      const result = await runAgent({
+      const run = await runAgent({
         model: r.model,
         store,
         messages: r.safeMessages,
@@ -164,7 +172,8 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
           }
         },
       });
-      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started });
+      const result = await addToolIntent({ result: run, ollama, userMsg: r.userMsg });
+      logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started, toolIntent: result.toolIntent });
       const mutated = result.trace.some((t) => t.ok && MUTATING.has(t.name));
       const usedHistory = result.trace.some((t) => t.ok && (t.name === 'undo' || t.name === 'redo'));
       send('done', {
@@ -172,6 +181,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
         trace: result.trace,
         steps: result.steps,
         toolCalls: result.toolCalls ?? result.trace.length,
+        toolIntent: result.toolIntent,
         followups: followupsFromTrace(result.trace),
         revBefore,
         revAfter: store.rev,

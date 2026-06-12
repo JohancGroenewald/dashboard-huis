@@ -7,6 +7,7 @@ import { $, esc } from '../lib/dom.js';
 import { api } from '../lib/api.js';
 import { mdToHtml } from '../lib/markdown.js';
 import { fmtMs } from '../lib/format.js';
+import { toolIntentLabel, toolIntentState, toolIntentTitle } from '../lib/tool-intent.js';
 import { LOGS_UI, STORAGE_KEYS } from '../constants.js';
 import { store, subscribe } from '../state/store.js';
 import { showView } from '../workspaces.js';
@@ -145,6 +146,14 @@ function sayBubble(text, ri, st) {
   return `<div class="row assistant interim"><div class="avatar">✦</div><div class="bubble">${body}</div></div>`;
 }
 
+function toolIntentBadge(intent) {
+  const state = toolIntentState(intent);
+  if (!state) return '';
+  return `<div class="tool-intent-badge ${state}" title="${esc(toolIntentTitle(intent))}">
+    <span class="tool-intent-dot"></span><span>${esc(toolIntentLabel(intent))}</span>
+  </div>`;
+}
+
 function renderStage() {
   const stage = $('#rp-stage');
   if (!row) { stage.innerHTML = '<div class="rp-empty">Pick a run on the left to play it back.</div>'; return; }
@@ -155,6 +164,7 @@ function renderStage() {
   const total = countWords(row.reply || '');
   const cur = frames[idx];
   const typing = !st.ended && (cur?.kind === 'think' || cur?.kind === 'say' || cur?.kind === 'reply');
+  const showIntent = st.ended || row.error || (total > 0 && st.replyWords >= total);
   const replyHtml = row.error
     ? `<div class="rp-error">⚠️ ${esc(row.error)}</div>`
     : st.ended || (total && st.replyWords >= total)
@@ -188,6 +198,7 @@ function renderStage() {
       <div class="row user"><div class="bubble">${esc(row.user_msg || '(no prompt)')}</div></div>
       ${flow}
       ${replyHtml ? `<div class="row assistant"><div class="avatar">✦</div><div class="bubble">${replyHtml}</div></div>` : ''}
+      ${showIntent ? toolIntentBadge(row.toolIntent) : ''}
     </div>
     ${trace.length ? filmstrip(trace, st) : ''}`;
   for (const el of stage.querySelectorAll('.step[data-step]')) {
