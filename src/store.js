@@ -12,7 +12,7 @@ import { searchState } from './search.js';
 import {
   fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote, normalizeGame,
   normalizeTrigger, normalizeFeatureRequest, normalizeProblem, normalizeWorkspace, normalizeWorkspaceBackground,
-  normalizeLayout, defaultState, colorName,
+  normalizeLayout, defaultState,
 } from './schema.js';
 
 export class Store {
