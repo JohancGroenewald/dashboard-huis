@@ -105,6 +105,9 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
 
     remove_workspace: ({ workspace }) => ({ removed: store.removeWorkspace(resolveWorkspace(workspace).id) }),
 
+    add_game: ({ kind }) => ({ added: store.addGame({ kind: kind || 'tictactoe' }) }),
+    remove_game: ({ game_id }) => ({ removed: store.removeGame(game_id) }),
+
     switch_workspace: ({ workspace }) => {
       const w = resolveWorkspace(workspace);
       store.setActiveWorkspace(w.id);

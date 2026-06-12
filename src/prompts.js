@@ -30,6 +30,7 @@ Rules:
 - You can resize a section or sticky-note card on the grid with resize_card (width in 12-column grid units, height in rows). A card's current size is its layout w×h, shown by get_dashboard and search_dashboard — read it, never guess a size.
 - Tiles have an editable description and icon (set via add_tile / update_tile). Sections have an editable description and card colours — background, outline, heading text, bold heading, and rainbow heading effect — set via add_section / update_section. Sticky notes have editable text, background colour (including "transparent"), text colour, bold state, and hidden state — set via add_note / update_note. These already exist, so just set them when asked.
 - Workspaces can have animated math-art backgrounds set with set_workspace_background. Choose from waves, orbits, plasma, or stars — or invent your own with effect "formula": one math expression over x, y, r, a, t (e.g. "sin(8*r - 2*t) * exp(-r)") rendered live across the workspace, with palette/speed/density/intensity. Use effect "none" to clear a background. Formulas run in a safe whitelisted math sandbox, not arbitrary JavaScript.
+- The board can also hold GAME cards (kringetjies en kruisies / tic-tac-toe): add one with add_game when the user wants to play, remove one with remove_game. The user plays on the card itself and a model answers the moves — you do not play the moves through these tools.
 - Only call request_feature for a DASHBOARD capability your tools genuinely don't have. Check your tool list first — do NOT file a request for something you can already do (e.g. setting a tile's or section's description). For unrelated questions (weather, trivia, chit-chat), just answer briefly or say it's out of scope — do NOT file a request or change anything.
 - When you need a decision or confirmation (yes/no or either/or), call offer_choices with the options and put the question in your reply — the user gets clickable buttons instead of having to type.
 - You may call suggest_followups with 2–3 next-step ideas; if you don't, the dashboard derives sensible follow-up chips from what you did.
@@ -64,6 +65,28 @@ Examples:
 - Reply says "You could group those apps into a Media section" -> intended=false.
 
 If tool calls are in the trace, intended must be true.`,
+
+  'game-tictactoe': `You are playing kringetjies en kruisies (tic-tac-toe / noughts and crosses) as O on a 3×3 board. The user is X. Play to win: take a winning move when you have one, block X's winning move otherwise, and prefer the centre and corners early.
+
+Cells are numbered 1-9:
+ 1 | 2 | 3
+---+---+---
+ 4 | 5 | 6
+---+---+---
+ 7 | 8 | 9
+
+Current board (. = empty):
+{{BOARD}}
+
+Legal moves: {{LEGAL}}
+Moves so far: {{HISTORY}}
+A screenshot of the board may be attached — it shows this same position.
+
+Your private game memory (notes you kept on earlier turns and rematches — strategy, the user's habits):
+{{MEMORY}}
+
+Reply with ONLY this JSON:
+{"move": <one cell number from the legal moves>, "say": "<one short, friendly line of table talk>", "memory": "<replace your private memory: short notes worth keeping for later>"}`,
 };
 
 export const PROMPT_DEFS = [
@@ -80,6 +103,13 @@ export const PROMPT_DEFS = [
     description: 'Asks the small reviewer model whether a finished turn meant to use a tool (powers the Tool: yes/no/forgot badges).',
     placeholders: ['{{TOOLS}}'],
     warning: 'Changes how future turns are judged for the Tool badges; already-logged runs keep the verdicts they were given.',
+  },
+  {
+    id: 'game-tictactoe',
+    name: 'Kringetjies & kruisies co-player',
+    description: 'Drives the model\'s turns on tic-tac-toe game cards: how it reads the board, what it keeps in its in-game memory, and the JSON it must answer with.',
+    placeholders: ['{{BOARD}}', '{{LEGAL}}', '{{HISTORY}}', '{{MEMORY}}'],
+    warning: 'The engine expects the JSON shape described at the end ({"move": …}); remove or reshape that and the model\'s answers stop parsing — every turn becomes a random fallback move.',
   },
 ];
 

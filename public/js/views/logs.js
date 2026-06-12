@@ -6,7 +6,7 @@ import { toolIntentLabel, toolIntentState, toolIntentTitle } from '../lib/tool-i
 import { LOGS_UI } from '../constants.js';
 import { replayRun } from './replay.js';
 
-const KIND = { chat: '💬', validate: '🧪', redteam: '🛡️' };
+const KIND = { chat: '💬', validate: '🧪', redteam: '🛡️', game: '⭕' };
 const trunc = (s, n) => (s && s.length > n ? s.slice(0, n) + '…' : s || '');
 
 export async function renderLogsView() {

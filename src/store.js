@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { CONFIG_DEFAULTS, SCHEMA_LIMITS, STORE_LIMITS } from './constants.js';
 import {
-  fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote,
+  fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote, normalizeGame,
   normalizeFeatureRequest, normalizeWorkspace, normalizeWorkspaceBackground, normalizeLayout, defaultState, colorName,
 } from './schema.js';
 
@@ -319,9 +319,11 @@ export class Store {
     return this.#commit();
   }
 
-  // Resize/move a single card (section or note) by merging into its layout.
+  // Resize/move a single card (section, note, or game) by merging its layout.
   resizeCard(id, dims) {
-    const target = this.state.sections.find((s) => s.id === id) || this.state.notes.find((n) => n.id === id);
+    const target = this.state.sections.find((s) => s.id === id)
+      || this.state.notes.find((n) => n.id === id)
+      || this.state.games.find((g) => g.id === id);
     if (!target) fail(`card not found: ${id}`);
     target.layout = normalizeLayout({ ...target.layout, ...dims });
     this.#commit();
@@ -338,6 +340,7 @@ export class Store {
       for (const t of s.tiles) byId.set(t.id, t);
     }
     for (const n of this.state.notes) byId.set(n.id, n);
+    for (const g of this.state.games) byId.set(g.id, g);
     for (const it of items) {
       const target = byId.get(it.id);
       if (target) target.layout = normalizeLayout(it);
@@ -369,6 +372,36 @@ export class Store {
     return structuredClone(removed);
   }
 
+  // ---- games --------------------------------------------------------------
+  addGame(game = {}) {
+    const g = normalizeGame({ ...game, workspaceId: game.workspaceId || this.state.activeWorkspaceId });
+    this.state.games.push(g);
+    this.#commit();
+    return g;
+  }
+
+  updateGame(id, patch) {
+    const g = this.#game(id);
+    const merged = normalizeGame({ ...g, ...patch, id: g.id, kind: g.kind, createdAt: g.createdAt, updatedAt: new Date().toISOString() });
+    Object.assign(g, merged);
+    this.#commit();
+    return structuredClone(g);
+  }
+
+  removeGame(id) {
+    const idx = this.state.games.findIndex((g) => g.id === id);
+    if (idx === -1) fail(`game not found: ${id}`);
+    const [removed] = this.state.games.splice(idx, 1);
+    this.#commit();
+    return structuredClone(removed);
+  }
+
+  getGame(id) {
+    return structuredClone(this.#game(id));
+  }
+
+  #game(id) { return this.#find(this.state.games, id, 'game'); }
+
   // ---- feature requests -------------------------------------------------
   addFeatureRequest(fr) {
     const created = normalizeFeatureRequest(fr);
@@ -394,29 +427,19 @@ export class Store {
   }
 
   // ---- internals --------------------------------------------------------
-  #note(id) {
-    const n = this.state.notes.find((x) => x.id === id);
-    if (!n) fail(`note not found: ${id}`);
-    return n;
+  #find(list, id, label) {
+    const x = list.find((i) => i.id === id);
+    if (!x) fail(`${label} not found: ${id}`);
+    return x;
   }
 
-  #featureRequest(id) {
-    const fr = this.state.featureRequests.find((x) => x.id === id);
-    if (!fr) fail(`feature request not found: ${id}`);
-    return fr;
-  }
+  #note(id) { return this.#find(this.state.notes, id, 'note'); }
 
-  #section(id) {
-    const s = this.state.sections.find((x) => x.id === id);
-    if (!s) fail(`section not found: ${id}`);
-    return s;
-  }
+  #featureRequest(id) { return this.#find(this.state.featureRequests, id, 'feature request'); }
 
-  #workspace(id) {
-    const w = this.state.workspaces.find((x) => x.id === id);
-    if (!w) fail(`workspace not found: ${id}`);
-    return w;
-  }
+  #section(id) { return this.#find(this.state.sections, id, 'section'); }
+
+  #workspace(id) { return this.#find(this.state.workspaces, id, 'workspace'); }
 
   #tile(tileId) {
     for (const section of this.state.sections) {

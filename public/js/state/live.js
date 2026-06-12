@@ -67,6 +67,7 @@ function indexCards(d) {
   const m = new Map();
   for (const s of d.sections) m.set(s.id, JSON.stringify(s));
   for (const n of d.notes) m.set(n.id, JSON.stringify(n));
+  for (const g of d.games || []) m.set(g.id, JSON.stringify(g));
   return m;
 }
 

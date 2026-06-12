@@ -72,6 +72,10 @@ function buildActions() {
       icon: '📝', label: 'New note', hay: 'new add note sticky create',
       run: async () => { await api('/api/notes', jsonBody({ text: '' })); await loadDashboard(); },
     },
+    {
+      icon: '⭕', label: 'New game (kringetjies & kruisies)', hay: 'new add game tictactoe tic tac toe noughts crosses kringetjies kruisies play',
+      run: async () => { await api('/api/games', jsonBody({})); await loadDashboard(); },
+    },
     ...d.sections.filter((s) => s.workspaceId === activeWs).map((s) => ({
       icon: '🔗', label: `New tile in "${s.name}"…`, hay: `new add tile link ${s.name}`,
       run: () => addTileTo(s.id),

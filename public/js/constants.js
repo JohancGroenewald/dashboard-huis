@@ -31,6 +31,8 @@ export const GRID_UI = {
   sectionDefaultHeight: 4,
   noteDefaultWidth: 3,
   noteDefaultHeight: 3,
+  gameDefaultWidth: 3,
+  gameDefaultHeight: 5,
   attachLabelChars: 40,
   oneColumnBelowPx: 768,
 };

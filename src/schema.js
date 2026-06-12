@@ -192,6 +192,39 @@ export function normalizeNote(raw) {
   };
 }
 
+const GAME_KINDS = new Set(['tictactoe']);
+const GAME_MARKS = new Set(['X', 'O']);
+
+// A co-playable game card. The human is X, the co-playing model is O; the
+// model keeps private notes in `memory` that survive rematches.
+export function normalizeGame(raw) {
+  if (!isPlainObject(raw)) fail('game must be an object');
+  const kind = raw.kind ?? 'tictactoe';
+  if (!GAME_KINDS.has(kind)) fail(`"game.kind" must be one of ${[...GAME_KINDS].join(', ')}`);
+  const board = Array.isArray(raw.board) && raw.board.length === 9
+    ? raw.board.map((c) => (GAME_MARKS.has(c) ? c : ''))
+    : Array(9).fill('');
+  const moves = Array.isArray(raw.moves)
+    ? raw.moves
+      .filter((m) => isPlainObject(m) && GAME_MARKS.has(m.p) && Number.isInteger(m.cell) && m.cell >= 0 && m.cell < 9)
+      .map((m) => ({ p: m.p, cell: m.cell }))
+      .slice(0, board.length)
+    : [];
+  return {
+    id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
+    kind,
+    workspaceId: checkString(raw.workspaceId, 'game.workspaceId', { required: false, max: SCHEMA_LIMITS.workspaceIdChars }),
+    board,
+    turn: raw.turn === 'O' ? 'O' : 'X',
+    moves,
+    memory: checkString(raw.memory, 'game.memory', { required: false, max: SCHEMA_LIMITS.gameMemoryChars }),
+    say: checkString(raw.say, 'game.say', { required: false, max: SCHEMA_LIMITS.gameSayChars }),
+    layout: normalizeLayout(raw.layout),
+    createdAt: raw.createdAt || new Date().toISOString(),
+    updatedAt: raw.updatedAt || new Date().toISOString(),
+  };
+}
+
 const FR_STATUS = new Set(FEATURE_REQUEST_STATUSES);
 
 export function normalizeFeatureRequest(raw) {
@@ -215,6 +248,8 @@ export function normalizeState(raw) {
   if (!Array.isArray(sections)) fail('"sections" must be an array');
   const notes = raw.notes ?? [];
   if (!Array.isArray(notes)) fail('"notes" must be an array');
+  const games = raw.games ?? [];
+  if (!Array.isArray(games)) fail('"games" must be an array');
   const featureRequests = raw.featureRequests ?? [];
   if (!Array.isArray(featureRequests)) fail('"featureRequests" must be an array');
   const rawWorkspaces = raw.workspaces ?? [];
@@ -225,6 +260,7 @@ export function normalizeState(raw) {
     workspaces: rawWorkspaces.map(normalizeWorkspace),
     sections: sections.map(normalizeSection),
     notes: notes.map(normalizeNote),
+    games: games.map(normalizeGame),
     featureRequests: featureRequests.map(normalizeFeatureRequest),
     updatedAt: new Date().toISOString(),
   };
@@ -236,6 +272,7 @@ export function normalizeState(raw) {
   // Every section/note belongs to a workspace; unknown/missing → the default.
   for (const s of state.sections) if (!wsIds.has(s.workspaceId)) s.workspaceId = fallbackWs;
   for (const n of state.notes) if (!wsIds.has(n.workspaceId)) n.workspaceId = fallbackWs;
+  for (const g of state.games) if (!wsIds.has(g.workspaceId)) g.workspaceId = fallbackWs;
   state.activeWorkspaceId = wsIds.has(raw.activeWorkspaceId) ? raw.activeWorkspaceId : fallbackWs;
 
   // Enforce unique ids across the whole tree.
@@ -250,6 +287,7 @@ export function normalizeState(raw) {
     for (const t of s.tiles) claim(t.id);
   }
   for (const n of state.notes) claim(n.id);
+  for (const g of state.games) claim(g.id);
   for (const fr of state.featureRequests) claim(fr.id);
   return state;
 }

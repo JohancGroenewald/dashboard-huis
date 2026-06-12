@@ -142,6 +142,8 @@ export const SCHEMA_LIMITS = {
   noteTextChars: 2_000,
   featureTitleChars: 200,
   featureDetailChars: 2_000,
+  gameMemoryChars: 2_000,
+  gameSayChars: 300,
   requestedByChars: 120,
   dashboardTitleChars: 120,
   layoutMin: 0,

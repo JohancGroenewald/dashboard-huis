@@ -14,7 +14,8 @@ import { toolSpecs } from './agent/tools.js';
 import { query } from './chatlog.js';
 import { mountAgentRoutes } from './routes/agent.js';
 import { listPrompts, setPromptOverride } from './prompts.js';
-import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired } from './validation/registry.js';
+import { humanMove, aiMove, resetGame } from './games.js';
+import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired, isApproved } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
 
@@ -176,6 +177,28 @@ app.get('/api/logs', wrap((req, res) => {
     return { ...row, trace, rounds, toolIntent };
   });
   res.json(rows);
+}));
+
+// ---- games -----------------------------------------------------------------
+const thinkingGames = new Set(); // one AI turn at a time per game
+app.post('/api/games', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addGame(req.body || {}))));
+app.delete('/api/games/:id', wrap((req, res) => res.json(store.removeGame(req.params.id))));
+app.post('/api/games/:id/reset', wrap((req, res) => res.json(resetGame(store, req.params.id))));
+app.post('/api/games/:id/move', wrap(async (req, res) => {
+  const id = req.params.id;
+  if (thinkingGames.has(id)) { res.status(HTTP_STATUS.conflict).json({ error: 'the model is still thinking' }); return; }
+  const { model, image } = req.body || {};
+  if (model && !isApproved(model)) { res.status(HTTP_STATUS.forbidden).json({ error: `"${model}" has not passed pre-validation` }); return; }
+  let game = humanMove(store, id, Number(req.body?.cell));
+  if (model && game.turn === 'O') {
+    thinkingGames.add(id);
+    try {
+      ({ game } = await aiMove({ store, ollama, gameId: id, model, image }));
+    } finally {
+      thinkingGames.delete(id);
+    }
+  }
+  res.json(game);
 }));
 
 // ---- editable model prompts ------------------------------------------------

@@ -75,6 +75,30 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'add_game',
+      description: 'Add a playable game card to the active workspace (kringetjies en kruisies / tic-tac-toe). The user plays it on the board and a model co-plays the moves.',
+      parameters: {
+        type: 'object',
+        properties: { kind: { type: 'string', enum: ['tictactoe'], description: 'Game kind. Default tictactoe.' } },
+        required: [],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_game',
+      description: 'Delete a game card by id.',
+      parameters: {
+        type: 'object',
+        properties: { game_id: { type: 'string', description: 'Game id.' } },
+        required: ['game_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'switch_workspace',
       description: 'Make a workspace the active one — the board shows it and new sections/notes land in it.',
       parameters: {
