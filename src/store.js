@@ -8,6 +8,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { CONFIG_DEFAULTS, SCHEMA_LIMITS, STORE_LIMITS } from './constants.js';
+import { searchState } from './search.js';
 import {
   fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote, normalizeGame,
   normalizeTrigger, normalizeFeatureRequest, normalizeProblem, normalizeWorkspace, normalizeWorkspaceBackground,
@@ -106,51 +107,9 @@ export class Store {
 
   canRedo() { return this.redoStack.length > 0; }
 
-  getState() {
-    return structuredClone(this.state);
-  }
+  getState() { return structuredClone(this.state); }
 
-  // Free-text search across tiles, sections, and notes. Returns ranked matches
-  // (by number of query words found) with ids, so the agent can resolve fuzzy
-  // references like "the green note" or "grafana" before acting.
-  search(query) {
-    const tokens = String(query || '').toLowerCase().split(/\W+/).filter(Boolean);
-    if (!tokens.length) return [];
-    const items = [];
-    for (const sec of this.state.sections) {
-      items.push({ type: 'section', id: sec.id, label: sec.name, layout: sec.layout, _hay: `section ${sec.name}` });
-      for (const t of sec.tiles) {
-        items.push({
-          type: 'tile', id: t.id, label: t.name, url: t.url, section: sec.name,
-          _hay: `tile ${t.name} ${t.description || ''} ${t.url} ${sec.name}`,
-        });
-      }
-    }
-    for (const n of this.state.notes) {
-      const color = colorName(n.color);
-      items.push({
-        type: 'note', id: n.id, color, label: (n.text || '').slice(0, STORE_LIMITS.noteSearchLabelChars) || '(empty note)', layout: n.layout,
-        _hay: `note ${color} ${n.text || ''}`,
-      });
-    }
-    for (const g of this.state.games) {
-      items.push({ type: 'game', id: g.id, label: 'Kringetjies & kruisies (tic-tac-toe)', layout: g.layout, _hay: `game ${g.kind} tictactoe kringetjies kruisies noughts crosses` });
-    }
-    for (const t of this.state.triggers) {
-      items.push({ type: 'trigger', id: t.id, label: t.name, layout: t.layout, _hay: `trigger button ${t.name}` });
-    }
-    return items
-      .map((it) => {
-        const hay = it._hay.toLowerCase();
-        let score = 0;
-        for (const tk of tokens) if (hay.includes(tk)) score++;
-        const { _hay, ...rest } = it;
-        return { ...rest, score };
-      })
-      .filter((m) => m.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, STORE_LIMITS.searchResults);
-  }
+  search(query) { return searchState(this.state, query); }
 
   // ---- mutations --------------------------------------------------------
   setTitle(title) {

@@ -60,3 +60,24 @@ test('triggers are searchable, movable across workspaces, and block workspace de
   assert.throws(() => store.removeWorkspace(ws.id), /not empty/);
   assert.throws(() => store.moveCardToWorkspace('nope', ws.id), /nothing movable/);
 });
+
+test('plural search queries match singular items ("triggers" → trigger)', () => {
+  const store = newStore();
+  store.addTrigger({ name: 'Take Your Eyedrops' });
+  store.addGame({});
+  // The exact query from the model-filed problem: search_dashboard("triggers")
+  assert.equal(store.search('triggers').filter((m) => m.type === 'trigger').length, 1);
+  assert.equal(store.search('games').filter((m) => m.type === 'game').length, 1);
+  assert.equal(store.search('the two triggers').some((m) => m.type === 'trigger'), true);
+});
+
+test('numeric noise tokens do not drown trigger matches ("2 triggers")', () => {
+  const store = newStore();
+  const sec = store.addSection({ name: 'Servers' });
+  store.addTile(sec.id, { name: 'Proxmox 2', url: 'https://pve2.huis' });
+  store.addTrigger({ name: 'Take Your Eyedrops' });
+  store.addTrigger({ name: 'Take Your Medication' });
+  const matches = store.search('2 triggers');
+  assert.equal(matches.length, 2);
+  assert.ok(matches.every((m) => m.type === 'trigger'));
+});

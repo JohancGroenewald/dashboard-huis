@@ -22,7 +22,7 @@ let popEsc = null;
 
 // ---- fuzzy search over the loaded state (ported from the old search.js) ----
 function findItems(q) {
-  const tokens = q.toLowerCase().split(/\W+/).filter(Boolean);
+  const tokens = tokenize(q);
   if (!tokens.length) return [];
   const d = store.dashboard;
   const wsName = (id) => d.workspaces.find((w) => w.id === id)?.name || '';
@@ -44,10 +44,20 @@ function findItems(q) {
   }
   for (const w of d.workspaces) items.push({ type: 'workspace', id: w.id, workspaceId: w.id, label: w.name, sub: 'workspace', hay: `workspace ${w.name}` });
   return items
-    .map((it) => { let score = 0; const h = it.hay.toLowerCase(); for (const tk of tokens) if (h.includes(tk)) score++; return { ...it, score }; })
+    .map((it) => { let score = 0; const h = it.hay.toLowerCase(); for (const tk of tokens) if (tokenHit(h, tk)) score++; return { ...it, score }; })
     .filter((it) => it.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, CMDK_UI.resultLimit);
+}
+
+// Plural queries match singular hay ("triggers" → "trigger").
+const tokenHit = (hay, tk) => hay.includes(tk) || (tk.length > 3 && tk.endsWith('s') && hay.includes(tk.slice(0, -1)));
+
+// 1-char tokens match half the board; ignore them beside longer ones.
+function tokenize(q) {
+  const raw = q.toLowerCase().split(/\W+/).filter(Boolean);
+  const meaty = raw.filter((t) => t.length > 1);
+  return meaty.length ? meaty : raw;
 }
 
 async function jump(it) {
@@ -130,9 +140,9 @@ function buildActions() {
 function matchActions(q) {
   const all = buildActions();
   if (!q) return all.slice(0, 6);
-  const tokens = q.toLowerCase().split(/\W+/).filter(Boolean);
+  const tokens = tokenize(q);
   return all
-    .map((a) => { let score = 0; const h = `${a.label} ${a.hay}`.toLowerCase(); for (const tk of tokens) if (h.includes(tk)) score++; return { ...a, score }; })
+    .map((a) => { let score = 0; const h = `${a.label} ${a.hay}`.toLowerCase(); for (const tk of tokens) if (tokenHit(h, tk)) score++; return { ...a, score }; })
     .filter((a) => a.score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
