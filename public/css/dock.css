@@ -83,6 +83,14 @@
 .msg-retry { flex: none; align-self: center; background: none; border: 1px solid transparent; color: var(--muted); border-radius: var(--r-1); cursor: pointer; padding: 2px 7px; font-size: var(--fs-1); line-height: 1.4; opacity: 0; transition: opacity var(--t-fast); }
 .row.user:hover .msg-retry { opacity: 1; }
 .msg-retry:hover { color: var(--text); border-color: var(--edge); background: var(--surface-2); }
+/* The context tick: ✓ = sent with the next prompt; unticked rows dim and
+   stay out of what the model sees. Always visible. */
+.msg-tick { flex: none; align-self: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--edge-strong); background: transparent; color: var(--up); cursor: pointer; font-size: 11px; line-height: 1; padding: 0; display: grid; place-items: center; opacity: 0.75; transition: opacity var(--t-fast); }
+.row:hover .msg-tick, .msg-tick:hover { opacity: 1; }
+.msg-tick.on { border-color: rgba(63, 185, 80, 0.6); }
+.row.excluded .msg-tick { opacity: 1; color: var(--muted); }
+.row.excluded .bubble { opacity: 0.4; }
+.row.excluded .msg-imgs img { opacity: 0.4; }
 .row.assistant .bubble { background: var(--surface-2); border: 1px solid var(--edge); border-bottom-left-radius: 5px; white-space: normal; }
 .row.assistant .bubble code { background: rgba(0, 0, 0, 0.32); padding: 1px 5px; border-radius: 5px; font-family: var(--font-mono); font-size: 12.5px; }
 .row.assistant .bubble pre { background: rgba(0, 0, 0, 0.35); padding: 9px 11px; border-radius: 8px; overflow-x: auto; margin: 7px 0; }

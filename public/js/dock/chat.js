@@ -45,9 +45,33 @@ function saveChat() {
   try { localStorage.setItem(STORAGE_KEYS.chat, JSON.stringify({ session: SESSION, history: slim })); } catch { /* quota */ }
 }
 
-function addMsg(role, text, thumbs = []) {
+// What actually goes to the model: ticked messages only, payload fields only.
+const contextMessages = () =>
+  history.filter((m) => !m.off).map(({ role, content, images }) => ({ role, content, ...(images ? { images } : {}) }));
+
+// The tick beside each message: ✓ = sent with the next prompt (the default),
+// unticked = kept out of context — for cutting a hallucinated exchange loose
+// when switching models without losing the transcript.
+function tickEl(entry) {
+  const b = h('button', { class: 'msg-tick', type: 'button' });
+  const sync = () => {
+    b.classList.toggle('on', !entry.off);
+    b.textContent = entry.off ? '' : '✓';
+    b.title = entry.off ? 'Excluded from the next prompt — click to include' : 'Sent with the next prompt — click to exclude';
+    b.closest('.row')?.classList.toggle('excluded', Boolean(entry.off));
+  };
+  b.addEventListener('click', () => {
+    entry.off = !entry.off;
+    sync();
+    saveChat();
+  });
+  sync();
+  return b;
+}
+
+function addMsg(role, text, thumbs = [], entry = null) {
   log.querySelector('.intro')?.remove();
-  const row = h('div', { class: `row ${role}` });
+  const row = h('div', { class: `row ${role}${entry?.off ? ' excluded' : ''}` });
   if (role === 'assistant' || role === 'error') row.append(h('div', { class: 'avatar' }, role === 'error' ? '⚠️' : '✦'));
   const bubble = h('div', { class: 'bubble' });
   if (role === 'assistant') bubble.innerHTML = mdToHtml(text);
@@ -64,6 +88,7 @@ function addMsg(role, text, thumbs = []) {
   } else {
     row.append(bubble);
   }
+  if (entry) row.append(tickEl(entry));
   log.append(row);
   scroll();
   return bubble;
@@ -131,6 +156,7 @@ function startTurn() {
   let streamed = '';
   return {
     turn,
+    row,
     delta(text) {
       if (bubble.classList.contains('thinking')) {
         bubble.classList.remove('thinking');
@@ -174,8 +200,9 @@ export async function sendChat(text) {
   histIdx = -1;
 
   const { text: content, images, thumbs } = consumeAttachments(text);
-  history.push({ role: 'user', content, ...(images.length ? { images } : {}) });
-  addMsg('user', content, thumbs);
+  const userEntry = { role: 'user', content, ...(images.length ? { images } : {}) };
+  history.push(userEntry);
+  addMsg('user', content, thumbs, userEntry);
   saveChat();
 
   busy = true;
@@ -188,7 +215,7 @@ export async function sendChat(text) {
     await streamSse('/api/agent/stream', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-client-id': clientId },
-      body: JSON.stringify({ model: activeModel(), messages: history, session: SESSION }),
+      body: JSON.stringify({ model: activeModel(), messages: contextMessages(), session: SESSION }),
     }, (event, data) => {
       if (event === 'delta') view.delta(data.text);
       else if (event === 'step') { view.resetStream(); timeline.start(data.i, data.name, data.ids); }
@@ -199,7 +226,9 @@ export async function sendChat(text) {
     if (!done) throw new Error('the stream ended without a reply');
 
     view.finish(done.reply, done.toolIntent, (done.trace || []).length);
-    history.push({ role: 'assistant', content: done.reply || '' });
+    const asstEntry = { role: 'assistant', content: done.reply || '' };
+    history.push(asstEntry);
+    view.row.append(tickEl(asstEntry));
     saveChat();
 
     if (done.canRevert) showRunBar(view.turn, done);
@@ -290,7 +319,7 @@ export function initChat() {
     if (Array.isArray(saved.history) && saved.history.length) {
       for (const m of saved.history) {
         history.push(m);
-        addMsg(m.role, m.content);
+        addMsg(m.role, m.content, [], m);
         if (m.role === 'user') inputHistory.push(m.content);
       }
     }
