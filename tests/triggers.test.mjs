@@ -1,0 +1,48 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { Store } from '../src/store.js';
+import { pressTrigger, fmtRemaining } from '../src/triggers.js';
+import { normalizeTrigger } from '../src/schema.js';
+
+const newStore = () => new Store({ persist: false }).load();
+
+test('a press stamps the time and starts the cooldown', () => {
+  const store = newStore();
+  const t = store.addTrigger({ name: 'Fed the dog', cooldownMs: 60_000 });
+  assert.equal(t.lastPressedAt, null);
+  const t0 = Date.parse('2026-06-12T08:00:00Z');
+  const pressed = pressTrigger(store, t.id, t0);
+  assert.equal(Date.parse(pressed.lastPressedAt), t0);
+  assert.equal(pressed.history.length, 1);
+  // Within the cooldown: refused, with the remaining time in the message.
+  assert.throws(() => pressTrigger(store, t.id, t0 + 30_000), /cooling down — ready in 30s/);
+  // After it expires: allowed again, history grows newest-first.
+  const again = pressTrigger(store, t.id, t0 + 61_000);
+  assert.equal(again.history.length, 2);
+  assert.equal(Date.parse(again.history[0]), t0 + 61_000);
+});
+
+test('history is capped and junk timestamps are dropped', () => {
+  const store = newStore();
+  const t = store.addTrigger({ name: 'Meds', cooldownMs: 0 }); // no cooldown
+  let now = Date.parse('2026-06-12T08:00:00Z');
+  for (let i = 0; i < 15; i++) pressTrigger(store, t.id, (now += 1000));
+  assert.equal(store.getTrigger(t.id).history.length, 12); // capped
+  assert.deepEqual(normalizeTrigger({ history: ['not a date', '2026-06-12T08:00:00Z', 42] }).history, ['2026-06-12T08:00:00Z']);
+});
+
+test('normalizeTrigger applies defaults and bounds', () => {
+  const t = normalizeTrigger({});
+  assert.equal(t.name, 'Trigger');
+  assert.equal(t.cooldownMs, 6 * 60 * 60 * 1000); // 6h default
+  assert.equal(normalizeTrigger({ cooldownMs: 1e12 }).cooldownMs, 7 * 24 * 60 * 60 * 1000); // clamped to a week
+  assert.throws(() => normalizeTrigger({ cooldownMs: -5 }), /cooldownMs/);
+  assert.throws(() => normalizeTrigger({ cooldownMs: 'soon' }), /cooldownMs/);
+});
+
+test('fmtRemaining reads naturally at every scale', () => {
+  assert.equal(fmtRemaining(45_000), '45s');
+  assert.equal(fmtRemaining(5 * 60_000), '5m');
+  assert.equal(fmtRemaining(90 * 60_000), '1h 30m');
+  assert.equal(fmtRemaining(26 * 60 * 60_000), '1d 2h');
+});

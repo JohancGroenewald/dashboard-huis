@@ -15,6 +15,7 @@ import { query } from './chatlog.js';
 import { mountAgentRoutes } from './routes/agent.js';
 import { listPrompts, setPromptOverride } from './prompts.js';
 import { humanMove, aiMove, resetGame, reflectOnGame, isModelTurn } from './games.js';
+import { pressTrigger } from './triggers.js';
 import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired, isApproved } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -182,6 +183,8 @@ app.get('/api/logs', wrap((req, res) => {
 // ---- games -----------------------------------------------------------------
 const thinkingGames = new Set(); // one AI turn at a time per game
 app.post('/api/games', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addGame(req.body || {}))));
+// Only the co-player choice is patchable; board state moves through /move.
+app.patch('/api/games/:id', wrap((req, res) => res.json(store.updateGame(req.params.id, { model: String(req.body?.model ?? '') }))));
 app.delete('/api/games/:id', wrap((req, res) => res.json(store.removeGame(req.params.id))));
 app.post('/api/games/:id/reset', wrap((req, res) => res.json(resetGame(store, req.params.id))));
 app.post('/api/games/:id/move', wrap(async (req, res) => {
@@ -213,6 +216,15 @@ app.post('/api/games/:id/reflect', wrap(async (req, res) => {
     thinkingGames.delete(id);
   }
 }));
+
+// ---- triggers ---------------------------------------------------------------
+app.post('/api/triggers', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addTrigger(req.body || {}))));
+app.patch('/api/triggers/:id', wrap((req, res) => {
+  const { name, cooldownMs } = req.body || {};
+  res.json(store.updateTrigger(req.params.id, { ...(name !== undefined ? { name } : {}), ...(cooldownMs !== undefined ? { cooldownMs } : {}) }));
+}));
+app.delete('/api/triggers/:id', wrap((req, res) => res.json(store.removeTrigger(req.params.id))));
+app.post('/api/triggers/:id/press', wrap((req, res) => res.json(pressTrigger(store, req.params.id))));
 
 // ---- editable model prompts ------------------------------------------------
 app.get('/api/prompts', wrap((req, res) => res.json(listPrompts())));

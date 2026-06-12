@@ -33,6 +33,8 @@ export const GRID_UI = {
   noteDefaultHeight: 3,
   gameDefaultWidth: 3,
   gameDefaultHeight: 5,
+  triggerDefaultWidth: 2,
+  triggerDefaultHeight: 2,
   attachLabelChars: 40,
   oneColumnBelowPx: 768,
 };
@@ -73,6 +75,17 @@ export const DOCK_UI = {
   thinkingTimerMs: 1_000,
   narrowBelowPx: 900,
 };
+
+// Cooldown presets offered on trigger cards.
+export const TRIGGER_COOLDOWNS = [
+  { label: '1 min', ms: 60_000 },
+  { label: '5 min', ms: 5 * 60_000 },
+  { label: '30 min', ms: 30 * 60_000 },
+  { label: '1 hour', ms: 60 * 60_000 },
+  { label: '6 hours', ms: 6 * 60 * 60_000 },
+  { label: '12 hours', ms: 12 * 60 * 60_000 },
+  { label: '24 hours', ms: 24 * 60 * 60_000 },
+];
 
 export const CMDK_UI = {
   resultLimit: 10,

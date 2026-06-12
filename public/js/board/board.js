@@ -14,6 +14,7 @@ import { GRID_UI, STORAGE_KEYS } from '../constants.js';
 import { store, subscribe, publish, flushDeferred, applyDashboard } from '../state/store.js';
 import { sectionInner, noteInner, ghostInner, wireSection, wireNote, wireGhost } from './cards.js';
 import { gameInner, wireGame } from './games.js';
+import { triggerInner, wireTrigger } from './triggers.js';
 
 const gridEl = $('#board');
 let grid = null;
@@ -92,7 +93,8 @@ function renderBoard() {
   const sections = store.dashboard.sections.filter((s) => s.workspaceId === ws);
   const notes = store.dashboard.notes.filter((n) => n.workspaceId === ws);
   const games = (store.dashboard.games || []).filter((g) => g.workspaceId === ws);
-  $('#empty-hero').classList.toggle('hidden', sections.length + notes.length + games.length > 0);
+  const triggers = (store.dashboard.triggers || []).filter((t) => t.workspaceId === ws);
+  $('#empty-hero').classList.toggle('hidden', sections.length + notes.length + games.length + triggers.length > 0);
 
   const cab = $('#collapse-all');
   const allCollapsed = sections.length > 0 && sections.every((s) => s.collapsed);
@@ -120,6 +122,12 @@ function renderBoard() {
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireGame(el, game);
+  }
+  for (const trigger of triggers) {
+    const el = widgetEl(trigger.id, trigger.layout || {}, GRID_UI.triggerDefaultWidth, GRID_UI.triggerDefaultHeight, triggerInner(trigger));
+    gridEl.appendChild(el);
+    grid.makeWidget(el);
+    wireTrigger(el, trigger);
   }
   requestAnimationFrame(() => grid.setAnimation(true));
   rendering = false;

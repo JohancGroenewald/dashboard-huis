@@ -10,7 +10,8 @@ import path from 'node:path';
 import { CONFIG_DEFAULTS, SCHEMA_LIMITS, STORE_LIMITS } from './constants.js';
 import {
   fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote, normalizeGame,
-  normalizeFeatureRequest, normalizeWorkspace, normalizeWorkspaceBackground, normalizeLayout, defaultState, colorName,
+  normalizeTrigger, normalizeFeatureRequest, normalizeWorkspace, normalizeWorkspaceBackground, normalizeLayout,
+  defaultState, colorName,
 } from './schema.js';
 
 export class Store {
@@ -319,11 +320,12 @@ export class Store {
     return this.#commit();
   }
 
-  // Resize/move a single card (section, note, or game) by merging its layout.
+  // Resize/move a single card (section, note, game, trigger) by merging its layout.
   resizeCard(id, dims) {
     const target = this.state.sections.find((s) => s.id === id)
       || this.state.notes.find((n) => n.id === id)
-      || this.state.games.find((g) => g.id === id);
+      || this.state.games.find((g) => g.id === id)
+      || this.state.triggers.find((t) => t.id === id);
     if (!target) fail(`card not found: ${id}`);
     target.layout = normalizeLayout({ ...target.layout, ...dims });
     this.#commit();
@@ -341,6 +343,7 @@ export class Store {
     }
     for (const n of this.state.notes) byId.set(n.id, n);
     for (const g of this.state.games) byId.set(g.id, g);
+    for (const t of this.state.triggers) byId.set(t.id, t);
     for (const it of items) {
       const target = byId.get(it.id);
       if (target) target.layout = normalizeLayout(it);
@@ -348,83 +351,75 @@ export class Store {
     return this.#commit();
   }
 
-  // ---- sticky notes -----------------------------------------------------
-  addNote(note) {
-    const n = normalizeNote({ ...note, workspaceId: note.workspaceId || this.state.activeWorkspaceId });
-    this.state.notes.push(n);
+  // ---- shared card CRUD ---------------------------------------------------
+  #addCard(list, normalize, item) {
+    const x = normalize({ ...item, workspaceId: item.workspaceId || this.state.activeWorkspaceId });
+    list.push(x);
     this.#commit();
-    return n;
+    return x;
   }
+
+  #patch(target, normalize, patch, pinned) {
+    Object.assign(target, normalize({ ...target, ...patch, ...pinned, updatedAt: new Date().toISOString() }));
+    this.#commit();
+    return structuredClone(target);
+  }
+
+  #removeFrom(list, id, label) {
+    const idx = list.findIndex((x) => x.id === id);
+    if (idx === -1) fail(`${label} not found: ${id}`);
+    const [removed] = list.splice(idx, 1);
+    this.#commit();
+    return structuredClone(removed);
+  }
+
+  // ---- sticky notes -----------------------------------------------------
+  addNote(note = {}) { return this.#addCard(this.state.notes, normalizeNote, note); }
 
   updateNote(id, patch) {
     const n = this.#note(id);
-    const merged = normalizeNote({ ...n, ...patch, id: n.id, createdAt: n.createdAt, updatedAt: new Date().toISOString() });
-    Object.assign(n, merged);
-    this.#commit();
-    return structuredClone(n);
+    return this.#patch(n, normalizeNote, patch, { id: n.id, createdAt: n.createdAt });
   }
 
-  removeNote(id) {
-    const idx = this.state.notes.findIndex((n) => n.id === id);
-    if (idx === -1) fail(`note not found: ${id}`);
-    const [removed] = this.state.notes.splice(idx, 1);
-    this.#commit();
-    return structuredClone(removed);
-  }
+  removeNote(id) { return this.#removeFrom(this.state.notes, id, 'note'); }
 
   // ---- games --------------------------------------------------------------
-  addGame(game = {}) {
-    const g = normalizeGame({ ...game, workspaceId: game.workspaceId || this.state.activeWorkspaceId });
-    this.state.games.push(g);
-    this.#commit();
-    return g;
-  }
+  addGame(game = {}) { return this.#addCard(this.state.games, normalizeGame, game); }
 
   updateGame(id, patch) {
     const g = this.#game(id);
-    const merged = normalizeGame({ ...g, ...patch, id: g.id, kind: g.kind, createdAt: g.createdAt, updatedAt: new Date().toISOString() });
-    Object.assign(g, merged);
-    this.#commit();
-    return structuredClone(g);
+    return this.#patch(g, normalizeGame, patch, { id: g.id, kind: g.kind, createdAt: g.createdAt });
   }
 
-  removeGame(id) {
-    const idx = this.state.games.findIndex((g) => g.id === id);
-    if (idx === -1) fail(`game not found: ${id}`);
-    const [removed] = this.state.games.splice(idx, 1);
-    this.#commit();
-    return structuredClone(removed);
-  }
+  removeGame(id) { return this.#removeFrom(this.state.games, id, 'game'); }
 
-  getGame(id) {
-    return structuredClone(this.#game(id));
-  }
+  getGame(id) { return structuredClone(this.#game(id)); }
 
   #game(id) { return this.#find(this.state.games, id, 'game'); }
 
-  // ---- feature requests -------------------------------------------------
-  addFeatureRequest(fr) {
-    const created = normalizeFeatureRequest(fr);
-    this.state.featureRequests.push(created);
-    this.#commit();
-    return created;
+  // ---- triggers -----------------------------------------------------------
+  addTrigger(trigger = {}) { return this.#addCard(this.state.triggers, normalizeTrigger, trigger); }
+
+  updateTrigger(id, patch) {
+    const t = this.#trigger(id);
+    return this.#patch(t, normalizeTrigger, patch, { id: t.id, createdAt: t.createdAt });
   }
+
+  removeTrigger(id) { return this.#removeFrom(this.state.triggers, id, 'trigger'); }
+
+  getTrigger(id) { return structuredClone(this.#trigger(id)); }
+
+  #trigger(id) { return this.#find(this.state.triggers, id, 'trigger'); }
+
+  // ---- feature requests -------------------------------------------------
+  addFeatureRequest(fr) { return this.#addCard(this.state.featureRequests, normalizeFeatureRequest, fr); }
 
   updateFeatureRequest(id, patch) {
     const fr = this.#featureRequest(id);
-    const merged = normalizeFeatureRequest({ ...fr, ...patch, id: fr.id, createdAt: fr.createdAt });
-    Object.assign(fr, merged);
-    this.#commit();
-    return structuredClone(fr);
+    return this.#patch(fr, normalizeFeatureRequest, patch, { id: fr.id, createdAt: fr.createdAt });
   }
 
-  removeFeatureRequest(id) {
-    const idx = this.state.featureRequests.findIndex((f) => f.id === id);
-    if (idx === -1) fail(`feature request not found: ${id}`);
-    const [removed] = this.state.featureRequests.splice(idx, 1);
-    this.#commit();
-    return structuredClone(removed);
-  }
+  removeFeatureRequest(id) { return this.#removeFrom(this.state.featureRequests, id, 'feature request'); }
 
   // ---- internals --------------------------------------------------------
   #find(list, id, label) {

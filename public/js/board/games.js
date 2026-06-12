@@ -6,16 +6,28 @@ import { esc, toast } from '../lib/dom.js';
 import { api, jsonBody } from '../lib/api.js';
 import { judge } from '../lib/tictactoe.js';
 import { loadDashboard } from '../state/store.js';
-import { activeModel, modelHasVision } from '../dock/models.js';
+import { activeModel, modelHasVision, approvedModels } from '../dock/models.js';
 import { deleteWithUndo } from './editor.js';
 
 const thinking = new Set(); // game ids with a move request in flight
 
+// The game's own pick wins; otherwise whatever drives the dock.
+const gameModel = (game) => game.model || activeModel();
+
 function statusText(game, j) {
-  if (thinking.has(game.id)) return `🤔 ${esc(activeModel() || 'model')} is thinking…`;
+  if (thinking.has(game.id)) return `🤔 ${esc(gameModel(game) || 'model')} is thinking…`;
   if (j.status === 'won') return j.winner === 'X' ? '🎉 You win!' : '🤖 The model wins!';
   if (j.status === 'draw') return '🤝 A draw';
   return game.turn === 'X' ? 'Your turn — you are ✕' : 'Model to move…';
+}
+
+function modelOptions(game) {
+  const dock = activeModel();
+  const opts = [`<option value="">✦ dock model${dock ? ` (${esc(dock)})` : ''}</option>`];
+  for (const m of approvedModels()) {
+    opts.push(`<option value="${esc(m)}"${game.model === m ? ' selected' : ''}>${esc(m)}${modelHasVision(m) ? ' 👁' : ''}</option>`);
+  }
+  return opts.join('');
 }
 
 export function gameInner(game) {
@@ -38,6 +50,7 @@ export function gameInner(game) {
     </div>
     <div class="game-status">${statusText(game, j)}</div>
     <div class="game-grid">${cells}</div>
+    <select class="game-model" title="Which model plays ◯ on this board">${modelOptions(game)}</select>
     ${game.say ? `<div class="game-say">✦ ${esc(game.say)}</div>` : ''}
     <details class="game-mem">
       <summary>🧠 model memory</summary>
@@ -85,8 +98,8 @@ export function wireGame(el, game) {
   grid.addEventListener('click', async (e) => {
     const btn = e.target.closest('.game-cell');
     if (!btn || btn.disabled || thinking.has(game.id)) return;
-    const model = activeModel();
-    if (!model) { toast('Pick a model in the dock first — it plays O.', { error: true }); return; }
+    const model = gameModel(game);
+    if (!model) { toast('Pick a model — it plays O.', { error: true }); return; }
     thinking.add(game.id);
     // Optimistic ✕ + thinking state; the authoritative board arrives via SSE.
     btn.textContent = '✕';
@@ -118,6 +131,14 @@ export function wireGame(el, game) {
       thinking.delete(game.id);
       await loadDashboard(); // re-render from truth either way
     }
+  });
+  el.querySelector('.game-model').addEventListener('change', async (e) => {
+    try {
+      await api(`/api/games/${game.id}`, jsonBody({ model: e.target.value }, 'PATCH'));
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+    await loadDashboard();
   });
   el.querySelector('.game-reset').addEventListener('click', async () => {
     await api(`/api/games/${game.id}/reset`, { method: 'POST' });

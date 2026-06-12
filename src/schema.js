@@ -219,8 +219,33 @@ export function normalizeGame(raw) {
     moves,
     memory: checkString(raw.memory, 'game.memory', { required: false, max: SCHEMA_LIMITS.gameMemoryChars }),
     say: checkString(raw.say, 'game.say', { required: false, max: SCHEMA_LIMITS.gameSayChars }),
+    model: checkString(raw.model, 'game.model', { required: false, max: SCHEMA_LIMITS.gameModelChars }), // '' = follow the dock's pick
     reflected: Boolean(raw.reflected), // post-game reflection already done
 
+    layout: normalizeLayout(raw.layout),
+    createdAt: raw.createdAt || new Date().toISOString(),
+    updatedAt: raw.updatedAt || new Date().toISOString(),
+  };
+}
+
+// A trigger card: a button that records a timestamp when pressed, then
+// refuses repeat presses until its cooldown has expired.
+export function normalizeTrigger(raw) {
+  if (!isPlainObject(raw)) fail('trigger must be an object');
+  const cooldown = raw.cooldownMs === undefined || raw.cooldownMs === null || raw.cooldownMs === ''
+    ? SCHEMA_LIMITS.triggerCooldownDefaultMs
+    : Number(raw.cooldownMs);
+  if (!Number.isFinite(cooldown) || cooldown < 0) fail('"trigger.cooldownMs" must be a non-negative number');
+  const history = Array.isArray(raw.history)
+    ? raw.history.filter((t) => typeof t === 'string' && !Number.isNaN(Date.parse(t))).slice(0, SCHEMA_LIMITS.triggerHistoryMax)
+    : [];
+  return {
+    id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
+    name: checkString(raw.name, 'trigger.name', { required: false, max: SCHEMA_LIMITS.triggerNameChars }) || 'Trigger',
+    workspaceId: checkString(raw.workspaceId, 'trigger.workspaceId', { required: false, max: SCHEMA_LIMITS.workspaceIdChars }),
+    cooldownMs: Math.min(cooldown, SCHEMA_LIMITS.triggerCooldownMaxMs),
+    lastPressedAt: typeof raw.lastPressedAt === 'string' && !Number.isNaN(Date.parse(raw.lastPressedAt)) ? raw.lastPressedAt : null,
+    history,
     layout: normalizeLayout(raw.layout),
     createdAt: raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updatedAt || new Date().toISOString(),
@@ -252,6 +277,8 @@ export function normalizeState(raw) {
   if (!Array.isArray(notes)) fail('"notes" must be an array');
   const games = raw.games ?? [];
   if (!Array.isArray(games)) fail('"games" must be an array');
+  const triggers = raw.triggers ?? [];
+  if (!Array.isArray(triggers)) fail('"triggers" must be an array');
   const featureRequests = raw.featureRequests ?? [];
   if (!Array.isArray(featureRequests)) fail('"featureRequests" must be an array');
   const rawWorkspaces = raw.workspaces ?? [];
@@ -263,6 +290,7 @@ export function normalizeState(raw) {
     sections: sections.map(normalizeSection),
     notes: notes.map(normalizeNote),
     games: games.map(normalizeGame),
+    triggers: triggers.map(normalizeTrigger),
     featureRequests: featureRequests.map(normalizeFeatureRequest),
     updatedAt: new Date().toISOString(),
   };
@@ -275,6 +303,7 @@ export function normalizeState(raw) {
   for (const s of state.sections) if (!wsIds.has(s.workspaceId)) s.workspaceId = fallbackWs;
   for (const n of state.notes) if (!wsIds.has(n.workspaceId)) n.workspaceId = fallbackWs;
   for (const g of state.games) if (!wsIds.has(g.workspaceId)) g.workspaceId = fallbackWs;
+  for (const t of state.triggers) if (!wsIds.has(t.workspaceId)) t.workspaceId = fallbackWs;
   state.activeWorkspaceId = wsIds.has(raw.activeWorkspaceId) ? raw.activeWorkspaceId : fallbackWs;
 
   // Enforce unique ids across the whole tree.
@@ -290,6 +319,7 @@ export function normalizeState(raw) {
   }
   for (const n of state.notes) claim(n.id);
   for (const g of state.games) claim(g.id);
+  for (const t of state.triggers) claim(t.id);
   for (const fr of state.featureRequests) claim(fr.id);
   return state;
 }

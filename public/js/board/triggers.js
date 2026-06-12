@@ -1,0 +1,96 @@
+// Trigger cards: a named button that stamps the time when pressed, then
+// shows a live countdown until the cooldown lets it be pressed again. The
+// server is the authority on presses; a 1s ticker only repaints countdowns.
+import { $$, esc, toast } from '../lib/dom.js';
+import { api, jsonBody } from '../lib/api.js';
+import { TRIGGER_COOLDOWNS } from '../constants.js';
+import { loadDashboard } from '../state/store.js';
+import { inlineEdit, deleteWithUndo } from './editor.js';
+
+function fmtRemaining(ms) {
+  const s = Math.ceil(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.ceil(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return m % 60 ? `${h}h ${m % 60}m` : `${h}h`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
+const readyAt = (t) => (t.lastPressedAt ? Date.parse(t.lastPressedAt) + t.cooldownMs : 0);
+
+const fmtStamp = (iso) =>
+  new Date(iso).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+function cooldownOptions(t) {
+  const opts = TRIGGER_COOLDOWNS.map(({ label, ms }) =>
+    `<option value="${ms}"${t.cooldownMs === ms ? ' selected' : ''}>${esc(label)}</option>`);
+  if (!TRIGGER_COOLDOWNS.some(({ ms }) => ms === t.cooldownMs)) {
+    opts.unshift(`<option value="${t.cooldownMs}" selected>${esc(fmtRemaining(t.cooldownMs))}</option>`);
+  }
+  return opts.join('');
+}
+
+export function triggerInner(t) {
+  const cooling = readyAt(t) > Date.now();
+  const history = t.history.map((h) => `<div>${esc(fmtStamp(h))}</div>`).join('');
+  return `<div class="card trigger-card" data-id="${t.id}" data-ready-at="${readyAt(t)}">
+    <div class="sec-head trigger-head">
+      <span class="card-grip" title="Drag trigger">⠿</span>
+      <span class="trigger-name" title="Click to rename">${esc(t.name)}</span>
+      <button class="ctl danger trigger-del" type="button" title="Delete trigger">✕</button>
+    </div>
+    <button type="button" class="trigger-press${cooling ? ' cooling' : ''}"${cooling ? ' disabled' : ''}>
+      ${cooling ? `⏳ <span class="trigger-count">${fmtRemaining(readyAt(t) - Date.now())}</span>` : '⏱ Press'}
+    </button>
+    <div class="trigger-sub">${t.lastPressedAt ? `last: ${esc(fmtStamp(t.lastPressedAt))}` : 'never pressed'}</div>
+    <select class="trigger-cooldown" title="How long before it can be pressed again">${cooldownOptions(t)}</select>
+    ${t.history.length > 1 ? `<details class="trigger-hist"><summary>🕐 history</summary>${history}</details>` : ''}
+  </div>`;
+}
+
+export function wireTrigger(el, t) {
+  const nameEl = el.querySelector('.trigger-name');
+  nameEl.addEventListener('click', () => inlineEdit(nameEl, {
+    value: t.name,
+    onSubmit: (name) => api(`/api/triggers/${t.id}`, jsonBody({ name }, 'PATCH')).then(loadDashboard),
+  }));
+  el.querySelector('.trigger-press').addEventListener('click', async (e) => {
+    e.currentTarget.disabled = true;
+    try {
+      await api(`/api/triggers/${t.id}/press`, { method: 'POST' });
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+    await loadDashboard();
+  });
+  el.querySelector('.trigger-cooldown').addEventListener('change', async (e) => {
+    try {
+      await api(`/api/triggers/${t.id}`, jsonBody({ cooldownMs: Number(e.target.value) }, 'PATCH'));
+    } catch (err) {
+      toast(err.message, { error: true });
+    }
+    await loadDashboard();
+  });
+  el.querySelector('.trigger-del').addEventListener('click', () => deleteWithUndo(`/api/triggers/${t.id}`, `Deleted trigger "${t.name}"`));
+}
+
+// One ticker repaints every cooling card's countdown; when a cooldown ends it
+// re-enables the button in place — no board rebuild.
+setInterval(() => {
+  for (const card of $$('#board .trigger-card[data-ready-at]')) {
+    const ready = Number(card.dataset.readyAt);
+    if (!ready) continue;
+    const btn = card.querySelector('.trigger-press');
+    const left = ready - Date.now();
+    if (left > 0) {
+      const count = card.querySelector('.trigger-count');
+      if (count) count.textContent = fmtRemaining(left);
+    } else if (btn.disabled) {
+      btn.disabled = false;
+      btn.classList.remove('cooling');
+      btn.innerHTML = '⏱ Press';
+      card.dataset.readyAt = '0';
+    }
+  }
+}, 1000);

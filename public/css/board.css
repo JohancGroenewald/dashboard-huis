@@ -87,10 +87,30 @@
 .game-cell.mark-x { color: var(--accent-2); }
 .game-cell.mark-o { color: var(--ai-2); }
 .game-cell.win { border-color: var(--up); box-shadow: 0 0 10px rgba(63, 185, 80, 0.35); }
+.game-model { width: 100%; font-size: var(--fs-0); padding: 4px 8px; color: var(--muted); }
+.game-model:hover { color: var(--text); border-color: var(--ai); }
 .game-say { font-size: var(--fs-0); color: var(--ai-2); background: var(--ai-dim); border-radius: var(--r-2); padding: 6px 9px; font-style: italic; }
 .game-mem { font-size: var(--fs-0); color: var(--muted); }
 .game-mem summary { cursor: pointer; }
 .game-mem pre { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--edge); border-radius: var(--r-1); padding: 6px 8px; max-height: 120px; overflow-y: auto; }
+
+/* ---- Trigger cards ---- */
+.trigger-card { display: flex; flex-direction: column; gap: var(--sp-2); }
+.trigger-card:hover .sec-head .ctl { opacity: 0.85; }
+.trigger-name { flex: 1; font-weight: 650; font-size: var(--fs-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
+.trigger-press {
+  flex: 1; min-height: 44px; border: 1px solid var(--edge); border-radius: var(--r-2); cursor: pointer;
+  background: var(--accent); color: #fff; font-size: var(--fs-2); font-weight: 650;
+  transition: filter var(--t-fast), background var(--t-fast), color var(--t-fast);
+}
+.trigger-press:not(:disabled):hover { filter: brightness(1.15); }
+.trigger-press.cooling, .trigger-press:disabled { background: var(--surface-2); color: var(--muted); cursor: default; font-variant-numeric: tabular-nums; }
+.trigger-sub { text-align: center; font-size: var(--fs-0); color: var(--muted); }
+.trigger-cooldown { width: 100%; font-size: var(--fs-0); padding: 4px 8px; color: var(--muted); }
+.trigger-cooldown:hover { color: var(--text); border-color: var(--accent); }
+.trigger-hist { font-size: var(--fs-0); color: var(--muted); }
+.trigger-hist summary { cursor: pointer; }
+.trigger-hist div { padding: 2px 0 0 14px; font-variant-numeric: tabular-nums; }
 .sec-empty { color: var(--muted); font-size: 12.5px; font-style: italic; grid-column: 1 / -1; padding: var(--sp-4) var(--sp-1); text-align: center; }
 
 @keyframes rainbow-heading {

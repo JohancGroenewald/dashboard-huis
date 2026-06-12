@@ -7,9 +7,11 @@ import { STORAGE_KEYS } from '../constants.js';
 
 let active = '';
 let vision = {}; // model → can it see images (from /api/models)
+let approvedList = []; // validated driver names, for pickers elsewhere (games)
 
 export const activeModel = () => active;
 export const modelHasVision = (m) => Boolean(vision[m]);
+export const approvedModels = () => approvedList;
 
 function setModel(m, ms) {
   active = m;
@@ -22,6 +24,7 @@ export async function loadModels() {
   try {
     const { approved, details, vision: v } = await api('/api/models');
     vision = v || {};
+    approvedList = approved;
     const menu = $('#model-menu');
     if (!approved.length) {
       menu.innerHTML = '<div class="mm-empty">No validated models yet. Run <code>npm run validate -- --all</code> on the server — only models that pass the safety gate may drive the board.</div>';

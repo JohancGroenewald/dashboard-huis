@@ -144,6 +144,11 @@ export const SCHEMA_LIMITS = {
   featureDetailChars: 2_000,
   gameMemoryChars: 2_000,
   gameSayChars: 300,
+  gameModelChars: 120,
+  triggerNameChars: 120,
+  triggerHistoryMax: 12,
+  triggerCooldownMaxMs: 7 * 24 * 60 * 60 * 1000, // a week
+  triggerCooldownDefaultMs: 6 * 60 * 60 * 1000, // 6 hours
   requestedByChars: 120,
   dashboardTitleChars: 120,
   layoutMin: 0,

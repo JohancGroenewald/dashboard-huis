@@ -76,6 +76,15 @@ function buildActions() {
       icon: '⭕', label: 'New game (kringetjies & kruisies)', hay: 'new add game tictactoe tic tac toe noughts crosses kringetjies kruisies play',
       run: async () => { await api('/api/games', jsonBody({})); await loadDashboard(); },
     },
+    {
+      icon: '⏱', label: 'New trigger…', hay: 'new add trigger button timestamp cooldown debounce press',
+      run: async () => {
+        const v = await openDialog({ title: 'New trigger', fields: [{ name: 'name', placeholder: 'What does it track? e.g. Fed the dog' }], submitLabel: 'Create' });
+        if (!v?.name) return;
+        await api('/api/triggers', jsonBody({ name: v.name }));
+        await loadDashboard();
+      },
+    },
     ...d.sections.filter((s) => s.workspaceId === activeWs).map((s) => ({
       icon: '🔗', label: `New tile in "${s.name}"…`, hay: `new add tile link ${s.name}`,
       run: () => addTileTo(s.id),

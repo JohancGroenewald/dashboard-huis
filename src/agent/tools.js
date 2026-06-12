@@ -4,6 +4,7 @@
 // live store (the agent) and a throwaway store (the validation sandbox).
 // The JSON-schema specs live in tool-specs.js (re-exported here).
 import { AGENT_LIMITS } from '../constants.js';
+import { pressTrigger } from '../triggers.js';
 import { toolSpecs } from './tool-specs.js';
 
 export { toolSpecs };
@@ -107,6 +108,12 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
 
     add_game: ({ kind }) => ({ added: store.addGame({ kind: kind || 'tictactoe' }) }),
     remove_game: ({ game_id }) => ({ removed: store.removeGame(game_id) }),
+
+    add_trigger: ({ name, cooldown_minutes }) => ({
+      added: store.addTrigger({ name, ...(cooldown_minutes !== undefined ? { cooldownMs: Number(cooldown_minutes) * 60_000 } : {}) }),
+    }),
+    press_trigger: ({ trigger_id }) => ({ pressed: pressTrigger(store, trigger_id) }),
+    remove_trigger: ({ trigger_id }) => ({ removed: store.removeTrigger(trigger_id) }),
 
     switch_workspace: ({ workspace }) => {
       const w = resolveWorkspace(workspace);

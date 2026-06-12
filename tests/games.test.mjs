@@ -107,6 +107,15 @@ test('reflection refuses while the game is still in play', async () => {
   await assert.rejects(() => reflectOnGame({ store, ollama: fakeOllama(['{}']), gameId: g.id, model: 'm' }), /not over yet/);
 });
 
+test('a game remembers its own co-player model', () => {
+  const store = newStore();
+  const g = store.addGame({});
+  assert.equal(g.model, '');
+  assert.equal(store.updateGame(g.id, { model: 'qwen3.6:27b' }).model, 'qwen3.6:27b');
+  assert.equal(store.updateGame(g.id, { model: '' }).model, ''); // back to the dock's pick
+  assert.throws(() => store.updateGame(g.id, { model: 'x'.repeat(200) }), /game.model/);
+});
+
 test('normalizeGame rejects junk and bounds the fields', () => {
   assert.throws(() => normalizeGame({ kind: 'chess' }), /game.kind/);
   const g = normalizeGame({ board: ['X', 'Z', 1, 'O', '', '', '', '', ''], moves: [{ p: 'X', cell: 0 }, { p: 'Q', cell: 3 }, { p: 'O', cell: 99 }] });

@@ -99,6 +99,45 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'add_trigger',
+      description: 'Add a trigger card: a named button that records a timestamp when pressed, then refuses repeat presses until its cooldown expires (e.g. "Fed the dog", 6 hours).',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'What the trigger tracks.' },
+          cooldown_minutes: { type: 'number', description: 'Minutes before it can be pressed again. Default 360 (6 hours).' },
+        },
+        required: ['name'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'press_trigger',
+      description: 'Press a trigger card for the user, recording the timestamp now. Fails with the remaining time if it is still cooling down.',
+      parameters: {
+        type: 'object',
+        properties: { trigger_id: { type: 'string', description: 'Trigger id.' } },
+        required: ['trigger_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_trigger',
+      description: 'Delete a trigger card by id.',
+      parameters: {
+        type: 'object',
+        properties: { trigger_id: { type: 'string', description: 'Trigger id.' } },
+        required: ['trigger_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'switch_workspace',
       description: 'Make a workspace the active one — the board shows it and new sections/notes land in it.',
       parameters: {
