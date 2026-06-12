@@ -24,7 +24,10 @@
 }
 .dock[data-state="float"] .dock-rail { display: none; }
 .dock[data-state="float"] .dock-resizer { display: none; }
-.dock[data-state="float"] .dock-head { cursor: grab; }
+/* touch-action: none keeps pen/touch drags ours — without it the browser
+   reads the gesture as a scroll and fires pointercancel mid-drag (Surface
+   pen stutter). user-select stops press-and-hold text selection too. */
+.dock[data-state="float"] .dock-head { cursor: grab; touch-action: none; user-select: none; }
 .dock[data-state="float"] .dock-head:active { cursor: grabbing; }
 
 /* ---- Rail ---- */
