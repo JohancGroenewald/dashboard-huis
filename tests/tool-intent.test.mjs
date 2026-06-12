@@ -73,3 +73,17 @@ test('tool-intent reviewer can be disabled and fails open', async () => {
   assert.equal(failed.intended, null);
   assert.match(failed.error, /missing model/);
 });
+
+test('display state flags intended-but-never-called turns as forgot', async () => {
+  const { toolIntentState, toolIntentLabel, toolIntentTitle } = await import('../public/js/lib/tool-intent.js');
+  const intended = { intended: true, confidence: 0.9, reason: 'said it added a note' };
+
+  assert.equal(toolIntentState(intended, 0), 'forgot'); // meant to act, zero calls
+  assert.equal(toolIntentState(intended, 2), 'yes'); // meant to act and did
+  assert.equal(toolIntentState(intended), 'yes'); // calls unknown: no accusation
+  assert.equal(toolIntentState({ intended: false }, 0), 'no');
+  assert.equal(toolIntentState(null, 0), null);
+  assert.equal(toolIntentLabel(intended, 0), 'Tool: forgot?');
+  assert.match(toolIntentTitle(intended, 0), /no tool was ever called/);
+  assert.doesNotMatch(toolIntentTitle(intended, 2), /no tool was ever called/);
+});

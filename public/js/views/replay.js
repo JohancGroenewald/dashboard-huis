@@ -146,11 +146,11 @@ function sayBubble(text, ri, st) {
   return `<div class="row assistant interim"><div class="avatar">✦</div><div class="bubble">${body}</div></div>`;
 }
 
-function toolIntentBadge(intent) {
-  const state = toolIntentState(intent);
+function toolIntentBadge(intent, calls) {
+  const state = toolIntentState(intent, calls);
   if (!state) return '';
-  return `<div class="tool-intent-badge ${state}" title="${esc(toolIntentTitle(intent))}">
-    <span class="tool-intent-dot"></span><span>${esc(toolIntentLabel(intent))}</span>
+  return `<div class="tool-intent-badge ${state}" title="${esc(toolIntentTitle(intent, calls))}">
+    <span class="tool-intent-dot"></span><span>${esc(toolIntentLabel(intent, calls))}</span>
   </div>`;
 }
 
@@ -198,7 +198,7 @@ function renderStage() {
       <div class="row user"><div class="bubble">${esc(row.user_msg || '(no prompt)')}</div></div>
       ${flow}
       ${replyHtml ? `<div class="row assistant"><div class="avatar">✦</div><div class="bubble">${replyHtml}</div></div>` : ''}
-      ${showIntent ? toolIntentBadge(row.toolIntent) : ''}
+      ${showIntent ? toolIntentBadge(row.toolIntent, trace.length) : ''}
     </div>
     ${trace.length ? filmstrip(trace, st) : ''}`;
   for (const el of stage.querySelectorAll('.step[data-step]')) {

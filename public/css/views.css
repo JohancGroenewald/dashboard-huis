@@ -81,6 +81,7 @@
 .tchip.intent.yes { color: #b8f0c0; border: 1px solid rgba(63, 185, 80, 0.45); }
 .tchip.intent.no { color: var(--muted); border: 1px solid var(--edge); }
 .tchip.intent.unknown { color: #ffd082; border: 1px solid rgba(210, 153, 34, 0.5); }
+.tchip.intent.forgot { color: #ffb4ae; border: 1px solid rgba(248, 81, 73, 0.5); }
 
 /* ---- Replay ---- */
 /* The view is exactly viewport-height (a min-height floor would let content

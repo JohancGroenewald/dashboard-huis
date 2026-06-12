@@ -97,13 +97,13 @@ function renderFollowups(items = []) {
   scroll();
 }
 
-function renderToolIntentBadge(intent) {
-  const state = toolIntentState(intent);
+function renderToolIntentBadge(intent, calls) {
+  const state = toolIntentState(intent, calls);
   if (!state) return null;
   return h('div', {
     class: `tool-intent-badge ${state}`,
-    title: toolIntentTitle(intent),
-  }, h('span', { class: 'tool-intent-dot' }), h('span', {}, toolIntentLabel(intent)));
+    title: toolIntentTitle(intent, calls),
+  }, h('span', { class: 'tool-intent-dot' }), h('span', {}, toolIntentLabel(intent, calls)));
 }
 
 // The streaming assistant turn: thinking dots → live tokens (with cursor)
@@ -145,11 +145,11 @@ function startTurn() {
       streamed = '';
       if (!bubble.classList.contains('thinking')) bubble.querySelector('.stream').textContent = '';
     },
-    finish(reply, toolIntent) {
+    finish(reply, toolIntent, calls) {
       clearInterval(timer);
       bubble.classList.remove('thinking');
       bubble.innerHTML = mdToHtml(reply || '(no reply)');
-      const badge = renderToolIntentBadge(toolIntent);
+      const badge = renderToolIntentBadge(toolIntent, calls);
       if (badge) turn.append(badge);
       scroll();
     },
@@ -198,7 +198,7 @@ export async function sendChat(text) {
     });
     if (!done) throw new Error('the stream ended without a reply');
 
-    view.finish(done.reply, done.toolIntent);
+    view.finish(done.reply, done.toolIntent, (done.trace || []).length);
     history.push({ role: 'assistant', content: done.reply || '' });
     saveChat();
 

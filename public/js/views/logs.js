@@ -24,9 +24,10 @@ export async function renderLogsView() {
         .map((r) => {
           const verdict = r.kind !== 'chat' && r.pass !== null ? (r.pass ? ' ✓' : ' ✗') : '';
           const meta = `${esc(r.model || '?')}${r.kind !== 'chat' ? ` · ${esc(r.task || '')}${verdict}` : ''}${r.ms ? ` · ${fmtMs(r.ms)}` : ''}`;
-          const intentState = toolIntentState(r.toolIntent);
+          const calls = (r.trace || []).length;
+          const intentState = toolIntentState(r.toolIntent, calls);
           const intent = intentState
-            ? `<span class="tchip intent ${intentState}" title="${esc(toolIntentTitle(r.toolIntent))}">${esc(toolIntentLabel(r.toolIntent))}</span>`
+            ? `<span class="tchip intent ${intentState}" title="${esc(toolIntentTitle(r.toolIntent, calls))}">${esc(toolIntentLabel(r.toolIntent, calls))}</span>`
             : '';
           const chips = [
             ...(r.trace || []).map((t) => `<span class="tchip ${t.ok ? 'ok' : 'bad'}">${t.ok ? '✓' : '✗'} ${esc(t.name)}</span>`),
