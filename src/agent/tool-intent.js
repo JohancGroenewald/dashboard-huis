@@ -19,23 +19,37 @@ function traceSummary(trace = []) {
 }
 
 function classifierSystem() {
-  return `You are a strict classifier for a local dashboard copilot.
+  return `You are a strict binary classifier for a local dashboard copilot.
 
-Decide whether the assistant turn intended to use a dashboard tool.
+Question: did this assistant turn intend to use a dashboard tool?
 Dashboard tools are: ${toolNames.join(', ')}.
 
 Return only JSON:
 {"intended":true|false,"confidence":0..1,"tool":"tool_name or null","reason":"short reason"}
 
-Use intended=true if completed tool calls are present, or if the assistant reply says it will do, did, needs to inspect, or prints a dashboard action that should be one of those tool calls.
-Use intended=false for ordinary conversation, refusals, out-of-scope answers, or clarifying questions that do not claim/action a dashboard change.`;
+Classify intended=true when:
+- any tool call appears in the trace, including failed, blocked, or unknown-tool calls,
+- the assistant says it did, will, is going to, needs to inspect/search/read, or is about to perform a dashboard action,
+- the assistant asks the user to choose among options that should be clickable via offer_choices.
+
+Classify intended=false when:
+- it is ordinary information, refusal, or out-of-scope conversation,
+- it asks a clarifying question before acting,
+- it gives advice, recommendations, or hypothetical possibilities using words like could/should/might without claiming it will perform an action.
+
+Examples:
+- Trace includes "failed rename_section(...)" -> intended=true.
+- Reply says "I need to inspect the dashboard first" -> intended=true, tool=get_dashboard or search_dashboard.
+- Reply says "You could group those apps into a Media section" -> intended=false.
+
+If tool calls are in the trace, intended must be true.`;
 }
 
 function classifierUser({ userText, reply, trace }) {
   return `User request:
 ${truncate(userText, AGENT_LIMITS.toolIntentInputChars)}
 
-Completed tool calls:
+Tool-call trace:
 ${traceSummary(trace)}
 
 Assistant reply:
@@ -51,6 +65,29 @@ function extractJson(text) {
   const end = s.lastIndexOf('}');
   if (start === -1 || end <= start) return null;
   try { return JSON.parse(s.slice(start, end + 1)); } catch { return null; }
+}
+
+function matchField(raw, name) {
+  const m = String(raw || '').match(new RegExp(`["']?${name}["']?\\s*:\\s*("([^"]*)"|true|false|null|-?\\d+(?:\\.\\d+)?)`, 'i'));
+  if (!m) return undefined;
+  if (m[2] !== undefined) return m[2];
+  if (/^true$/i.test(m[1])) return true;
+  if (/^false$/i.test(m[1])) return false;
+  if (/^null$/i.test(m[1])) return null;
+  return m[1];
+}
+
+function extractFields(text) {
+  const raw = String(text || '');
+  const confidence = matchField(raw, 'confidence') ?? raw.match(/confidence[^0-9-]*(-?\d+(?:\.\d+)?)/i)?.[1];
+  return {
+    intended: matchField(raw, 'intended'),
+    tool_intent: matchField(raw, 'tool_intent'),
+    answer: matchField(raw, 'answer'),
+    confidence,
+    tool: matchField(raw, 'tool') ?? toolNames.find((name) => raw.includes(`"${name}"`)),
+    reason: matchField(raw, 'reason'),
+  };
 }
 
 function coerceBool(v, raw) {
@@ -77,7 +114,7 @@ function coerceTool(v) {
 }
 
 export function parseToolIntentResponse(text, { reviewer, ms } = {}) {
-  const data = extractJson(text) || {};
+  const data = { ...extractFields(text), ...(extractJson(text) || {}) };
   const intended = coerceBool(data.intended ?? data.tool_intent ?? data.answer, text);
   const reason = truncate(data.reason || (intended == null ? 'Could not parse reviewer response' : ''), AGENT_LIMITS.reviewPreviewChars);
   return {

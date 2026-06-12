@@ -22,6 +22,14 @@ test('tool-intent parser falls back to yes/no text', () => {
   assert.equal(parseToolIntentResponse('maybe', {}).intended, null);
 });
 
+test('tool-intent parser recovers clear fields from malformed JSON', () => {
+  const out = parseToolIntentResponse('{"intended":true,"confidence:0.95,":"offer_choices","reason":"use choices"}', {});
+
+  assert.equal(out.intended, true);
+  assert.equal(out.confidence, 0.95);
+  assert.equal(out.reason, 'use choices');
+});
+
 test('tool-intent reviewer asks the configured small model for JSON', async () => {
   let seen;
   const ollama = {
@@ -44,6 +52,10 @@ test('tool-intent reviewer asks the configured small model for JSON', async () =
   assert.equal(seen.format, 'json');
   assert.equal(seen.timeoutMs, 1234);
   assert.equal(seen.tools, undefined);
+  assert.match(seen.messages[0].content, /If tool calls are in the trace, intended must be true/);
+  assert.match(seen.messages[0].content, /I need to inspect the dashboard first/);
+  assert.match(seen.messages[0].content, /could\/should\/might/);
+  assert.match(seen.messages[1].content, /Tool-call trace/);
   assert.equal(out.intended, false);
 });
 
