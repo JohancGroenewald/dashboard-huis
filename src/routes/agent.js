@@ -103,7 +103,7 @@ async function addToolIntent({ result, ollama, userMsg }) {
   return { ...result, toolIntent };
 }
 
-export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
+export function mountAgentRoutes(app, { store, ollama, events, wrap, scraperResults = null }) {
   // Agent tool calls should update every open tab, including the tab that asked
   // for the run. The chat UI does not locally apply tool results, so tagging
   // these broadcasts as a same-tab echo would make the requester wait until the
@@ -119,7 +119,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
     if (!r) return;
     const started = Date.now();
     try {
-      const run = await runAgent({ model: r.model, store, messages: r.safeMessages, ollama, runTool: broadcastAgentMutation });
+      const run = await runAgent({ model: r.model, store, messages: r.safeMessages, ollama, runTool: broadcastAgentMutation, scraperResults });
       const result = await addToolIntent({ result: run, ollama, userMsg: r.userMsg });
       logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, reply: result.reply, trace: result.trace, rounds: result.rounds, steps: result.steps, ms: Date.now() - started, toolIntent: result.toolIntent });
       res.json({
@@ -159,6 +159,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap }) {
         messages: r.safeMessages,
         ollama,
         runTool: broadcastAgentMutation,
+        scraperResults,
         onEvent: (ev) => {
           if (ev.type === 'delta') send('delta', { text: ev.text });
           else if (ev.type === 'tool-start') {

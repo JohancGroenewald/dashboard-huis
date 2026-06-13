@@ -34,8 +34,9 @@ export async function runAgent({
   options,
   onEvent,
   runTool = (fn) => fn(),
+  scraperResults = null,
 }) {
-  const handlers = makeToolHandlers(store, { requestedBy: model });
+  const handlers = makeToolHandlers(store, { requestedBy: model, scraperResults });
   const convo = [{ role: 'system', content: systemPrompt(store) }, ...messages];
   const trace = []; // { name, args, ok, result|error }
   const rounds = []; // per chat round: { thinking, content, calls } — calls counts executed ones

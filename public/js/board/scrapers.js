@@ -8,6 +8,7 @@ import { activeModel, approvedModels } from '../dock/models.js';
 import { inlineEdit, deleteWithUndo } from './editor.js';
 
 const running = new Set(); // scraper ids with a run in flight
+const RESULT_ROWS_LIMIT = 500;
 
 const scraperModel = (sc) => sc.model || activeModel();
 
@@ -65,15 +66,27 @@ const setResultSlot = (card, result) => {
 
 function resultTable(r) {
   if (!r || !r.columns.length) return '';
+  const rows = Array.isArray(r.rows) ? r.rows : [];
+  const total = Number.isFinite(Number(r.rowCount)) ? Number(r.rowCount) : rows.length;
   const head = r.columns.map((c) => `<th>${esc(c)}</th>`).join('');
-  const body = r.rows.length
-    ? r.rows.map((row) => `<tr>${row.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')
-    : `<tr><td colspan="${r.columns.length}" class="scraper-empty">no matching rows</td></tr>`;
+  const body = rows.length
+    ? rows.map((row) => `<tr>${row.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')
+    : `<tr><td colspan="${r.columns.length}" class="scraper-empty">${total ? 'loading rows...' : 'no matching rows'}</td></tr>`;
+  const count = rows.length === total ? `${total} row${total === 1 ? '' : 's'}` : `showing ${rows.length} of ${total} rows`;
   return `<div class="scraper-result">
     <table class="scraper-tbl"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
     ${r.note ? `<div class="scraper-note">📝 ${esc(r.note)}</div>` : ''}
-    <div class="scraper-ran">scraped ${esc(fmtStamp(r.at))} · ${r.rows.length} row${r.rows.length === 1 ? '' : 's'}</div>
+    <div class="scraper-ran">scraped ${esc(fmtStamp(r.at))} · ${esc(count)}</div>
   </div>`;
+}
+
+async function loadStoredRows(card, sc) {
+  const r = sc.result;
+  if (!r?.runId || !r.rowCount || r.rows?.length) return;
+  try {
+    const page = await api(`/api/scrapers/${sc.id}/rows?offset=0&limit=${RESULT_ROWS_LIMIT}`);
+    if (card?.isConnected) setResultSlot(card, { ...r, rows: page.rows, rowCount: page.total, note: page.note, at: page.at, runId: page.runId });
+  } catch { /* dashboard summary still tells us the total */ }
 }
 
 export function scraperInner(sc) {
@@ -101,6 +114,8 @@ export function scraperInner(sc) {
 }
 
 export function wireScraper(el, sc) {
+  const cardEl = el.querySelector('.scraper-card');
+  loadStoredRows(cardEl, sc);
   const nameEl = el.querySelector('.scraper-name');
   nameEl.addEventListener('click', () => inlineEdit(nameEl, {
     value: sc.name,
@@ -166,8 +181,9 @@ export function wireScraper(el, sc) {
 // Live progress (server → events → here): paint the running button with the
 // current phase so a long scrape shows what it's actually doing.
 function progressLabel(s) {
+  const rows = s.result?.rowCount ?? s.result?.rows?.length ?? 0;
   if (s.phase === 'clear') return '⏳ scraping…';
-  if (s.phase === 'rows') return `⛏ ${s.result?.rows?.length || 0} row${s.result?.rows?.length === 1 ? '' : 's'}…`;
+  if (s.phase === 'rows') return `⛏ ${rows} row${rows === 1 ? '' : 's'}…`;
   if (s.phase === 'source') return `📥 source page ${s.sourcePage || 1}…`;
   if (s.phase === 'fetch') return '📥 fetching page…';
   if (s.phase === 'preview') return '⛏ previewing…';

@@ -5,6 +5,7 @@
 // The JSON-schema specs live in tool-specs.js (re-exported here).
 import { AGENT_LIMITS } from '../constants.js';
 import { pressTrigger } from '../triggers.js';
+import { readScraperRows } from '../scraper-results.js';
 import { toolSpecs } from './tool-specs.js';
 
 export { toolSpecs };
@@ -13,7 +14,7 @@ export const toolNames = toolSpecs.map((t) => t.function.name);
 // Build name -> handler(args) bound to a given store. Handlers return plain,
 // JSON-serializable summaries that get fed back to the model as tool results.
 // `requestedBy` labels feature requests the model files (defaults to the model).
-export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
+export function makeToolHandlers(store, { requestedBy = 'agent', scraperResults = null } = {}) {
   // Resolve a section by id first, then by case-insensitive name.
   const resolveSectionMaybe = (ref) => {
     const { sections } = store.getState();
@@ -92,7 +93,8 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
         })),
         scrapers: s.scrapers.map((sc) => ({
           id: sc.id, name: sc.name, url: sc.url, instruction: sc.instruction, pageMode: sc.pageMode, pageTokens: sc.pageTokens,
-          sourceMode: sc.sourceMode, sourceProcess: sc.sourceProcess, rows: sc.result?.rows.length || 0, workspaceId: sc.workspaceId, layout: sc.layout,
+          sourceMode: sc.sourceMode, sourceProcess: sc.sourceProcess,
+          rows: sc.result?.rowCount ?? sc.result?.rows.length ?? 0, workspaceId: sc.workspaceId, layout: sc.layout,
         })),
         featureRequests: s.featureRequests.map((f) => ({ id: f.id, title: f.title, status: f.status })),
         problems: s.problems.map((p) => ({ id: p.id, title: p.title, status: p.status })),
@@ -135,8 +137,7 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
       if (!r) return { name: sc.name, columns: [], rows: [], total: 0, returned: 0, offset: 0, note: 'no results yet — the user must run this scraper first' };
       const start = Math.max(0, Math.trunc(Number(offset) || 0));
       const n = Math.min(Math.max(1, Math.trunc(Number(limit) || AGENT_LIMITS.scraperReadDefault)), AGENT_LIMITS.scraperReadMax);
-      const rows = r.rows.slice(start, start + n);
-      return { name: sc.name, columns: r.columns, rows, total: r.rows.length, offset: start, returned: rows.length, note: r.note || '' };
+      return readScraperRows(sc, scraperResults, { offset: start, limit: n });
     },
 
     switch_workspace: ({ workspace }) => {

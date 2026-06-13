@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import http from 'node:http';
 import https from 'node:https';
 import { config, paths } from './config.js';
-import { ENV_BOUNDS, HTTP_STATUS } from './constants.js';
+import { ENV_BOUNDS, HTTP_STATUS, SCRAPER_LIMITS } from './constants.js';
 import { EventHub } from './events.js';
 import { Store } from './store.js';
 import { HealthMonitor } from './health.js';
@@ -17,6 +17,7 @@ import { listPrompts, setPromptOverride } from './prompts.js';
 import { humanMove, aiMove, resetGame, reflectOnGame, isModelTurn } from './games.js';
 import { pressTrigger } from './triggers.js';
 import { runScraper } from './scrapers.js';
+import { ScraperResultStore, readScraperRows } from './scraper-results.js';
 import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired, isApproved } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -31,6 +32,7 @@ const store = new Store({
 const health = new HealthMonitor(store).start();
 const ollama = new Ollama();
 const events = new EventHub();
+const scraperResults = new ScraperResultStore({ dbPath: paths.scraperResults });
 
 // Broadcast every store change to connected browsers. The originating tab's
 // X-Client-Id rides along so clients can tell their own echo from real news.
@@ -242,6 +244,17 @@ app.patch('/api/scrapers/:id', wrap((req, res) => {
   res.json(store.updateScraper(req.params.id, patch));
 }));
 app.delete('/api/scrapers/:id', wrap((req, res) => res.json(store.removeScraper(req.params.id))));
+app.get('/api/scrapers/:id/rows', wrap((req, res) => {
+  const sc = store.getScraper(req.params.id);
+  const offset = Math.max(0, Math.trunc(Number(req.query.offset) || 0));
+  const limit = Math.min(
+    Math.max(1, Math.trunc(Number(req.query.limit) || SCRAPER_LIMITS.displayRowsDefault)),
+    SCRAPER_LIMITS.displayRowsMax
+  );
+  res.json(readScraperRows(sc, scraperResults, { offset, limit }) || {
+    name: sc.name, columns: [], rows: [], rowIds: [], total: 0, returned: 0, offset, note: 'no results yet',
+  });
+}));
 app.post('/api/scrapers/:id/run', wrap(async (req, res) => {
   const id = req.params.id;
   const model = req.body?.model || store.getScraper(id).model;
@@ -250,7 +263,7 @@ app.post('/api/scrapers/:id/run', wrap(async (req, res) => {
   runningScrapers.add(id);
   try {
     const onProgress = (info) => events.broadcast('scraper', info);
-    res.json(await runScraper({ store, ollama, scraperId: id, model, onProgress }));
+    res.json(await runScraper({ store, ollama, scraperId: id, model, onProgress, scraperResults }));
   } finally {
     runningScrapers.delete(id);
   }
@@ -296,7 +309,7 @@ app.get('/api/models', wrap(async (req, res) => {
 }));
 
 // Agent chat (whole-reply + streaming) — see src/routes/agent.js.
-mountAgentRoutes(app, { store, ollama, events, wrap });
+mountAgentRoutes(app, { store, ollama, events, wrap, scraperResults });
 
 // no-cache + ETag: the browser always revalidates, so updated JS/CSS/HTML load
 // immediately (a 304 when unchanged) — no more stale modules / hard-refreshing.

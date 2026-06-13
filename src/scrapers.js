@@ -158,7 +158,7 @@ function cacheKeyFor(sc, model, pageTokens, sources) {
 
 // Fetch + extract. The route enforces that the model is gate-approved.
 // onProgress(info) is called as the run advances so the UI can show live state.
-export async function runScraper({ store, ollama, scraperId, model, onProgress }) {
+export async function runScraper({ store, ollama, scraperId, model, onProgress, scraperResults = null }) {
   const sc = store.getScraper(scraperId);
   const useModel = model || sc.model;
   if (!useModel) fail('pick a model for this scraper first');
@@ -280,10 +280,18 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
     const maybeUseCache = (sources) => {
       cacheKey = cacheKeyFor(sc, useModel, pageTokens, sources);
       if (sc.result?.cacheKey && sc.result.cacheKey === cacheKey) {
-        cacheHit = true;
-        result = { columns: sc.result.columns, rows: sc.result.rows, note: sc.result.note || '', cacheKey };
-        streamTable(result);
-        return true;
+        const saved = scraperResults?.latestCached(scraperId, cacheKey);
+        const legacyRows = Array.isArray(sc.result.rows) ? sc.result.rows : [];
+        const legacyTotal = Number.isFinite(Number(sc.result.rowCount)) ? Number(sc.result.rowCount) : legacyRows.length;
+        const cached = saved || (legacyRows.length || legacyTotal === 0
+          ? { columns: sc.result.columns, rows: legacyRows, note: sc.result.note || '', cacheKey }
+          : null);
+        if (cached) {
+          cacheHit = true;
+          result = { columns: cached.columns, rows: cached.rows, note: cached.note || '', cacheKey };
+          streamTable(result);
+          return true;
+        }
       }
       return false;
     };
@@ -387,10 +395,25 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
     error = err.message;
   }
 
+  const completedAt = stamp();
+  let storedResult = result ? { ...result, rowCount: result.rows.length, at: completedAt } : null;
+  if (storedResult && scraperResults) {
+    const saved = scraperResults.saveRun({ scraperId, model: useModel, result, at: completedAt });
+    storedResult = {
+      columns: result.columns,
+      rows: [],
+      rowCount: saved.rowCount,
+      note: result.note || '',
+      at: completedAt,
+      cacheKey: result.cacheKey || cacheKey,
+      runId: saved.runId,
+    };
+  }
+
   const updated = store.updateScraper(scraperId, {
-    ...(result ? { result: { ...result, at: stamp() } } : {}),
+    ...(storedResult ? { result: storedResult } : {}),
     error,
-    lastRunAt: stamp(),
+    lastRunAt: completedAt,
   });
   logTask({
     kind: 'scrape',

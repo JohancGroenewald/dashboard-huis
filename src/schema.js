@@ -273,24 +273,27 @@ export function normalizeProblem(raw) {
 // A scraper's last extraction: a bounded table the model returned. Re-validated
 // on every load/commit so whatever is stored can never exceed the limits.
 export function normalizeScrapeResult(raw) {
-  if (!isPlainObject(raw) || !Array.isArray(raw.columns) || !Array.isArray(raw.rows)) return null;
+  if (!isPlainObject(raw) || !Array.isArray(raw.columns)) return null;
   const cell = (v) => String(v ?? '').slice(0, SCRAPER_LIMITS.cellChars);
   const columns = raw.columns.slice(0, SCRAPER_LIMITS.maxColumns).map(cell);
   const width = columns.length;
   if (!width) return null;
-  const rows = raw.rows
+  const rows = (Array.isArray(raw.rows) ? raw.rows : [])
     .filter(Array.isArray)
     .map((r) => {
       const row = r.slice(0, width).map(cell);
       while (row.length < width) row.push('');
       return row;
     });
+  const rawRowCount = Number(raw.rowCount);
   return {
     columns,
     rows,
+    rowCount: Number.isFinite(rawRowCount) ? Math.max(rows.length, Math.trunc(rawRowCount)) : rows.length,
     note: typeof raw.note === 'string' ? raw.note.slice(0, SCHEMA_LIMITS.scraperNoteChars) : '',
     at: typeof raw.at === 'string' && !Number.isNaN(Date.parse(raw.at)) ? raw.at : new Date().toISOString(),
     cacheKey: typeof raw.cacheKey === 'string' ? raw.cacheKey.slice(0, 128) : '',
+    runId: typeof raw.runId === 'string' ? raw.runId.slice(0, 128) : '',
   };
 }
 

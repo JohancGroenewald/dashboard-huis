@@ -48,6 +48,7 @@ export const PATH_NAMES = {
   backups: 'backups',
   approvedModels: 'approved-models.json',
   chatlogDb: 'chatlog.db',
+  scraperResultsDb: 'scraper-results.db',
 };
 
 export const SERVER_LIMITS = {
@@ -69,6 +70,8 @@ export const SCRAPER_LIMITS = {
   maxPageTokens: 12_000, // largest slice the user may configure
   pageOverlapChars: 800, // carry context across slice boundaries
   pageBoundaryScanChars: 1_000, // look ahead this far for a cleaner newline break
+  displayRowsDefault: 250,
+  displayRowsMax: 1_000,
 };
 
 export const SSE_LIMITS = {

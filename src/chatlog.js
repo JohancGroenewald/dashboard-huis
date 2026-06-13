@@ -15,6 +15,7 @@ function getDb() {
   fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   db = new DatabaseSync(DB_PATH);
   db.exec('PRAGMA journal_mode = WAL'); // let the CLI/UI read while the server writes
+  db.exec('PRAGMA busy_timeout = 5000');
   db.exec(`CREATE TABLE IF NOT EXISTS chat_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     ts TEXT NOT NULL,

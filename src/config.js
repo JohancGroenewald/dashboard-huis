@@ -117,4 +117,5 @@ export const paths = {
   dashboard: path.join(config.dataDir, PATH_NAMES.dashboard),
   backups: path.join(config.dataDir, PATH_NAMES.backups),
   approvedModels: path.join(config.dataDir, PATH_NAMES.approvedModels),
+  scraperResults: path.join(config.dataDir, PATH_NAMES.scraperResultsDb),
 };
