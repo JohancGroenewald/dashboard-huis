@@ -68,9 +68,11 @@ export async function runScraper({ store, ollama, scraperId, model }) {
   const stamp = () => new Date().toISOString();
   let result = null;
   let error = '';
+  let pageText = '';
   const rounds = [];
   try {
     const content = await fetchPageText(sc.url);
+    pageText = content;
     const system = renderPrompt('scraper', {
       instruction: sc.instruction || 'Extract the main tabular data on the page.',
       url: sc.url,
@@ -105,6 +107,7 @@ export async function runScraper({ store, ollama, scraperId, model }) {
     userMsg: `${sc.url}\n${sc.instruction || '(extract main data)'}`,
     reply: result ? `${result.rows.length} row(s) × ${result.columns.length} column(s)` : (error || 'no result'),
     rounds,
+    content: pageText || null, // the fetched page text, shown in the Replay view
     ms: Date.now() - started,
     error: error || null,
   });

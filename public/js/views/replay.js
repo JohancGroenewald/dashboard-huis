@@ -196,6 +196,7 @@ function renderStage() {
     </div>
     <div class="rp-transcript">
       <div class="row user"><div class="bubble">${esc(row.user_msg || '(no prompt)')}</div></div>
+      ${row.content ? `<details class="rp-source"><summary>📄 source the model worked with · ${row.content.length.toLocaleString()} chars</summary><pre>${esc(row.content)}</pre></details>` : ''}
       ${flow}
       ${replyHtml ? `<div class="row assistant"><div class="avatar">✦</div><div class="bubble">${replyHtml}</div></div>` : ''}
       ${showIntent ? toolIntentBadge(row.toolIntent, trace.length) : ''}
