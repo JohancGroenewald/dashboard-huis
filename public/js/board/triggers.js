@@ -47,7 +47,7 @@ export function triggerInner(t) {
       ${busy ? '⏳ …' : cooling ? `⏳ <span class="trigger-count">${fmtRemaining(readyAt(t) - Date.now())}</span>` : '⏱ Press'}
     </button>
     <div class="trigger-sub">${t.lastPressedAt ? `last: ${esc(fmtStamp(t.lastPressedAt))}` : 'never pressed'}</div>
-    <select class="trigger-cooldown" title="How long before it can be pressed again"${busy ? ' disabled' : ''}>${cooldownOptions(t)}</select>
+    <select class="trigger-cooldown" title="${cooling ? 'Locked while cooling down' : 'How long before it can be pressed again'}"${busy || cooling ? ' disabled' : ''}>${cooldownOptions(t)}</select>
     ${t.history.length > 1 ? `<details class="trigger-hist"><summary>🕐 history</summary>${history}</details>` : ''}
   </div>`;
 }
@@ -110,6 +110,10 @@ setInterval(() => {
       btn.classList.remove('cooling');
       btn.innerHTML = '⏱ Press';
       card.dataset.readyAt = '0';
+      // Cooldown's over: the period dropdown becomes editable again.
+      const sel = card.querySelector('.trigger-cooldown');
+      sel.disabled = false;
+      sel.title = 'How long before it can be pressed again';
     }
   }
 }, 1000);
