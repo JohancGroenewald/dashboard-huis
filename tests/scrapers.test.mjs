@@ -241,6 +241,91 @@ test('runScraper can stay on the first source page only', async () => {
   }
 });
 
+test('runScraper reuses a cached extraction when source and prompt contract match', async () => {
+  let fetches = 0;
+  const server = await pageServer(() => {
+    fetches += 1;
+    return '<body><p>Alpha | $1</p></body>';
+  });
+  try {
+    const store = newStore();
+    const sc = store.addScraper({
+      name: 'Cached',
+      url: `http://127.0.0.1:${server.address().port}/search`,
+      instruction: 'item and price',
+      model: 'm',
+      sourceMode: 'single',
+      sourceProcess: 'collect',
+    });
+    const firstOllama = fakeOllama('{"columns":["Item","Price"],"rows":[["Alpha","$1"]]}');
+    const first = await runScraper({ store, ollama: firstOllama, scraperId: sc.id, model: 'm' });
+    assert.equal(first.error, '');
+    assert.equal(firstOllama.calls.length, 1);
+    assert.match(first.scraper.result.cacheKey, /^[a-f0-9]{64}$/);
+
+    const secondOllama = { calls: [], async chat() { this.calls.push(true); throw new Error('cache miss'); } };
+    const second = await runScraper({ store, ollama: secondOllama, scraperId: sc.id, model: 'm' });
+    assert.equal(second.error, '');
+    assert.equal(secondOllama.calls.length, 0);
+    assert.equal(fetches, 2, 'source is still rechecked before cache reuse');
+    assert.deepEqual(second.scraper.result.rows, [['Alpha', '$1']]);
+    assert.equal(second.scraper.result.cacheKey, first.scraper.result.cacheKey);
+  } finally {
+    server.close();
+  }
+});
+
+test('runScraper cache misses when the scraper instruction changes', async () => {
+  const server = await pageServer('<body><p>Alpha | $1</p></body>');
+  try {
+    const store = newStore();
+    const sc = store.addScraper({
+      name: 'Instruction cache',
+      url: `http://127.0.0.1:${server.address().port}/search`,
+      instruction: 'item and price',
+      model: 'm',
+      sourceMode: 'single',
+      sourceProcess: 'collect',
+    });
+    await runScraper({ store, ollama: fakeOllama('{"columns":["Item","Price"],"rows":[["Alpha","$1"]]}'), scraperId: sc.id, model: 'm' });
+    store.updateScraper(sc.id, { instruction: 'only item names' });
+
+    const ollama = fakeOllama('{"columns":["Item"],"rows":[["Alpha"]]}');
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(error, '');
+    assert.equal(ollama.calls.length, 1);
+    assert.deepEqual(scraper.result.columns, ['Item']);
+  } finally {
+    server.close();
+  }
+});
+
+test('runScraper cache misses when the fetched source changes', async () => {
+  let body = '<body><p>Alpha | $1</p></body>';
+  const server = await pageServer(() => body);
+  try {
+    const store = newStore();
+    const sc = store.addScraper({
+      name: 'Source cache',
+      url: `http://127.0.0.1:${server.address().port}/search`,
+      instruction: 'item and price',
+      model: 'm',
+      sourceMode: 'single',
+      sourceProcess: 'collect',
+    });
+    await runScraper({ store, ollama: fakeOllama('{"columns":["Item","Price"],"rows":[["Alpha","$1"]]}'), scraperId: sc.id, model: 'm' });
+    body = '<body><p>Beta | $2</p></body>';
+
+    const ollama = fakeOllama('{"columns":["Item","Price"],"rows":[["Beta","$2"]]}');
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(error, '');
+    assert.equal(ollama.calls.length, 1);
+    assert.deepEqual(scraper.result.rows, [['Beta', '$2']]);
+  } finally {
+    server.close();
+  }
+});
+
 test('runScraper preview mode only sends the selected first slice', async () => {
   const server = await pageServer(`<body><pre>${'x'.repeat(9000)}\nNeedle | $7</pre></body>`);
   try {

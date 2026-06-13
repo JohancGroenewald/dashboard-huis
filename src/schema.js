@@ -290,6 +290,7 @@ function normalizeScrapeResult(raw) {
     rows,
     note: typeof raw.note === 'string' ? raw.note.slice(0, SCHEMA_LIMITS.scraperNoteChars) : '',
     at: typeof raw.at === 'string' && !Number.isNaN(Date.parse(raw.at)) ? raw.at : new Date().toISOString(),
+    cacheKey: typeof raw.cacheKey === 'string' ? raw.cacheKey.slice(0, 128) : '',
   };
 }
 

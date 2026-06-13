@@ -2,9 +2,10 @@
 // extract the requested data into a table. Fetching is plain (http/https only,
 // timed out); no JavaScript is executed. Each run logs as
 // kind='scrape' with the model's thinking, so it replays move-by-move.
+import crypto from 'node:crypto';
 import { fail } from './schema.js';
 import { logTask } from './chatlog.js';
-import { renderPrompt } from './prompts.js';
+import { getPromptTemplate, renderPrompt } from './prompts.js';
 import { SCRAPER_LIMITS } from './constants.js';
 
 // Strip a page to readable text: drop script/style/comments, unwrap tags,
@@ -127,6 +128,34 @@ export function parseTable(text) {
   return { columns: data.columns, rows: data.rows, note: typeof data.note === 'string' ? data.note : '' };
 }
 
+function sha256(data) {
+  return crypto.createHash('sha256').update(data).digest('hex');
+}
+
+function sourceHash(sources) {
+  return sha256(JSON.stringify(sources.map((s) => ({ url: s.url, text: s.text }))));
+}
+
+function contractHash(sc, model, pageTokens) {
+  return sha256(JSON.stringify({
+    model,
+    instruction: sc.instruction || 'Extract the main tabular data on the page.',
+    template: getPromptTemplate('scraper'),
+    pageMode: sc.pageMode,
+    pageTokens,
+    sourceMode: sc.sourceMode,
+    sourceProcess: sc.sourceProcess,
+  }));
+}
+
+function cacheKeyFor(sc, model, pageTokens, sources) {
+  return sha256(JSON.stringify({
+    v: 1,
+    source: sourceHash(sources),
+    contract: contractHash(sc, model, pageTokens),
+  }));
+}
+
 // Fetch + extract. The route enforces that the model is gate-approved.
 // onProgress(info) is called as the run advances so the UI can show live state.
 export async function runScraper({ store, ollama, scraperId, model, onProgress }) {
@@ -144,6 +173,8 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
   let result = null;
   let error = '';
   let pageText = '';
+  let cacheHit = false;
+  let cacheKey = '';
   const rounds = [];
   const withNote = (table, note) => ({ ...table, note: [table.note, note].filter(Boolean).join(' · ') });
   const sourceBlock = (src, i) => `Source page ${i}: ${src.url}\n${src.text}`;
@@ -226,16 +257,17 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
       return sources;
     };
 
-    if (!full) {
-      progress({ phase: 'source', sourcePage: 1 });
-      const source = await fetchSourcePage(sc.url, { maxChars: pageChars });
-      pageText = sourceBlock(source, 1);
-      progress({ phase: 'preview' });
-      result = await ask(source.text, 'Preview this first source page slice. Extract now. Reply with ONLY the JSON.');
-      if (!result) error = 'the model did not return a readable table';
-      else result = withNote(result, pageTokens > 0 ? `preview: first ~${pageTokens} tokens only` : `preview: first ${SCRAPER_LIMITS.maxTextChars} chars only`);
-    } else if (sc.sourceProcess === 'collect') {
-      const sources = await collectSources({ follow: sc.sourceMode === 'follow' });
+    const maybeUseCache = (sources) => {
+      cacheKey = cacheKeyFor(sc, useModel, pageTokens, sources);
+      if (sc.result?.cacheKey && sc.result.cacheKey === cacheKey) {
+        cacheHit = true;
+        result = { columns: sc.result.columns, rows: sc.result.rows, note: sc.result.note || '', cacheKey };
+        return true;
+      }
+      return false;
+    };
+
+    const processCollectedSources = async (sources) => {
       pageText = sources.map((src, i) => sourceBlock(src, i + 1)).join('\n\n');
       const extracted = await extractPaged(pageText, { sourcePages: sources.length });
       if (extracted.columns) {
@@ -249,40 +281,83 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
             unreadable: extracted.unreadable,
             mode: 'collected full paged',
           }),
+          cacheKey,
         };
       } else {
         const partial = noteParts({ sourcePages: sources.length, slices: extracted.slices, failed: extracted.failed, unreadable: extracted.unreadable, mode: 'collected full paged' });
         error = `the model returned no readable table from any slice · ${partial}`;
       }
-    } else {
-      const follow = sc.sourceMode === 'follow';
-      const visited = new Set();
+    };
+
+    const processSourcesPerPage = async (sources) => {
       let columns = null;
       let failed = 0;
       let unreadable = 0;
       let slices = 0;
       const rows = [];
-      const sources = [];
-      let url = sc.url;
-      let htmx = false;
-      while (url && !visited.has(url)) {
-        visited.add(url);
-        progress({ phase: 'source', sourcePage: sources.length + 1 });
-        const src = await fetchSourcePage(url, { htmx });
-        sources.push(src);
-        pageText = sources.map((source, i) => sourceBlock(source, i + 1)).join('\n\n');
-        const extracted = await extractPaged(src.text, { columns, rowsSoFar: rows.length, sourcePage: sources.length });
+      for (let i = 0; i < sources.length; i += 1) {
+        pageText = sources.slice(0, i + 1).map((source, k) => sourceBlock(source, k + 1)).join('\n\n');
+        const extracted = await extractPaged(sources[i].text, { columns, rowsSoFar: rows.length, sourcePage: i + 1, sourcePages: sources.length });
         columns = extracted.columns;
         rows.push(...extracted.rows);
         failed += extracted.failed;
         unreadable += extracted.unreadable;
         slices += extracted.slices;
-        if (!follow) break;
-        url = src.nextUrl;
-        htmx = true;
       }
-      if (columns) result = { columns, rows, note: noteParts({ sourcePages: sources.length, slices, failed, unreadable, mode: 'per-source full paged' }) };
+      if (columns) result = { columns, rows, note: noteParts({ sourcePages: sources.length, slices, failed, unreadable, mode: 'per-source full paged' }), cacheKey };
       else error = `the model returned no readable table from any slice · ${noteParts({ sourcePages: sources.length, slices, failed, unreadable, mode: 'per-source full paged' })}`;
+    };
+
+    if (!full) {
+      progress({ phase: 'source', sourcePage: 1 });
+      const source = await fetchSourcePage(sc.url, { maxChars: pageChars });
+      pageText = sourceBlock(source, 1);
+      if (!maybeUseCache([source])) {
+        progress({ phase: 'preview' });
+        result = await ask(source.text, 'Preview this first source page slice. Extract now. Reply with ONLY the JSON.');
+        if (!result) error = 'the model did not return a readable table';
+        else result = { ...withNote(result, pageTokens > 0 ? `preview: first ~${pageTokens} tokens only` : `preview: first ${SCRAPER_LIMITS.maxTextChars} chars only`), cacheKey };
+      }
+    } else if (sc.sourceProcess === 'collect') {
+      const sources = await collectSources({ follow: sc.sourceMode === 'follow' });
+      pageText = sources.map((src, i) => sourceBlock(src, i + 1)).join('\n\n');
+      if (!maybeUseCache(sources)) await processCollectedSources(sources);
+    } else {
+      const follow = sc.sourceMode === 'follow';
+      const visited = new Set();
+      const sources = [];
+      let url = sc.url;
+      let htmx = false;
+      if (sc.result?.cacheKey) {
+        const cachedSources = await collectSources({ follow });
+        pageText = cachedSources.map((src, i) => sourceBlock(src, i + 1)).join('\n\n');
+        if (!maybeUseCache(cachedSources)) await processSourcesPerPage(cachedSources);
+      } else {
+        let columns = null;
+        let failed = 0;
+        let unreadable = 0;
+        let slices = 0;
+        const rows = [];
+        while (url && !visited.has(url)) {
+          visited.add(url);
+          progress({ phase: 'source', sourcePage: sources.length + 1 });
+          const src = await fetchSourcePage(url, { htmx });
+          sources.push(src);
+          pageText = sources.map((source, i) => sourceBlock(source, i + 1)).join('\n\n');
+          const extracted = await extractPaged(src.text, { columns, rowsSoFar: rows.length, sourcePage: sources.length });
+          columns = extracted.columns;
+          rows.push(...extracted.rows);
+          failed += extracted.failed;
+          unreadable += extracted.unreadable;
+          slices += extracted.slices;
+          if (!follow) break;
+          url = src.nextUrl;
+          htmx = true;
+        }
+        cacheKey = cacheKeyFor(sc, useModel, pageTokens, sources);
+        if (columns) result = { columns, rows, note: noteParts({ sourcePages: sources.length, slices, failed, unreadable, mode: 'per-source full paged' }), cacheKey };
+        else error = `the model returned no readable table from any slice · ${noteParts({ sourcePages: sources.length, slices, failed, unreadable, mode: 'per-source full paged' })}`;
+      }
     }
   } catch (err) {
     error = err.message;
@@ -296,11 +371,11 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
   logTask({
     kind: 'scrape',
     model: useModel,
-    task: full ? 'scrape-paged' : 'scrape-preview',
+    task: cacheHit ? 'scrape-cache' : (full ? 'scrape-paged' : 'scrape-preview'),
     session: scraperId,
     userMsg: `${sc.url}\n${sc.instruction || '(extract main data)'}`,
     reply: result
-      ? `${result.rows.length} row(s) × ${result.columns.length} column(s)${rounds.length > 1 ? ` · ${rounds.length} slices` : ''}`
+      ? `${cacheHit ? 'cached · ' : ''}${result.rows.length} row(s) × ${result.columns.length} column(s)${rounds.length > 1 ? ` · ${rounds.length} slices` : ''}`
       : (error || 'no result'),
     rounds,
     content: pageText || null, // the fetched page text, shown in the Replay view
