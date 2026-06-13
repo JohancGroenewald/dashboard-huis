@@ -63,6 +63,7 @@ export const SCRAPER_LIMITS = {
   maxColumns: 8,
   maxRows: 100,
   cellChars: 400,
+  contextTokens: 16384, // num_ctx requested only when loading a model fresh for a scrape
 };
 
 export const SSE_LIMITS = {

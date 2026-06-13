@@ -73,6 +73,27 @@ test('runScraper records an error when the model returns no table', async () => 
   }
 });
 
+test('runScraper widens context only when the model is not already loaded', async () => {
+  const server = await pageServer('<body><p>data</p></body>');
+  try {
+    const store = newStore();
+    const sc = store.addScraper({ name: 'X', url: `http://127.0.0.1:${server.address().port}/`, model: 'm' });
+    const reply = '{"columns":["A"],"rows":[["1"]]}';
+
+    // Already resident → reuse as-is, no num_ctx (which would force a reload).
+    const warm = { calls: [], loadedModels: async () => ['m', 'other'], async chat(r) { this.calls.push(r); return { role: 'assistant', content: reply }; } };
+    await runScraper({ store, ollama: warm, scraperId: sc.id, model: 'm' });
+    assert.equal(warm.calls[0].options.num_ctx, undefined);
+
+    // Not loaded → request the wider context while it loads anyway.
+    const cold = { calls: [], loadedModels: async () => ['other'], async chat(r) { this.calls.push(r); return { role: 'assistant', content: reply }; } };
+    await runScraper({ store, ollama: cold, scraperId: sc.id, model: 'm' });
+    assert.equal(cold.calls[0].options.num_ctx, 16384);
+  } finally {
+    server.close();
+  }
+});
+
 test('runScraper refuses a non-http URL before fetching', async () => {
   const store = newStore();
   const sc = store.addScraper({ name: 'bad', url: 'file:///etc/passwd', model: 'm' });

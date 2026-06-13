@@ -78,6 +78,12 @@ export async function runScraper({ store, ollama, scraperId, model }) {
       url: sc.url,
       content,
     });
+    // Only widen the context when loading fresh — forcing num_ctx on a model
+    // that is already resident at another size makes Ollama reload it.
+    let resident = true;
+    if (typeof ollama.loadedModels === 'function') {
+      try { resident = (await ollama.loadedModels()).includes(useModel); } catch { resident = true; }
+    }
     const msg = await ollama.chat({
       model: useModel,
       messages: [
@@ -85,7 +91,7 @@ export async function runScraper({ store, ollama, scraperId, model }) {
         { role: 'user', content: 'Extract now. Reply with ONLY the JSON.' },
       ],
       format: 'json',
-      options: { temperature: 0, num_ctx: 16384 },
+      options: { temperature: 0, ...(resident ? {} : { num_ctx: SCRAPER_LIMITS.contextTokens }) },
     });
     rounds.push({ thinking: msg.thinking || '', content: msg.content || '', calls: 0 });
     result = parseTable(msg.content);
