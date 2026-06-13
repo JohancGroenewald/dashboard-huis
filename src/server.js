@@ -249,7 +249,8 @@ app.post('/api/scrapers/:id/run', wrap(async (req, res) => {
   if (runningScrapers.has(id)) { res.status(HTTP_STATUS.conflict).json({ error: 'this scraper is already running' }); return; }
   runningScrapers.add(id);
   try {
-    res.json(await runScraper({ store, ollama, scraperId: id, model }));
+    const onProgress = (info) => events.broadcast('scraper', info);
+    res.json(await runScraper({ store, ollama, scraperId: id, model, onProgress }));
   } finally {
     runningScrapers.delete(id);
   }

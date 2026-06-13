@@ -109,6 +109,7 @@ export function initLive() {
         // pulse blue for ids the agent didn't claim.
         markTouched(ids.filter((id) => touched.get(id)?.kind !== 'ai' && !pendingIds.has(id)), 'remote');
       },
+      scraper: (s) => publish('scraper', s),
       agent: (a) => {
         publish('agent', a);
         if (a.phase === 'tool-start') setPending(a.ids, true);

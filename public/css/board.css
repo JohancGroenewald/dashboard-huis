@@ -134,7 +134,15 @@
 .scraper-pages { flex: none; font-size: var(--fs-0); padding: 4px 6px; color: var(--muted); }
 .scraper-run { flex: none; border: 1px solid rgba(76, 141, 255, 0.45); background: var(--accent-dim); color: var(--accent-2); border-radius: var(--r-2); padding: 5px 12px; font-weight: 600; font-size: var(--fs-1); cursor: pointer; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
 .scraper-run:not(:disabled):hover { background: rgba(76, 141, 255, 0.3); color: var(--text); }
-.scraper-run:disabled { opacity: 0.7; cursor: default; }
+/* Running: a violet shimmer sweeps across while the live phase label updates. */
+.scraper-run:disabled {
+  cursor: default; color: var(--ai-2); border-color: var(--ai);
+  background: linear-gradient(100deg, var(--ai-dim) 30%, rgba(163, 113, 247, 0.45) 50%, var(--ai-dim) 70%);
+  background-size: 220% 100%;
+  animation: scraper-sweep 1.2s linear infinite;
+}
+@keyframes scraper-sweep { from { background-position: 220% 0; } to { background-position: -20% 0; } }
+@media (prefers-reduced-motion: reduce) { .scraper-run:disabled { animation: none; } }
 .scraper-card.running { opacity: 0.9; }
 .scraper-error { font-size: var(--fs-0); color: #ffb4ae; background: rgba(248, 81, 73, 0.1); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: var(--r-1); padding: 5px 8px; }
 .scraper-result { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--edge-soft); padding-top: var(--sp-2); }

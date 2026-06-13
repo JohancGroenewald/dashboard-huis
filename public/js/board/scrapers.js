@@ -3,7 +3,7 @@
 // card. The dock's active model runs it unless the card picks its own.
 import { esc, toast } from '../lib/dom.js';
 import { api, jsonBody } from '../lib/api.js';
-import { loadDashboard } from '../state/store.js';
+import { loadDashboard, subscribe } from '../state/store.js';
 import { activeModel, approvedModels } from '../dock/models.js';
 import { inlineEdit, deleteWithUndo } from './editor.js';
 
@@ -117,3 +117,16 @@ export function wireScraper(el, sc) {
   });
   el.querySelector('.scraper-del').addEventListener('click', () => deleteWithUndo(`/api/scrapers/${sc.id}`, `Deleted scraper "${sc.name}"`));
 }
+
+// Live progress (server → events → here): paint the running button with the
+// current phase so a long scrape shows what it's actually doing.
+function progressLabel(s) {
+  if (s.phase === 'fetch') return '📥 fetching page…';
+  if (s.phase === 'extract') return '⛏ extracting…';
+  if (s.phase === 'slice') return `⛏ slice ${s.slice}/${s.slices}${s.rows ? ` · ${s.rows} rows` : ''}…`;
+  return '⏳ scraping…';
+}
+subscribe('scraper', (s) => {
+  const btn = document.querySelector(`#board .scraper-card[data-id="${CSS.escape(s.id)}"] .scraper-run`);
+  if (btn) btn.textContent = progressLabel(s);
+});

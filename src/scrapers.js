@@ -75,11 +75,13 @@ export function parseTable(text) {
 }
 
 // Fetch + extract. The route enforces that the model is gate-approved.
-export async function runScraper({ store, ollama, scraperId, model }) {
+// onProgress(info) is called as the run advances so the UI can show live state.
+export async function runScraper({ store, ollama, scraperId, model, onProgress }) {
   const sc = store.getScraper(scraperId);
   const useModel = model || sc.model;
   if (!useModel) fail('pick a model for this scraper first');
   if (!sc.url) fail('this scraper has no URL yet');
+  const progress = (info) => { try { onProgress?.({ id: scraperId, ...info }); } catch { /* never break a run on UI plumbing */ } };
 
   const started = Date.now();
   const stamp = () => new Date().toISOString();
@@ -89,6 +91,7 @@ export async function runScraper({ store, ollama, scraperId, model }) {
   let pageText = '';
   const rounds = [];
   try {
+    progress({ phase: 'fetch' });
     pageText = await fetchPageText(sc.url, paged ? SCRAPER_LIMITS.maxPagedTextChars : SCRAPER_LIMITS.maxTextChars);
 
     // Only widen the context when loading fresh — forcing num_ctx on a model
@@ -117,6 +120,7 @@ export async function runScraper({ store, ollama, scraperId, model }) {
     };
 
     if (!paged) {
+      progress({ phase: 'extract' });
       result = await ask(pageText, 'Extract now. Reply with ONLY the JSON.');
       if (!result) error = 'the model did not return a readable table';
     } else {
@@ -127,6 +131,7 @@ export async function runScraper({ store, ollama, scraperId, model }) {
       let failed = 0;
       const rows = [];
       for (let i = 0; i < pages.length && rows.length < SCRAPER_LIMITS.maxRows; i += 1) {
+        progress({ phase: 'slice', slice: i + 1, slices: pages.length, rows: rows.length });
         const userMsg = columns
           ? `This is part ${i + 1} of ${pages.length} of the same page. Use EXACTLY these columns, in order: ${JSON.stringify(columns)}. Extract any matching rows from this part; return empty rows if there are none. Reply with ONLY the JSON.`
           : `This is part ${i + 1} of ${pages.length} of a page. Extract now. Reply with ONLY the JSON.`;
