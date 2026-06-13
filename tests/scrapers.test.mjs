@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import http from 'node:http';
 import { Store } from '../src/store.js';
-import { htmlToText, parseTable, runScraper } from '../src/scrapers.js';
+import { htmlToText, parseTable, paginate, runScraper } from '../src/scrapers.js';
 import { normalizeScraper } from '../src/schema.js';
 
 const newStore = () => new Store({ persist: false }).load();
@@ -89,6 +89,45 @@ test('runScraper widens context only when the model is not already loaded', asyn
     const cold = { calls: [], loadedModels: async () => ['other'], async chat(r) { this.calls.push(r); return { role: 'assistant', content: reply }; } };
     await runScraper({ store, ollama: cold, scraperId: sc.id, model: 'm' });
     assert.equal(cold.calls[0].options.num_ctx, 16384);
+  } finally {
+    server.close();
+  }
+});
+
+test('paginate slices text on newline boundaries and caps page count', () => {
+  const text = Array.from({ length: 10 }, (_, i) => `line ${i}`).join('\n'); // ~70 chars
+  const pages = paginate(text, 20);
+  assert.ok(pages.length > 1);
+  assert.equal(pages.join(''), text); // lossless
+  assert.ok(pages.slice(0, -1).every((p) => p.endsWith('\n'))); // clean breaks
+  assert.ok(paginate(text, 5, 2).length <= 2); // maxPages honoured
+});
+
+test('the content pager runs each slice and merges rows under fixed columns', async () => {
+  // >8K chars of text so a 2K-token (≈8K-char) slice splits into ≥2 passes.
+  const lines = Array.from({ length: 220 }, (_, i) => `Item ${i} — a fairly long product description for padding | $${i}`).join('\n');
+  const server = await pageServer(`<body><pre>${lines}</pre></body>`);
+  try {
+    const store = newStore();
+    const sc = store.addScraper({ name: 'Big', url: `http://127.0.0.1:${server.address().port}/`, model: 'm', pageTokens: 2000 });
+    let call = 0;
+    const ollama = {
+      calls: [],
+      loadedModels: async () => ['m'],
+      async chat(req) {
+        this.calls.push(req);
+        call += 1;
+        return { role: 'assistant', content: `{"columns":["Item","Price"],"rows":[["Item${call}","$${call}"]]}` };
+      },
+    };
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm', });
+    assert.equal(error, '');
+    assert.ok(ollama.calls.length >= 2, 'paged into multiple model calls');
+    assert.deepEqual(scraper.result.columns, ['Item', 'Price']);
+    assert.equal(scraper.result.rows.length, ollama.calls.length); // one row merged per slice
+    assert.match(scraper.result.note, /paged/);
+    // Slices after the first are told to reuse the established columns.
+    assert.match(ollama.calls[1].messages[1].content, /Use EXACTLY these columns/);
   } finally {
     server.close();
   }

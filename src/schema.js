@@ -303,6 +303,7 @@ export function normalizeScraper(raw) {
     url: checkString(raw.url, 'scraper.url', { required: false, max: SCHEMA_LIMITS.scraperUrlChars }),
     instruction: checkString(raw.instruction, 'scraper.instruction', { required: false, max: SCHEMA_LIMITS.scraperInstructionChars }),
     model: checkString(raw.model, 'scraper.model', { required: false, max: SCHEMA_LIMITS.gameModelChars }), // '' = the dock's pick
+    pageTokens: Math.max(0, Math.min(Math.trunc(Number(raw.pageTokens) || 0), SCRAPER_LIMITS.maxPageTokens)), // 0 = single pass
     result: normalizeScrapeResult(raw.result),
     error: checkString(raw.error, 'scraper.error', { required: false, max: SCHEMA_LIMITS.scraperNoteChars }),
     lastRunAt: typeof raw.lastRunAt === 'string' && !Number.isNaN(Date.parse(raw.lastRunAt)) ? raw.lastRunAt : null,

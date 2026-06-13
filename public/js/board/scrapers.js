@@ -23,6 +23,18 @@ function modelOptions(sc) {
   return opts.join('');
 }
 
+// Content-pager presets: how big a slice (in tokens) to feed per pass.
+const PAGE_SIZES = [
+  { label: 'one pass', tokens: 0 },
+  { label: '2K/slice', tokens: 2000 },
+  { label: '4K/slice', tokens: 4000 },
+  { label: '8K/slice', tokens: 8000 },
+];
+function pageOptions(sc) {
+  return PAGE_SIZES.map(({ label, tokens }) =>
+    `<option value="${tokens}"${sc.pageTokens === tokens ? ' selected' : ''}>${esc(label)}</option>`).join('');
+}
+
 function resultTable(r) {
   if (!r || !r.columns.length) return '';
   const head = r.columns.map((c) => `<th>${esc(c)}</th>`).join('');
@@ -48,6 +60,7 @@ export function scraperInner(sc) {
     <div class="scraper-inst${sc.instruction ? '' : ' empty'}" title="Click to edit the instruction">${esc(sc.instruction || '＋ what to look for and tabulate')}</div>
     <div class="scraper-controls">
       <select class="scraper-model" title="Which model extracts the data"${busy ? ' disabled' : ''}>${modelOptions(sc)}</select>
+      <select class="scraper-pages" title="Content pager: feed the page in slices of this many tokens"${busy ? ' disabled' : ''}>${pageOptions(sc)}</select>
       <button type="button" class="scraper-run"${busy ? ' disabled' : ''}>${busy ? '⏳ scraping…' : '⛏ Scrape'}</button>
     </div>
     ${sc.error ? `<div class="scraper-error">⚠️ ${esc(sc.error)}</div>` : ''}
@@ -73,6 +86,11 @@ export function wireScraper(el, sc) {
   }));
   el.querySelector('.scraper-model').addEventListener('change', async (e) => {
     try { await api(`/api/scrapers/${sc.id}`, jsonBody({ model: e.target.value }, 'PATCH')); }
+    catch (err) { toast(err.message, { error: true }); }
+    await loadDashboard();
+  });
+  el.querySelector('.scraper-pages').addEventListener('change', async (e) => {
+    try { await api(`/api/scrapers/${sc.id}`, jsonBody({ pageTokens: Number(e.target.value) }, 'PATCH')); }
     catch (err) { toast(err.message, { error: true }); }
     await loadDashboard();
   });

@@ -64,6 +64,11 @@ export const SCRAPER_LIMITS = {
   maxRows: 100,
   cellChars: 400,
   contextTokens: 16384, // num_ctx requested only when loading a model fresh for a scrape
+  // Content pager: process a big page in slices of ~pageTokens tokens each.
+  charsPerToken: 4, // rough estimate (no tokenizer); tokens × 4 ≈ chars
+  maxPagedTextChars: 120_000, // total text kept when paging is on
+  maxPages: 12, // safety cap on slices per run
+  maxPageTokens: 12_000, // largest slice the user may configure
 };
 
 export const SSE_LIMITS = {
