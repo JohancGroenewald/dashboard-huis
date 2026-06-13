@@ -23,12 +23,12 @@ function modelOptions(sc) {
   return opts.join('');
 }
 
-// Content-pager presets: how big a slice (in tokens) to feed per pass.
+// Content-pager presets: paged modes keep much more page text and extract slice by slice.
 const PAGE_SIZES = [
-  { label: 'one pass', tokens: 0 },
-  { label: '2K/slice', tokens: 2000 },
-  { label: '4K/slice', tokens: 4000 },
-  { label: '8K/slice', tokens: 8000 },
+  { label: '120K · 4K slices', tokens: 4000 },
+  { label: '120K · 2K slices', tokens: 2000 },
+  { label: '120K · 8K slices', tokens: 8000 },
+  { label: '16K · single pass', tokens: 0 },
 ];
 function pageOptions(sc) {
   return PAGE_SIZES.map(({ label, tokens }) =>
@@ -60,7 +60,7 @@ export function scraperInner(sc) {
     <div class="scraper-inst${sc.instruction ? '' : ' empty'}" title="Click to edit the instruction">${esc(sc.instruction || '＋ what to look for and tabulate')}</div>
     <div class="scraper-controls">
       <select class="scraper-model" title="Which model extracts the data"${busy ? ' disabled' : ''}>${modelOptions(sc)}</select>
-      <select class="scraper-pages" title="Content pager: feed the page in slices of this many tokens"${busy ? ' disabled' : ''}>${pageOptions(sc)}</select>
+      <select class="scraper-pages" title="Page text budget and slice size"${busy ? ' disabled' : ''}>${pageOptions(sc)}</select>
       <button type="button" class="scraper-run"${busy ? ' disabled' : ''}>${busy ? '⏳ scraping…' : '⛏ Scrape'}</button>
     </div>
     ${sc.error ? `<div class="scraper-error">⚠️ ${esc(sc.error)}</div>` : ''}

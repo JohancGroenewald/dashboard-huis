@@ -4,6 +4,7 @@ import http from 'node:http';
 import { Store } from '../src/store.js';
 import { htmlToText, parseTable, paginate, runScraper } from '../src/scrapers.js';
 import { normalizeScraper } from '../src/schema.js';
+import { SCRAPER_LIMITS } from '../src/constants.js';
 
 const newStore = () => new Store({ persist: false }).load();
 const fakeOllama = (reply) => ({ calls: [], async chat(req) { this.calls.push(req); return { role: 'assistant', content: reply }; } });
@@ -41,6 +42,11 @@ test('normalizeScraper bounds the result table', () => {
   assert.ok(sc.result.note.length <= 500);
 });
 
+test('normalizeScraper defaults to paged extraction but preserves single pass', () => {
+  assert.equal(normalizeScraper({ name: 'Default' }).pageTokens, SCRAPER_LIMITS.defaultPageTokens);
+  assert.equal(normalizeScraper({ name: 'Single', pageTokens: 0 }).pageTokens, 0);
+});
+
 test('runScraper fetches the page, extracts a table, and stores it', async () => {
   const server = await pageServer('<body><h1>Shop</h1><ul><li>Widget — $10</li><li>Gadget — $20</li></ul></body>');
   try {
@@ -54,6 +60,31 @@ test('runScraper fetches the page, extracts a table, and stores it', async () =>
     assert.ok(scraper.lastRunAt);
     // The fetched page text reached the model's system prompt.
     assert.match(ollama.calls[0].messages[0].content, /Widget/);
+  } finally {
+    server.close();
+  }
+});
+
+test('runScraper uses paged extraction by default', async () => {
+  const oldSinglePassPadding = 'x'.repeat(SCRAPER_LIMITS.maxTextChars + 1000);
+  const server = await pageServer(`<body><pre>${oldSinglePassPadding}\nNeedle | $7</pre></body>`);
+  try {
+    const store = newStore();
+    const sc = store.addScraper({ name: 'Default pager', url: `http://127.0.0.1:${server.address().port}/`, model: 'm' });
+    const ollama = {
+      calls: [],
+      async chat(req) {
+        this.calls.push(req);
+        const content = req.messages[0].content;
+        if (content.includes('Needle')) return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[["Needle","$7"]]}' };
+        return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[]}' };
+      },
+    };
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(error, '');
+    assert.equal(sc.pageTokens, SCRAPER_LIMITS.defaultPageTokens);
+    assert.ok(ollama.calls.length > 1, 'default run split the page into slices');
+    assert.deepEqual(scraper.result.rows, [['Needle', '$7']]);
   } finally {
     server.close();
   }

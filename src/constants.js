@@ -63,6 +63,7 @@ export const SCRAPER_LIMITS = {
   maxColumns: 8,
   cellChars: 400,
   // Content pager: process a big page in slices of ~pageTokens tokens each.
+  defaultPageTokens: 4_000,
   charsPerToken: 4, // rough estimate (no tokenizer); tokens × 4 ≈ chars
   maxPagedTextChars: 120_000, // total text kept when paging is on
   maxPages: 12, // safety cap on slices per run
