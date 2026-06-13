@@ -20,14 +20,6 @@ export class Ollama {
     return (data.models || []).map((m) => m.name).sort();
   }
 
-  // Names of models currently loaded in memory (Ollama /api/ps).
-  async loadedModels() {
-    const res = await fetch(`${this.host}/api/ps`);
-    if (!res.ok) throw new Error(`ollama /api/ps → ${res.status}`);
-    const data = await res.json();
-    return (data.models || []).map((m) => m.name);
-  }
-
   // Model metadata; capabilities lists e.g. 'completion', 'vision', 'tools'.
   async show(model) {
     const res = await fetch(`${this.host}/api/show`, {

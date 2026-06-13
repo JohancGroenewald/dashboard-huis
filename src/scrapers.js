@@ -94,13 +94,9 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
     progress({ phase: 'fetch' });
     pageText = await fetchPageText(sc.url, paged ? SCRAPER_LIMITS.maxPagedTextChars : SCRAPER_LIMITS.maxTextChars);
 
-    // Only widen the context when loading fresh — forcing num_ctx on a model
-    // that is already resident at another size makes Ollama reload it.
-    let resident = true;
-    if (typeof ollama.loadedModels === 'function') {
-      try { resident = (await ollama.loadedModels()).includes(useModel); } catch { resident = true; }
-    }
-    const options = { temperature: 0, ...(resident ? {} : { num_ctx: SCRAPER_LIMITS.contextTokens }) };
+    // No num_ctx: the model runs at its default context size, so an
+    // already-loaded model is reused as-is and never reloads to resize.
+    const options = { temperature: 0 };
 
     // One extraction pass over a slice of content; logs a round for the replay.
     const ask = async (content, userMsg) => {

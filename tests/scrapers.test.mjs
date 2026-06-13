@@ -73,22 +73,14 @@ test('runScraper records an error when the model returns no table', async () => 
   }
 });
 
-test('runScraper widens context only when the model is not already loaded', async () => {
+test('runScraper never sets num_ctx — models run at their default context', async () => {
   const server = await pageServer('<body><p>data</p></body>');
   try {
     const store = newStore();
     const sc = store.addScraper({ name: 'X', url: `http://127.0.0.1:${server.address().port}/`, model: 'm' });
-    const reply = '{"columns":["A"],"rows":[["1"]]}';
-
-    // Already resident → reuse as-is, no num_ctx (which would force a reload).
-    const warm = { calls: [], loadedModels: async () => ['m', 'other'], async chat(r) { this.calls.push(r); return { role: 'assistant', content: reply }; } };
-    await runScraper({ store, ollama: warm, scraperId: sc.id, model: 'm' });
-    assert.equal(warm.calls[0].options.num_ctx, undefined);
-
-    // Not loaded → request the wider context while it loads anyway.
-    const cold = { calls: [], loadedModels: async () => ['other'], async chat(r) { this.calls.push(r); return { role: 'assistant', content: reply }; } };
-    await runScraper({ store, ollama: cold, scraperId: sc.id, model: 'm' });
-    assert.equal(cold.calls[0].options.num_ctx, 16384);
+    const ollama = { calls: [], async chat(r) { this.calls.push(r); return { role: 'assistant', content: '{"columns":["A"],"rows":[["1"]]}' }; } };
+    await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(ollama.calls[0].options.num_ctx, undefined);
   } finally {
     server.close();
   }
@@ -113,7 +105,6 @@ test('the content pager runs each slice and merges rows under fixed columns', as
     let call = 0;
     const ollama = {
       calls: [],
-      loadedModels: async () => ['m'],
       async chat(req) {
         this.calls.push(req);
         call += 1;
