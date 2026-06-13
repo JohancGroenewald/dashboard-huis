@@ -147,7 +147,7 @@ export const SCHEMA_LIMITS = {
   gameModelChars: 120,
   triggerNameChars: 120,
   triggerHistoryMax: 12,
-  triggerCooldownMaxMs: 7 * 24 * 60 * 60 * 1000, // a week
+  triggerCooldownMaxMs: 365 * 24 * 60 * 60 * 1000, // a year (room for month-scale cooldowns)
   triggerCooldownDefaultMs: 6 * 60 * 60 * 1000, // 6 hours
   requestedByChars: 120,
   dashboardTitleChars: 120,

@@ -77,15 +77,24 @@ export const DOCK_UI = {
   narrowBelowPx: 900,
 };
 
-// Cooldown presets offered on trigger cards.
+// Cooldown presets offered on trigger cards. Months are approximate (30 days).
+const HOUR = 60 * 60_000;
+const DAY = 24 * HOUR;
 export const TRIGGER_COOLDOWNS = [
   { label: '1 min', ms: 60_000 },
   { label: '5 min', ms: 5 * 60_000 },
   { label: '30 min', ms: 30 * 60_000 },
-  { label: '1 hour', ms: 60 * 60_000 },
-  { label: '6 hours', ms: 6 * 60 * 60_000 },
-  { label: '12 hours', ms: 12 * 60 * 60_000 },
-  { label: '24 hours', ms: 24 * 60 * 60_000 },
+  { label: '1 hour', ms: HOUR },
+  { label: '6 hours', ms: 6 * HOUR },
+  { label: '12 hours', ms: 12 * HOUR },
+  { label: '24 hours', ms: DAY },
+  { label: '2 days', ms: 2 * DAY },
+  { label: '3 days', ms: 3 * DAY },
+  { label: '1 week', ms: 7 * DAY },
+  { label: '2 weeks', ms: 14 * DAY },
+  { label: '1 month', ms: 30 * DAY },
+  { label: '3 months', ms: 90 * DAY },
+  { label: '6 months', ms: 180 * DAY },
 ];
 
 export const CMDK_UI = {

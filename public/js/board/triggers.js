@@ -31,22 +31,36 @@ function cooldownOptions(t) {
   return opts.join('');
 }
 
+const running = new Set(); // trigger ids with a press in flight — locks the card
+
 export function triggerInner(t) {
   const cooling = readyAt(t) > Date.now();
+  const busy = running.has(t.id);
   const history = t.history.map((h) => `<div>${esc(fmtStamp(h))}</div>`).join('');
-  return `<div class="card trigger-card" data-id="${t.id}" data-ready-at="${readyAt(t)}">
+  return `<div class="card trigger-card${busy ? ' running' : ''}" data-id="${t.id}" data-ready-at="${readyAt(t)}">
     <div class="sec-head trigger-head">
       <span class="card-grip" title="Drag trigger">⠿</span>
       <span class="trigger-name" title="Click to rename">${esc(t.name)}</span>
       <button class="ctl danger trigger-del" type="button" title="Delete trigger">✕</button>
     </div>
-    <button type="button" class="trigger-press${cooling ? ' cooling' : ''}"${cooling ? ' disabled' : ''}>
-      ${cooling ? `⏳ <span class="trigger-count">${fmtRemaining(readyAt(t) - Date.now())}</span>` : '⏱ Press'}
+    <button type="button" class="trigger-press${cooling ? ' cooling' : ''}"${cooling || busy ? ' disabled' : ''}>
+      ${busy ? '⏳ …' : cooling ? `⏳ <span class="trigger-count">${fmtRemaining(readyAt(t) - Date.now())}</span>` : '⏱ Press'}
     </button>
     <div class="trigger-sub">${t.lastPressedAt ? `last: ${esc(fmtStamp(t.lastPressedAt))}` : 'never pressed'}</div>
-    <select class="trigger-cooldown" title="How long before it can be pressed again">${cooldownOptions(t)}</select>
+    <select class="trigger-cooldown" title="How long before it can be pressed again"${busy ? ' disabled' : ''}>${cooldownOptions(t)}</select>
     ${t.history.length > 1 ? `<details class="trigger-hist"><summary>🕐 history</summary>${history}</details>` : ''}
   </div>`;
+}
+
+// Lock/unlock a card's controls instantly (before the next board re-render).
+function setBusy(el, on) {
+  const card = el.querySelector('.trigger-card');
+  if (!card) return;
+  card.classList.toggle('running', on);
+  const press = card.querySelector('.trigger-press');
+  press.disabled = on || press.classList.contains('cooling');
+  if (on) press.innerHTML = '⏳ …';
+  card.querySelector('.trigger-cooldown').disabled = on;
 }
 
 export function wireTrigger(el, t) {
@@ -55,14 +69,18 @@ export function wireTrigger(el, t) {
     value: t.name,
     onSubmit: (name) => api(`/api/triggers/${t.id}`, jsonBody({ name }, 'PATCH')).then(loadDashboard),
   }));
-  el.querySelector('.trigger-press').addEventListener('click', async (e) => {
-    e.currentTarget.disabled = true;
+  el.querySelector('.trigger-press').addEventListener('click', async () => {
+    if (running.has(t.id)) return;
+    running.add(t.id);
+    setBusy(el, true); // whole card locks while the press is in flight
     try {
       await api(`/api/triggers/${t.id}/press`, { method: 'POST' });
     } catch (err) {
       toast(err.message, { error: true });
+    } finally {
+      running.delete(t.id);
+      await loadDashboard(); // rebuilds the card from authoritative state
     }
-    await loadDashboard();
   });
   el.querySelector('.trigger-cooldown').addEventListener('change', async (e) => {
     try {
@@ -79,6 +97,7 @@ export function wireTrigger(el, t) {
 // re-enables the button in place — no board rebuild.
 setInterval(() => {
   for (const card of $$('#board .trigger-card[data-ready-at]')) {
+    if (card.classList.contains('running')) continue; // a press is in flight; leave it locked
     const ready = Number(card.dataset.readyAt);
     if (!ready) continue;
     const btn = card.querySelector('.trigger-press');

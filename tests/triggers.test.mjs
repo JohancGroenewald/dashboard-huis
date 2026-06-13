@@ -35,7 +35,7 @@ test('normalizeTrigger applies defaults and bounds', () => {
   const t = normalizeTrigger({});
   assert.equal(t.name, 'Trigger');
   assert.equal(t.cooldownMs, 6 * 60 * 60 * 1000); // 6h default
-  assert.equal(normalizeTrigger({ cooldownMs: 1e12 }).cooldownMs, 7 * 24 * 60 * 60 * 1000); // clamped to a week
+  assert.equal(normalizeTrigger({ cooldownMs: 1e15 }).cooldownMs, 365 * 24 * 60 * 60 * 1000); // clamped to a year
   assert.throws(() => normalizeTrigger({ cooldownMs: -5 }), /cooldownMs/);
   assert.throws(() => normalizeTrigger({ cooldownMs: 'soon' }), /cooldownMs/);
 });

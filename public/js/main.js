@@ -50,8 +50,9 @@ registerView('replay', renderReplayView);
 registerView('prompts', renderPromptsView);
 
 // ---- shell wiring ----
+// The top-left heading is a fixed "Dashboard" brand label (static in the HTML);
+// the dashboard's own name still drives the browser tab title.
 subscribe('dashboard', () => {
-  $('#title').textContent = store.dashboard.title;
   document.title = `${store.dashboard.title} · Dashboard`;
 });
 

@@ -106,6 +106,12 @@
 .trigger-press:not(:disabled):hover { background: rgba(76, 141, 255, 0.3); color: var(--text); }
 .trigger-press.cooling, .trigger-press:disabled { background: var(--surface-2); color: var(--muted); cursor: default; font-variant-numeric: tabular-nums; }
 .trigger-sub { text-align: center; font-size: var(--fs-0); color: var(--muted); }
+/* While a press is in flight the whole card is inert until the server answers. */
+.trigger-card.running { opacity: 0.85; }
+.trigger-card.running .trigger-press { color: var(--ai-2); font-variant-numeric: tabular-nums; }
+.trigger-card.running .trigger-name,
+.trigger-card.running .trigger-del,
+.trigger-card.running .trigger-hist { pointer-events: none; opacity: 0.5; }
 .trigger-cooldown { width: 100%; font-size: var(--fs-0); padding: 4px 8px; color: var(--muted); }
 .trigger-cooldown:hover { color: var(--text); border-color: var(--accent); }
 .trigger-hist { font-size: var(--fs-0); color: var(--muted); }

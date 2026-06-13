@@ -43,6 +43,11 @@ function renderTabs() {
       </button>`;
     })
     .join('') + '<button type="button" class="ws-add" title="New workspace">＋</button>';
+
+  // Mobile mirror: a native dropdown (CSS swaps it in for the tab row).
+  $('#ws-select').innerHTML = workspaces
+    .map((w) => `<option value="${esc(w.id)}"${store.view === 'board' && w.id === activeWorkspaceId ? ' selected' : ''}>${esc(w.name)}</option>`)
+    .join('') + '<option value="__add__">＋ New workspace…</option>';
 }
 
 async function addWorkspace() {
@@ -92,6 +97,12 @@ export function initWorkspaces() {
   tabs.addEventListener('dblclick', (e) => {
     const tab = e.target.closest('.ws-tab');
     if (tab) renameWorkspace(tab.dataset.ws);
+  });
+
+  // Mobile dropdown: switch workspace, or fall to the New-workspace dialog.
+  $('#ws-select').addEventListener('change', (e) => {
+    if (e.target.value === '__add__') { renderTabs(); return addWorkspace(); } // reset selection, then prompt
+    showBoardWorkspace(e.target.value);
   });
 
   // ⋯ menu: system view entries.
