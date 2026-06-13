@@ -28,6 +28,7 @@ test('parseTable reads strict JSON and JSON embedded in prose', () => {
   const loose = parseTable('Here you go: {"columns":["A","B"],"rows":[["1","2"]]} done');
   assert.deepEqual(loose.columns, ['A', 'B']);
   assert.equal(parseTable('not json at all'), null);
+  assert.equal(parseTable('{"columns":[],"rows":[]}'), null);
 });
 
 test('normalizeScraper bounds the result table', () => {
@@ -42,9 +43,20 @@ test('normalizeScraper bounds the result table', () => {
   assert.ok(sc.result.note.length <= 500);
 });
 
-test('normalizeScraper defaults to paged extraction but preserves single pass', () => {
-  assert.equal(normalizeScraper({ name: 'Default' }).pageTokens, SCRAPER_LIMITS.defaultPageTokens);
-  assert.equal(normalizeScraper({ name: 'Single', pageTokens: 0 }).pageTokens, 0);
+test('normalizeScraper defaults to full paged extraction but preserves legacy preview', () => {
+  const def = normalizeScraper({ name: 'Default' });
+  assert.equal(def.pageMode, 'full');
+  assert.equal(def.pageTokens, SCRAPER_LIMITS.defaultPageTokens);
+
+  const legacySingle = normalizeScraper({ name: 'Single', pageTokens: 0 });
+  assert.equal(legacySingle.pageMode, 'preview');
+  assert.equal(legacySingle.pageTokens, 0);
+
+  const fullZero = normalizeScraper({ name: 'Full', pageMode: 'full', pageTokens: 0 });
+  assert.equal(fullZero.pageMode, 'full');
+  assert.equal(fullZero.pageTokens, SCRAPER_LIMITS.defaultPageTokens);
+
+  assert.throws(() => normalizeScraper({ name: 'Bad', pageMode: 'everything' }), /pageMode/);
 });
 
 test('runScraper fetches the page, extracts a table, and stores it', async () => {
@@ -82,9 +94,83 @@ test('runScraper uses paged extraction by default', async () => {
     };
     const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
     assert.equal(error, '');
+    assert.equal(sc.pageMode, 'full');
     assert.equal(sc.pageTokens, SCRAPER_LIMITS.defaultPageTokens);
     assert.ok(ollama.calls.length > 1, 'default run split the page into slices');
     assert.deepEqual(scraper.result.rows, [['Needle', '$7']]);
+    assert.match(scraper.result.note, /full paged/);
+  } finally {
+    server.close();
+  }
+});
+
+test('runScraper full paged extraction keeps scanning past the old page-count ceiling', async () => {
+  const latePadding = 'x'.repeat(105_000);
+  const server = await pageServer(`<body><pre>${latePadding}\nLate needle | $99</pre></body>`);
+  try {
+    const store = newStore();
+    const sc = store.addScraper({ name: 'Deep page', url: `http://127.0.0.1:${server.address().port}/`, model: 'm', pageMode: 'full', pageTokens: 2000 });
+    const ollama = {
+      calls: [],
+      async chat(req) {
+        this.calls.push(req);
+        const content = req.messages[0].content;
+        if (content.includes('Late needle')) return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[["Late needle","$99"]]}' };
+        return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[]}' };
+      },
+    };
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(error, '');
+    assert.ok(ollama.calls.length > 12, 'no hidden 12-page cutoff');
+    assert.deepEqual(scraper.result.rows, [['Late needle', '$99']]);
+  } finally {
+    server.close();
+  }
+});
+
+test('runScraper preview mode only sends the selected first slice', async () => {
+  const server = await pageServer(`<body><pre>${'x'.repeat(9000)}\nNeedle | $7</pre></body>`);
+  try {
+    const store = newStore();
+    const sc = store.addScraper({ name: 'Preview', url: `http://127.0.0.1:${server.address().port}/`, model: 'm', pageMode: 'preview', pageTokens: 2000 });
+    const ollama = {
+      calls: [],
+      async chat(req) {
+        this.calls.push(req);
+        const content = req.messages[0].content;
+        if (content.includes('Needle')) return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[["Needle","$7"]]}' };
+        return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[]}' };
+      },
+    };
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(error, '');
+    assert.equal(ollama.calls.length, 1);
+    assert.deepEqual(scraper.result.rows, []);
+    assert.match(scraper.result.note, /preview/);
+  } finally {
+    server.close();
+  }
+});
+
+test('runScraper reports unreadable slices without discarding good rows', async () => {
+  const server = await pageServer(`<body><pre>${'x'.repeat(5000)}</pre></body>`);
+  try {
+    const store = newStore();
+    const sc = store.addScraper({ name: 'Partial', url: `http://127.0.0.1:${server.address().port}/`, model: 'm', pageMode: 'full', pageTokens: 1000 });
+    let call = 0;
+    const ollama = {
+      calls: [],
+      async chat(req) {
+        this.calls.push(req);
+        call += 1;
+        if (call === 1) return { role: 'assistant', content: '{"columns":["A"],"rows":[["ok"]]}' };
+        return { role: 'assistant', content: 'not json' };
+      },
+    };
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(error, '');
+    assert.deepEqual(scraper.result.rows, [['ok']]);
+    assert.match(scraper.result.note, /unreadable slice/);
   } finally {
     server.close();
   }
@@ -124,6 +210,8 @@ test('paginate slices text on newline boundaries and caps page count', () => {
   assert.equal(pages.join(''), text); // lossless
   assert.ok(pages.slice(0, -1).every((p) => p.endsWith('\n'))); // clean breaks
   assert.ok(paginate(text, 5, 2).length <= 2); // maxPages honoured
+  assert.equal(paginate('abcd\nefgh', 4, { boundaryScanChars: 2 })[0], 'abcd\n'); // can look ahead
+  assert.deepEqual(paginate('abcdefghi', 5, { overlapChars: 2 }), ['abcde', 'defgh', 'ghi']); // boundary context
 });
 
 test('the content pager runs each slice and merges rows under fixed columns', async () => {

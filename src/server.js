@@ -236,9 +236,9 @@ app.post('/api/triggers/:id/press', wrap((req, res) => res.json(pressTrigger(sto
 const runningScrapers = new Set(); // one run at a time per scraper
 app.post('/api/scrapers', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addScraper(req.body || {}))));
 app.patch('/api/scrapers/:id', wrap((req, res) => {
-  const { name, url, instruction, model, pageTokens } = req.body || {};
+  const { name, url, instruction, model, pageMode, pageTokens } = req.body || {};
   const patch = {};
-  for (const [k, v] of Object.entries({ name, url, instruction, model, pageTokens })) if (v !== undefined) patch[k] = v;
+  for (const [k, v] of Object.entries({ name, url, instruction, model, pageMode, pageTokens })) if (v !== undefined) patch[k] = v;
   res.json(store.updateScraper(req.params.id, patch));
 }));
 app.delete('/api/scrapers/:id', wrap((req, res) => res.json(store.removeScraper(req.params.id))));

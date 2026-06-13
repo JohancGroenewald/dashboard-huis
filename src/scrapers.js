@@ -1,6 +1,6 @@
 // Scraper engine: fetch a page, reduce it to visible text, then ask a model to
 // extract the requested data into a table. Fetching is plain (http/https only,
-// timed out, size-capped); no JavaScript is executed. Each run logs as
+// timed out); no JavaScript is executed. Each run logs as
 // kind='scrape' with the model's thinking, so it replays move-by-move.
 import { fail } from './schema.js';
 import { logTask } from './chatlog.js';
@@ -8,9 +8,9 @@ import { renderPrompt } from './prompts.js';
 import { SCRAPER_LIMITS } from './constants.js';
 
 // Strip a page to readable text: drop script/style/comments, unwrap tags,
-// decode the few common entities, collapse whitespace, then cap the length.
+// decode the few common entities, collapse whitespace, then optionally cap.
 export function htmlToText(html, maxChars = SCRAPER_LIMITS.maxTextChars) {
-  return String(html || '')
+  const text = String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
     .replace(/<style[\s\S]*?<\/style>/gi, ' ')
     .replace(/<!--[\s\S]*?-->/g, ' ')
@@ -21,11 +21,11 @@ export function htmlToText(html, maxChars = SCRAPER_LIMITS.maxTextChars) {
     .replace(/&gt;/gi, '>').replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
     .replace(/[ \t]+/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/^\s+|\s+$/g, '')
-    .slice(0, maxChars);
+    .replace(/^\s+|\s+$/g, '');
+  return Number.isFinite(maxChars) ? text.slice(0, maxChars) : text;
 }
 
-async function fetchPageText(url, maxChars = SCRAPER_LIMITS.maxTextChars) {
+async function fetchPageText(url, maxChars = Infinity) {
   let u;
   try { u = new URL(String(url)); } catch { fail('that does not look like a valid URL'); }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') fail('only http(s) pages can be scraped');
@@ -40,23 +40,34 @@ async function fetchPageText(url, maxChars = SCRAPER_LIMITS.maxTextChars) {
     clearTimeout(timer);
   }
   if (!res.ok) fail(`the page returned HTTP ${res.status}`);
-  const raw = (await res.text()).slice(0, SCRAPER_LIMITS.maxHtmlChars);
+  const raw = await res.text();
   return htmlToText(raw, maxChars);
 }
 
-// Split text into slices of ~pageChars, breaking on a newline near the cut so
-// rows aren't sliced through the middle. Capped at maxPages.
-export function paginate(text, pageChars, maxPages = SCRAPER_LIMITS.maxPages) {
+// Split text into slices of ~pageChars. Prefer a newline near the boundary and
+// optionally overlap slices so records crossing a boundary retain context.
+export function paginate(text, pageChars, opts = {}) {
+  const options = typeof opts === 'number' ? { maxPages: opts } : opts;
+  const maxPages = Number.isFinite(options.maxPages) ? Math.max(0, Math.trunc(options.maxPages)) : Infinity;
+  const size = Math.max(1, Math.trunc(Number(pageChars) || 0));
+  const overlap = Math.min(Math.max(0, Math.trunc(Number(options.overlapChars) || 0)), Math.max(0, size - 1));
+  const scan = Math.max(0, Math.trunc(Number(options.boundaryScanChars) || 0));
+  const source = String(text || '');
   const pages = [];
   let i = 0;
-  while (i < text.length && pages.length < maxPages) {
-    let end = Math.min(i + pageChars, text.length);
-    if (end < text.length) {
-      const nl = text.lastIndexOf('\n', end);
-      if (nl > i + pageChars * 0.5) end = nl + 1; // clean break if one is reasonably close
+  while (i < source.length && pages.length < maxPages) {
+    let end = Math.min(i + size, source.length);
+    if (end < source.length) {
+      const backward = source.lastIndexOf('\n', end);
+      if (backward > i + size * 0.5) {
+        end = backward + 1;
+      } else if (scan > 0) {
+        const forward = source.indexOf('\n', end);
+        if (forward !== -1 && forward <= Math.min(i + size + scan, source.length)) end = forward + 1;
+      }
     }
-    pages.push(text.slice(i, end));
-    i = end;
+    pages.push(source.slice(i, end));
+    i = end >= source.length ? end : Math.max(i + 1, end - overlap);
   }
   return pages;
 }
@@ -70,7 +81,7 @@ export function parseTable(text) {
     const m = String(text || '').match(/\{[\s\S]*\}/);
     if (m) { try { data = JSON.parse(m[0]); } catch { /* give up */ } }
   }
-  if (!data || !Array.isArray(data.columns) || !Array.isArray(data.rows)) return null;
+  if (!data || !Array.isArray(data.columns) || !data.columns.length || !Array.isArray(data.rows)) return null;
   return { columns: data.columns, rows: data.rows, note: typeof data.note === 'string' ? data.note : '' };
 }
 
@@ -85,14 +96,17 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
 
   const started = Date.now();
   const stamp = () => new Date().toISOString();
-  const paged = sc.pageTokens > 0;
+  const full = sc.pageMode !== 'preview';
+  const pageTokens = full && sc.pageTokens === 0 ? SCRAPER_LIMITS.defaultPageTokens : sc.pageTokens;
+  const pageChars = pageTokens > 0 ? Math.max(1000, pageTokens * SCRAPER_LIMITS.charsPerToken) : SCRAPER_LIMITS.maxTextChars;
   let result = null;
   let error = '';
   let pageText = '';
   const rounds = [];
+  const withNote = (table, note) => ({ ...table, note: [table.note, note].filter(Boolean).join(' · ') });
   try {
     progress({ phase: 'fetch' });
-    pageText = await fetchPageText(sc.url, paged ? SCRAPER_LIMITS.maxPagedTextChars : SCRAPER_LIMITS.maxTextChars);
+    pageText = await fetchPageText(sc.url, full ? Infinity : pageChars);
 
     // No num_ctx: the model runs at its default context size, so an
     // already-loaded model is reused as-is and never reloads to resize.
@@ -115,37 +129,49 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
       return parseTable(msg.content);
     };
 
-    if (!paged) {
-      progress({ phase: 'extract' });
-      result = await ask(pageText, 'Extract now. Reply with ONLY the JSON.');
+    if (!full) {
+      progress({ phase: 'preview' });
+      result = await ask(pageText, 'Preview this first slice of the page. Extract now. Reply with ONLY the JSON.');
       if (!result) error = 'the model did not return a readable table';
+      else result = withNote(result, pageTokens > 0 ? `preview: first ~${pageTokens} tokens only` : `preview: first ${SCRAPER_LIMITS.maxTextChars} chars only`);
     } else {
       // Content pager: extract from each slice, fixing the columns after the
       // first hit so later slices' rows stay alignable, then merge the rows.
-      const pages = paginate(pageText, Math.max(1000, sc.pageTokens * SCRAPER_LIMITS.charsPerToken));
+      const pages = paginate(pageText, pageChars, {
+        overlapChars: SCRAPER_LIMITS.pageOverlapChars,
+        boundaryScanChars: SCRAPER_LIMITS.pageBoundaryScanChars,
+      });
       let columns = null;
       let failed = 0;
+      let unreadable = 0;
       const rows = [];
       for (let i = 0; i < pages.length; i += 1) {
         progress({ phase: 'slice', slice: i + 1, slices: pages.length, rows: rows.length });
         const userMsg = columns
-          ? `This is part ${i + 1} of ${pages.length} of the same page. Use EXACTLY these columns, in order: ${JSON.stringify(columns)}. Extract any matching rows from this part; return empty rows if there are none. Reply with ONLY the JSON.`
-          : `This is part ${i + 1} of ${pages.length} of a page. Extract now. Reply with ONLY the JSON.`;
+          ? `This is part ${i + 1} of ${pages.length} of the same page. Adjacent parts may overlap for boundary context; do not repeat rows already extracted unless the page itself repeats them. Use EXACTLY these columns, in order: ${JSON.stringify(columns)}. Extract any matching rows from this part; return empty rows if there are none. Reply with ONLY the JSON.`
+          : `This is part ${i + 1} of ${pages.length} of a page. Adjacent parts may overlap for boundary context; avoid duplicate rows from overlap. Extract now. Reply with ONLY the JSON.`;
         // A slow or failed slice shouldn't discard rows already gathered.
         let parsed = null;
+        let sliceFailed = false;
         try {
           parsed = await ask(pages[i], userMsg);
         } catch (err) {
           failed += 1;
+          sliceFailed = true;
           rounds.push({ thinking: '', content: `(slice ${i + 1} failed: ${err.message})`, calls: 0 });
         }
         if (parsed) {
           if (!columns && parsed.columns.length) columns = parsed.columns;
           if (columns) for (const r of parsed.rows) rows.push(r);
+        } else if (!sliceFailed) {
+          unreadable += 1;
         }
       }
-      const partial = failed ? ` · ${failed} slice(s) failed` : '';
-      if (columns) result = { columns, rows, note: `paged: ${pages.length} slice(s) of ~${sc.pageTokens} tokens${partial}` };
+      const partials = [];
+      if (failed) partials.push(`${failed} slice(s) failed`);
+      if (unreadable) partials.push(`${unreadable} unreadable slice(s)`);
+      const partial = partials.length ? ` · ${partials.join(' · ')}` : '';
+      if (columns) result = { columns, rows, note: `full paged: ${pages.length} slice(s) of ~${pageTokens} tokens${partial}` };
       else error = `the model returned no readable table from any slice${partial}`;
     }
   } catch (err) {
@@ -160,7 +186,7 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
   logTask({
     kind: 'scrape',
     model: useModel,
-    task: paged ? 'scrape-paged' : 'scrape',
+    task: full ? 'scrape-paged' : 'scrape-preview',
     session: scraperId,
     userMsg: `${sc.url}\n${sc.instruction || '(extract main data)'}`,
     reply: result

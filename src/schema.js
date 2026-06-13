@@ -293,20 +293,32 @@ function normalizeScrapeResult(raw) {
   };
 }
 
+function normalizeScraperPageMode(raw) {
+  if (raw.pageMode === undefined || raw.pageMode === null || raw.pageMode === '') {
+    return Number(raw.pageTokens) === 0 ? 'preview' : 'full';
+  }
+  if (raw.pageMode !== 'full' && raw.pageMode !== 'preview') fail('"scraper.pageMode" must be "full" or "preview"');
+  return raw.pageMode;
+}
+
 // A scraper card: a URL + an instruction. The engine fetches the page and a
 // model extracts the requested data into result (a table).
 export function normalizeScraper(raw) {
   if (!isPlainObject(raw)) fail('scraper must be an object');
+  const pageMode = normalizeScraperPageMode(raw);
   const rawPageTokens = raw.pageTokens === undefined || raw.pageTokens === null || raw.pageTokens === ''
     ? SCRAPER_LIMITS.defaultPageTokens
     : raw.pageTokens;
+  let pageTokens = Math.max(0, Math.min(Math.trunc(Number(rawPageTokens) || 0), SCRAPER_LIMITS.maxPageTokens));
+  if (pageMode === 'full' && pageTokens === 0) pageTokens = SCRAPER_LIMITS.defaultPageTokens;
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     name: checkString(raw.name, 'scraper.name', { required: false, max: SCHEMA_LIMITS.scraperNameChars }) || 'Scraper',
     url: checkString(raw.url, 'scraper.url', { required: false, max: SCHEMA_LIMITS.scraperUrlChars }),
     instruction: checkString(raw.instruction, 'scraper.instruction', { required: false, max: SCHEMA_LIMITS.scraperInstructionChars }),
     model: checkString(raw.model, 'scraper.model', { required: false, max: SCHEMA_LIMITS.gameModelChars }), // '' = the dock's pick
-    pageTokens: Math.max(0, Math.min(Math.trunc(Number(rawPageTokens) || 0), SCRAPER_LIMITS.maxPageTokens)), // 0 = single pass
+    pageMode,
+    pageTokens, // 0 = legacy single-pass preview
     result: normalizeScrapeResult(raw.result),
     error: checkString(raw.error, 'scraper.error', { required: false, max: SCHEMA_LIMITS.scraperNoteChars }),
     lastRunAt: typeof raw.lastRunAt === 'string' && !Number.isNaN(Date.parse(raw.lastRunAt)) ? raw.lastRunAt : null,

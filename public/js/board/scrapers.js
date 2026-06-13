@@ -23,16 +23,27 @@ function modelOptions(sc) {
   return opts.join('');
 }
 
-// Content-pager presets: paged modes keep much more page text and extract slice by slice.
-const PAGE_SIZES = [
-  { label: '120K · 4K slices', tokens: 4000 },
-  { label: '120K · 2K slices', tokens: 2000 },
-  { label: '120K · 8K slices', tokens: 8000 },
-  { label: '16K · single pass', tokens: 0 },
+// Full modes walk all scraped text page by page; preview modes read one slice.
+const PAGE_MODES = [
+  { label: 'Full · 4K', mode: 'full', tokens: 4000 },
+  { label: 'Full · 2K', mode: 'full', tokens: 2000 },
+  { label: 'Full · 8K', mode: 'full', tokens: 8000 },
+  { label: 'Preview · 4K', mode: 'preview', tokens: 4000 },
+  { label: 'Preview · 2K', mode: 'preview', tokens: 2000 },
+  { label: 'Preview · 8K', mode: 'preview', tokens: 8000 },
+  { label: 'Preview · 16K', mode: 'preview', tokens: 0 },
 ];
+const pageMode = (sc) => sc.pageMode || (sc.pageTokens === 0 ? 'preview' : 'full');
+const pageValue = ({ mode, tokens }) => `${mode}:${tokens}`;
+const selectedPageValue = (sc) => pageValue({ mode: pageMode(sc), tokens: sc.pageTokens });
+const pageLabel = ({ mode, tokens }) => `${mode === 'full' ? 'Full' : 'Preview'} · ${tokens ? `${tokens / 1000}K` : '16K'}`;
 function pageOptions(sc) {
-  return PAGE_SIZES.map(({ label, tokens }) =>
-    `<option value="${tokens}"${sc.pageTokens === tokens ? ' selected' : ''}>${esc(label)}</option>`).join('');
+  const selected = selectedPageValue(sc);
+  const opts = PAGE_MODES.some((opt) => pageValue(opt) === selected)
+    ? PAGE_MODES
+    : [{ label: pageLabel({ mode: pageMode(sc), tokens: sc.pageTokens }), mode: pageMode(sc), tokens: sc.pageTokens }, ...PAGE_MODES];
+  return opts.map((opt) =>
+    `<option value="${esc(pageValue(opt))}"${selected === pageValue(opt) ? ' selected' : ''}>${esc(opt.label)}</option>`).join('');
 }
 
 function resultTable(r) {
@@ -60,7 +71,7 @@ export function scraperInner(sc) {
     <div class="scraper-inst${sc.instruction ? '' : ' empty'}" title="Click to edit the instruction">${esc(sc.instruction || '＋ what to look for and tabulate')}</div>
     <div class="scraper-controls">
       <select class="scraper-model" title="Which model extracts the data"${busy ? ' disabled' : ''}>${modelOptions(sc)}</select>
-      <select class="scraper-pages" title="Page text budget and slice size"${busy ? ' disabled' : ''}>${pageOptions(sc)}</select>
+      <select class="scraper-pages" title="Full reviews all scraped text; preview reads only the first slice"${busy ? ' disabled' : ''}>${pageOptions(sc)}</select>
       <button type="button" class="scraper-run"${busy ? ' disabled' : ''}>${busy ? '⏳ scraping…' : '⛏ Scrape'}</button>
     </div>
     ${sc.error ? `<div class="scraper-error">⚠️ ${esc(sc.error)}</div>` : ''}
@@ -90,7 +101,8 @@ export function wireScraper(el, sc) {
     await loadDashboard();
   });
   el.querySelector('.scraper-pages').addEventListener('change', async (e) => {
-    try { await api(`/api/scrapers/${sc.id}`, jsonBody({ pageTokens: Number(e.target.value) }, 'PATCH')); }
+    const [mode, tokens] = e.target.value.split(':');
+    try { await api(`/api/scrapers/${sc.id}`, jsonBody({ pageMode: mode, pageTokens: Number(tokens) }, 'PATCH')); }
     catch (err) { toast(err.message, { error: true }); }
     await loadDashboard();
   });
@@ -122,6 +134,7 @@ export function wireScraper(el, sc) {
 // current phase so a long scrape shows what it's actually doing.
 function progressLabel(s) {
   if (s.phase === 'fetch') return '📥 fetching page…';
+  if (s.phase === 'preview') return '⛏ previewing…';
   if (s.phase === 'extract') return '⛏ extracting…';
   if (s.phase === 'slice') return `⛏ slice ${s.slice}/${s.slices}${s.rows ? ` · ${s.rows} rows` : ''}…`;
   return '⏳ scraping…';

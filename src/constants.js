@@ -58,16 +58,15 @@ export const SERVER_LIMITS = {
 
 export const SCRAPER_LIMITS = {
   fetchTimeoutMs: 12_000,
-  maxHtmlChars: 2_000_000, // cap the raw download before stripping tags
-  maxTextChars: 16_000, // visible text handed to the model
+  maxTextChars: 16_000, // visible text handed to the model in legacy single-pass preview mode
   maxColumns: 8,
   cellChars: 400,
-  // Content pager: process a big page in slices of ~pageTokens tokens each.
+  // Full pager: process the scraped page in slices of ~pageTokens tokens each.
   defaultPageTokens: 4_000,
   charsPerToken: 4, // rough estimate (no tokenizer); tokens × 4 ≈ chars
-  maxPagedTextChars: 120_000, // total text kept when paging is on
-  maxPages: 12, // safety cap on slices per run
   maxPageTokens: 12_000, // largest slice the user may configure
+  pageOverlapChars: 800, // carry context across slice boundaries
+  pageBoundaryScanChars: 1_000, // look ahead this far for a cleaner newline break
 };
 
 export const SSE_LIMITS = {
