@@ -116,7 +116,11 @@
 .trigger-cooldown:hover { color: var(--text); border-color: var(--accent); }
 .trigger-hist { font-size: var(--fs-0); color: var(--muted); }
 .trigger-hist summary { cursor: pointer; }
-.trigger-hist div { padding: 2px 0 0 14px; font-variant-numeric: tabular-nums; }
+.trigger-hist-tbl { width: 100%; border-collapse: collapse; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.trigger-hist-tbl th { text-align: left; font-weight: 500; color: var(--muted); padding: 2px 6px; border-bottom: 1px solid var(--edge); }
+.trigger-hist-tbl td { padding: 2px 6px; border-bottom: 1px solid var(--edge-soft); }
+.trigger-hist-tbl tr:last-child td { border-bottom: 0; }
+.trigger-gap { text-align: right; white-space: nowrap; color: var(--muted); }
 .sec-empty { color: var(--muted); font-size: 12.5px; font-style: italic; grid-column: 1 / -1; padding: var(--sp-4) var(--sp-1); text-align: center; }
 
 @keyframes rainbow-heading {

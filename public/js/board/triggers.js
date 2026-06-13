@@ -33,10 +33,23 @@ function cooldownOptions(t) {
 
 const running = new Set(); // trigger ids with a press in flight — locks the card
 
+// History as a table: when each press happened + the gap since the previous
+// one (newest first, so the gap is to the older row beneath it).
+function historyTable(history) {
+  const rows = history.map((iso, i) => {
+    const older = history[i + 1];
+    const gap = older ? fmtRemaining(Date.parse(iso) - Date.parse(older)) : '—';
+    return `<tr><td>${esc(fmtStamp(iso))}</td><td class="trigger-gap">${esc(gap)}</td></tr>`;
+  }).join('');
+  return `<table class="trigger-hist-tbl">
+    <thead><tr><th>When</th><th class="trigger-gap">Since prev.</th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
 export function triggerInner(t) {
   const cooling = readyAt(t) > Date.now();
   const busy = running.has(t.id);
-  const history = t.history.map((h) => `<div>${esc(fmtStamp(h))}</div>`).join('');
   return `<div class="card trigger-card${busy ? ' running' : ''}" data-id="${t.id}" data-ready-at="${readyAt(t)}">
     <div class="sec-head trigger-head">
       <span class="card-grip" title="Drag trigger">⠿</span>
@@ -48,7 +61,7 @@ export function triggerInner(t) {
     </button>
     <div class="trigger-sub">${t.lastPressedAt ? `last: ${esc(fmtStamp(t.lastPressedAt))}` : 'never pressed'}</div>
     <select class="trigger-cooldown" title="${cooling ? 'Locked while cooling down' : 'How long before it can be pressed again'}"${busy || cooling ? ' disabled' : ''}>${cooldownOptions(t)}</select>
-    ${t.history.length > 1 ? `<details class="trigger-hist"><summary>🕐 history</summary>${history}</details>` : ''}
+    ${t.history.length > 1 ? `<details class="trigger-hist"><summary>🕐 history</summary>${historyTable(t.history)}</details>` : ''}
   </div>`;
 }
 
