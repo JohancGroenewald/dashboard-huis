@@ -86,6 +86,8 @@ export const AGENT_LIMITS = {
   toolIntentTraceChars: 2_000,
   offeredChoicesMax: 6,
   followupsMax: 4,
+  scraperReadDefault: 25, // rows returned by read_scraper when no limit is given
+  scraperReadMax: 50, // cap on rows per read_scraper call (page for more)
 };
 
 export const OLLAMA_LIMITS = {

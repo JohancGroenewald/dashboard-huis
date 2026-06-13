@@ -89,11 +89,7 @@ export const toolSpecs = [
     function: {
       name: 'remove_game',
       description: 'Delete a game card by id.',
-      parameters: {
-        type: 'object',
-        properties: { game_id: { type: 'string', description: 'Game id.' } },
-        required: ['game_id'],
-      },
+      parameters: { type: 'object', properties: { game_id: { type: 'string', description: 'Game id.' } }, required: ['game_id'] },
     },
   },
   {
@@ -116,11 +112,7 @@ export const toolSpecs = [
     function: {
       name: 'press_trigger',
       description: 'Press a trigger card for the user, recording the timestamp now. Fails with the remaining time if it is still cooling down.',
-      parameters: {
-        type: 'object',
-        properties: { trigger_id: { type: 'string', description: 'Trigger id.' } },
-        required: ['trigger_id'],
-      },
+      parameters: { type: 'object', properties: { trigger_id: { type: 'string', description: 'Trigger id.' } }, required: ['trigger_id'] },
     },
   },
   {
@@ -128,11 +120,7 @@ export const toolSpecs = [
     function: {
       name: 'remove_trigger',
       description: 'Delete a trigger card by id.',
-      parameters: {
-        type: 'object',
-        properties: { trigger_id: { type: 'string', description: 'Trigger id.' } },
-        required: ['trigger_id'],
-      },
+      parameters: { type: 'object', properties: { trigger_id: { type: 'string', description: 'Trigger id.' } }, required: ['trigger_id'] },
     },
   },
   {
@@ -156,9 +144,21 @@ export const toolSpecs = [
     function: {
       name: 'remove_scraper',
       description: 'Delete a scraper card by id.',
+      parameters: { type: 'object', properties: { scraper_id: { type: 'string', description: 'Scraper id.' } }, required: ['scraper_id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_scraper',
+      description: 'Read a slice of a scraper\'s extracted table (columns + a window of rows) so you can answer questions about, summarise, or filter the scraped data. Returns total row count; page through large tables with offset/limit.',
       parameters: {
         type: 'object',
-        properties: { scraper_id: { type: 'string', description: 'Scraper id.' } },
+        properties: {
+          scraper_id: { type: 'string', description: 'Scraper id (from get_dashboard).' },
+          offset: { type: 'number', description: 'Row to start from, 0-based. Default 0.' },
+          limit: { type: 'number', description: 'How many rows to return. Default 25, max 50.' },
+        },
         required: ['scraper_id'],
       },
     },

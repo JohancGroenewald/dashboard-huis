@@ -126,6 +126,18 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
     add_scraper: ({ name, url, instruction }) => ({ added: store.addScraper({ name, url, instruction, model: requestedBy }) }),
     remove_scraper: ({ scraper_id }) => ({ removed: store.removeScraper(scraper_id) }),
 
+    // Read a window of a scraper's extracted rows so the model can work with
+    // the data; page through large tables with offset/limit.
+    read_scraper: ({ scraper_id, offset, limit }) => {
+      const sc = store.getScraper(scraper_id);
+      const r = sc.result;
+      if (!r) return { name: sc.name, columns: [], rows: [], total: 0, returned: 0, offset: 0, note: 'no results yet — the user must run this scraper first' };
+      const start = Math.max(0, Math.trunc(Number(offset) || 0));
+      const n = Math.min(Math.max(1, Math.trunc(Number(limit) || AGENT_LIMITS.scraperReadDefault)), AGENT_LIMITS.scraperReadMax);
+      const rows = r.rows.slice(start, start + n);
+      return { name: sc.name, columns: r.columns, rows, total: r.rows.length, offset: start, returned: rows.length, note: r.note || '' };
+    },
+
     switch_workspace: ({ workspace }) => {
       const w = resolveWorkspace(workspace);
       store.setActiveWorkspace(w.id);

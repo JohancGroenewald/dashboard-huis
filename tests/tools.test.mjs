@@ -90,3 +90,30 @@ test('move_to_workspace resolves a trigger by its unique name', () => {
   assert.equal(out.moved.id, t.id);
   assert.equal(out.moved.workspaceId, ws.id);
 });
+
+test('read_scraper returns a paged slice of the extracted rows', () => {
+  const store = new Store({ persist: false }).load();
+  const handlers = makeToolHandlers(store);
+  const sc = store.addScraper({ name: 'Shop', url: 'http://x', result: {
+    columns: ['Item', 'Price'],
+    rows: Array.from({ length: 12 }, (_, i) => [`Item${i}`, `$${i}`]),
+    note: 'ok',
+  } });
+
+  const first = handlers.read_scraper({ scraper_id: sc.id, limit: 5 });
+  assert.deepEqual(first.columns, ['Item', 'Price']);
+  assert.equal(first.total, 12);
+  assert.equal(first.returned, 5);
+  assert.deepEqual(first.rows[0], ['Item0', '$0']);
+
+  const next = handlers.read_scraper({ scraper_id: sc.id, offset: 10, limit: 5 });
+  assert.equal(next.offset, 10);
+  assert.equal(next.returned, 2); // only 2 rows left past offset 10
+  assert.deepEqual(next.rows[1], ['Item11', '$11']);
+
+  // limit is capped, and a scraper with no result reports it cleanly.
+  assert.ok(handlers.read_scraper({ scraper_id: sc.id, limit: 9999 }).returned <= 50);
+  const empty = handlers.read_scraper({ scraper_id: store.addScraper({ name: 'New' }).id });
+  assert.equal(empty.total, 0);
+  assert.match(empty.note, /run this scraper/);
+});
