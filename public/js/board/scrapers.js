@@ -58,6 +58,10 @@ const sourceModeOptions = (sc) => SOURCE_MODES.map(({ label, value }) =>
   `<option value="${value}"${(sc.sourceMode || 'follow') === value ? ' selected' : ''}>${esc(label)}</option>`).join('');
 const sourceProcessOptions = (sc) => SOURCE_PROCESS.map(({ label, value }) =>
   `<option value="${value}"${(sc.sourceProcess || 'per-page') === value ? ' selected' : ''}>${esc(label)}</option>`).join('');
+const setResultSlot = (card, result) => {
+  const slot = card?.querySelector('.scraper-result-slot');
+  if (slot) slot.innerHTML = resultTable(result);
+};
 
 function resultTable(r) {
   if (!r || !r.columns.length) return '';
@@ -92,7 +96,7 @@ export function scraperInner(sc) {
       <select class="scraper-process" title="Process each source page before fetching the next one, or collect all source pages first"${busy ? ' disabled' : ''}>${sourceProcessOptions(sc)}</select>
     </div>
     ${sc.error ? `<div class="scraper-error">⚠️ ${esc(sc.error)}</div>` : ''}
-    ${resultTable(sc.result)}
+    <div class="scraper-result-slot">${resultTable(sc.result)}</div>
   </div>`;
 }
 
@@ -144,6 +148,8 @@ export function wireScraper(el, sc) {
     const btn = el.querySelector('.scraper-run');
     btn.disabled = true;
     btn.textContent = '⏳ scraping…';
+    card.querySelector('.scraper-error')?.remove();
+    setResultSlot(card, null);
     try {
       const { error } = await api(`/api/scrapers/${sc.id}/run`, jsonBody({ model }));
       if (error) toast(error, { error: true });
@@ -160,6 +166,8 @@ export function wireScraper(el, sc) {
 // Live progress (server → events → here): paint the running button with the
 // current phase so a long scrape shows what it's actually doing.
 function progressLabel(s) {
+  if (s.phase === 'clear') return '⏳ scraping…';
+  if (s.phase === 'rows') return `⛏ ${s.result?.rows?.length || 0} row${s.result?.rows?.length === 1 ? '' : 's'}…`;
   if (s.phase === 'source') return `📥 source page ${s.sourcePage || 1}…`;
   if (s.phase === 'fetch') return '📥 fetching page…';
   if (s.phase === 'preview') return '⛏ previewing…';
@@ -168,6 +176,13 @@ function progressLabel(s) {
   return '⏳ scraping…';
 }
 subscribe('scraper', (s) => {
-  const btn = document.querySelector(`#board .scraper-card[data-id="${CSS.escape(s.id)}"] .scraper-run`);
+  const card = document.querySelector(`#board .scraper-card[data-id="${CSS.escape(s.id)}"]`);
+  const btn = card?.querySelector('.scraper-run');
   if (btn) btn.textContent = progressLabel(s);
+  if (s.phase === 'clear') {
+    card?.querySelector('.scraper-error')?.remove();
+    setResultSlot(card, null);
+  } else if (s.phase === 'rows') {
+    setResultSlot(card, s.result);
+  }
 });

@@ -272,7 +272,7 @@ export function normalizeProblem(raw) {
 
 // A scraper's last extraction: a bounded table the model returned. Re-validated
 // on every load/commit so whatever is stored can never exceed the limits.
-function normalizeScrapeResult(raw) {
+export function normalizeScrapeResult(raw) {
   if (!isPlainObject(raw) || !Array.isArray(raw.columns) || !Array.isArray(raw.rows)) return null;
   const cell = (v) => String(v ?? '').slice(0, SCRAPER_LIMITS.cellChars);
   const columns = raw.columns.slice(0, SCRAPER_LIMITS.maxColumns).map(cell);

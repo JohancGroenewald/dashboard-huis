@@ -93,6 +93,42 @@ test('runScraper fetches the page, extracts a table, and stores it', async () =>
   }
 });
 
+test('runScraper clears stale results and streams extracted rows', async () => {
+  const server = await pageServer('<body><p>Alpha | $1</p></body>');
+  try {
+    const store = newStore();
+    const sc = store.addScraper({
+      name: 'Live rows',
+      url: `http://127.0.0.1:${server.address().port}/`,
+      model: 'm',
+      result: { columns: ['Old'], rows: [['stale']] },
+    });
+    const events = [];
+    const ollama = {
+      calls: [],
+      async chat(req) {
+        this.calls.push(req);
+        assert.equal(store.getScraper(sc.id).result, null);
+        return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[["Alpha","$1"]]}' };
+      },
+    };
+    const { scraper, error } = await runScraper({
+      store,
+      ollama,
+      scraperId: sc.id,
+      model: 'm',
+      onProgress: (event) => events.push(event),
+    });
+    assert.equal(error, '');
+    assert.equal(events[0].phase, 'clear');
+    const rowEvents = events.filter((e) => e.phase === 'rows');
+    assert.deepEqual(rowEvents.at(-1).result.rows, [['Alpha', '$1']]);
+    assert.deepEqual(scraper.result.rows, [['Alpha', '$1']]);
+  } finally {
+    server.close();
+  }
+});
+
 test('runScraper uses paged extraction by default', async () => {
   const oldSinglePassPadding = 'x'.repeat(SCRAPER_LIMITS.maxTextChars + 1000);
   const server = await pageServer(`<body><pre>${oldSinglePassPadding}\nNeedle | $7</pre></body>`);

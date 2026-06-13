@@ -147,6 +147,7 @@
 @media (prefers-reduced-motion: reduce) { .scraper-run:disabled { animation: none; } }
 .scraper-card.running { opacity: 0.9; }
 .scraper-error { font-size: var(--fs-0); color: #ffb4ae; background: rgba(248, 81, 73, 0.1); border: 1px solid rgba(248, 81, 73, 0.4); border-radius: var(--r-1); padding: 5px 8px; }
+.scraper-result-slot { flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .scraper-result { flex: 1; min-height: 0; overflow: auto; border-top: 1px solid var(--edge-soft); padding-top: var(--sp-2); }
 .scraper-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
 .scraper-tbl th { position: sticky; top: 0; text-align: left; font-weight: 600; color: var(--muted); background: var(--surface-1); padding: 4px 7px; border-bottom: 1px solid var(--edge); white-space: nowrap; }

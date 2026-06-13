@@ -3,7 +3,7 @@
 // timed out); no JavaScript is executed. Each run logs as
 // kind='scrape' with the model's thinking, so it replays move-by-move.
 import crypto from 'node:crypto';
-import { fail } from './schema.js';
+import { fail, normalizeScrapeResult } from './schema.js';
 import { logTask } from './chatlog.js';
 import { getPromptTemplate, renderPrompt } from './prompts.js';
 import { SCRAPER_LIMITS } from './constants.js';
@@ -167,6 +167,8 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
 
   const started = Date.now();
   const stamp = () => new Date().toISOString();
+  store.updateScraper(scraperId, { result: null, error: '' });
+  progress({ phase: 'clear' });
   const full = sc.pageMode !== 'preview';
   const pageTokens = full && sc.pageTokens === 0 ? SCRAPER_LIMITS.defaultPageTokens : sc.pageTokens;
   const pageChars = pageTokens > 0 ? Math.max(1000, pageTokens * SCRAPER_LIMITS.charsPerToken) : SCRAPER_LIMITS.maxTextChars;
@@ -175,7 +177,22 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
   let pageText = '';
   let cacheHit = false;
   let cacheKey = '';
+  let streamedColumns = null;
+  let streamedOnce = false;
+  const streamedRows = [];
   const rounds = [];
+  const streamTable = (table) => {
+    const live = normalizeScrapeResult({ ...table, at: stamp() });
+    if (live) progress({ phase: 'rows', result: live });
+  };
+  const streamRows = (columns, rows = []) => {
+    if (!columns?.length) return;
+    if (!streamedColumns) streamedColumns = columns;
+    streamedRows.push(...rows);
+    if (!rows.length && streamedOnce) return;
+    streamedOnce = true;
+    streamTable({ columns: streamedColumns, rows: streamedRows, note: 'extracting...', cacheKey });
+  };
   const withNote = (table, note) => ({ ...table, note: [table.note, note].filter(Boolean).join(' · ') });
   const sourceBlock = (src, i) => `Source page ${i}: ${src.url}\n${src.text}`;
   const noteParts = ({ sourcePages, slices, failed, unreadable, mode }) => {
@@ -206,7 +223,7 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
       return parseTable(msg.content);
     };
 
-    const extractPaged = async (content, { columns = null, rowsSoFar = 0, sourcePage = null, sourcePages = null } = {}) => {
+    const extractPaged = async (content, { columns = null, rowsSoFar = 0, sourcePage = null, sourcePages = null, onRows = null } = {}) => {
       const pages = paginate(content, pageChars, {
         overlapChars: SCRAPER_LIMITS.pageOverlapChars,
         boundaryScanChars: SCRAPER_LIMITS.pageBoundaryScanChars,
@@ -232,7 +249,10 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
         }
         if (parsed) {
           if (!localColumns && parsed.columns.length) localColumns = parsed.columns;
-          if (localColumns) for (const r of parsed.rows) rows.push(r);
+          if (localColumns) {
+            for (const r of parsed.rows) rows.push(r);
+            onRows?.(localColumns, parsed.rows);
+          }
         } else if (!sliceFailed) {
           unreadable += 1;
         }
@@ -262,6 +282,7 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
       if (sc.result?.cacheKey && sc.result.cacheKey === cacheKey) {
         cacheHit = true;
         result = { columns: sc.result.columns, rows: sc.result.rows, note: sc.result.note || '', cacheKey };
+        streamTable(result);
         return true;
       }
       return false;
@@ -269,7 +290,7 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
 
     const processCollectedSources = async (sources) => {
       pageText = sources.map((src, i) => sourceBlock(src, i + 1)).join('\n\n');
-      const extracted = await extractPaged(pageText, { sourcePages: sources.length });
+      const extracted = await extractPaged(pageText, { sourcePages: sources.length, onRows: streamRows });
       if (extracted.columns) {
         result = {
           columns: extracted.columns,
@@ -297,7 +318,7 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
       const rows = [];
       for (let i = 0; i < sources.length; i += 1) {
         pageText = sources.slice(0, i + 1).map((source, k) => sourceBlock(source, k + 1)).join('\n\n');
-        const extracted = await extractPaged(sources[i].text, { columns, rowsSoFar: rows.length, sourcePage: i + 1, sourcePages: sources.length });
+        const extracted = await extractPaged(sources[i].text, { columns, rowsSoFar: rows.length, sourcePage: i + 1, sourcePages: sources.length, onRows: streamRows });
         columns = extracted.columns;
         rows.push(...extracted.rows);
         failed += extracted.failed;
@@ -316,7 +337,10 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
         progress({ phase: 'preview' });
         result = await ask(source.text, 'Preview this first source page slice. Extract now. Reply with ONLY the JSON.');
         if (!result) error = 'the model did not return a readable table';
-        else result = { ...withNote(result, pageTokens > 0 ? `preview: first ~${pageTokens} tokens only` : `preview: first ${SCRAPER_LIMITS.maxTextChars} chars only`), cacheKey };
+        else {
+          result = { ...withNote(result, pageTokens > 0 ? `preview: first ~${pageTokens} tokens only` : `preview: first ${SCRAPER_LIMITS.maxTextChars} chars only`), cacheKey };
+          streamTable(result);
+        }
       }
     } else if (sc.sourceProcess === 'collect') {
       const sources = await collectSources({ follow: sc.sourceMode === 'follow' });
@@ -344,7 +368,7 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
           const src = await fetchSourcePage(url, { htmx });
           sources.push(src);
           pageText = sources.map((source, i) => sourceBlock(source, i + 1)).join('\n\n');
-          const extracted = await extractPaged(src.text, { columns, rowsSoFar: rows.length, sourcePage: sources.length });
+          const extracted = await extractPaged(src.text, { columns, rowsSoFar: rows.length, sourcePage: sources.length, onRows: streamRows });
           columns = extracted.columns;
           rows.push(...extracted.rows);
           failed += extracted.failed;
