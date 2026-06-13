@@ -99,11 +99,11 @@
 .trigger-card:hover .sec-head .ctl { opacity: 0.85; }
 .trigger-name { flex: 1; font-weight: 650; font-size: var(--fs-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: text; }
 .trigger-press {
-  flex: 1; min-height: 44px; border: 1px solid var(--edge); border-radius: var(--r-2); cursor: pointer;
-  background: var(--accent); color: #fff; font-size: var(--fs-2); font-weight: 650;
-  transition: filter var(--t-fast), background var(--t-fast), color var(--t-fast);
+  flex: 1; min-height: 44px; border: 1px solid rgba(76, 141, 255, 0.45); border-radius: var(--r-2); cursor: pointer;
+  background: var(--accent-dim); color: var(--accent-2); font-size: var(--fs-2); font-weight: 650;
+  transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
 }
-.trigger-press:not(:disabled):hover { filter: brightness(1.15); }
+.trigger-press:not(:disabled):hover { background: rgba(76, 141, 255, 0.3); color: var(--text); }
 .trigger-press.cooling, .trigger-press:disabled { background: var(--surface-2); color: var(--muted); cursor: default; font-variant-numeric: tabular-nums; }
 .trigger-sub { text-align: center; font-size: var(--fs-0); color: var(--muted); }
 .trigger-cooldown { width: 100%; font-size: var(--fs-0); padding: 4px 8px; color: var(--muted); }
