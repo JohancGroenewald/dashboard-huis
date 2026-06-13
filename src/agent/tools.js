@@ -91,7 +91,8 @@ export function makeToolHandlers(store, { requestedBy = 'agent' } = {}) {
           id: t.id, name: t.name, cooldownMs: t.cooldownMs, lastPressedAt: t.lastPressedAt, workspaceId: t.workspaceId, layout: t.layout,
         })),
         scrapers: s.scrapers.map((sc) => ({
-          id: sc.id, name: sc.name, url: sc.url, instruction: sc.instruction, rows: sc.result?.rows.length || 0, workspaceId: sc.workspaceId, layout: sc.layout,
+          id: sc.id, name: sc.name, url: sc.url, instruction: sc.instruction, pageMode: sc.pageMode, pageTokens: sc.pageTokens,
+          sourceMode: sc.sourceMode, sourceProcess: sc.sourceProcess, rows: sc.result?.rows.length || 0, workspaceId: sc.workspaceId, layout: sc.layout,
         })),
         featureRequests: s.featureRequests.map((f) => ({ id: f.id, title: f.title, status: f.status })),
         problems: s.problems.map((p) => ({ id: p.id, title: p.title, status: p.status })),

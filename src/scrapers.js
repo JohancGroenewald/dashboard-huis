@@ -9,6 +9,35 @@ import { SCRAPER_LIMITS } from './constants.js';
 
 // Strip a page to readable text: drop script/style/comments, unwrap tags,
 // decode the few common entities, collapse whitespace, then optionally cap.
+function decodeHtmlAttr(text) {
+  return String(text || '')
+    .replace(/&amp;/gi, '&')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+}
+
+export function nextSourceUrl(html, currentUrl) {
+  const current = new URL(currentUrl);
+  const seen = new Set();
+  const attrs = [
+    ...String(html || '').matchAll(/\bhx-get\s*=\s*(["'])(.*?)\1/gi),
+    ...String(html || '').matchAll(/\bhref\s*=\s*(["'])(.*?)\1[^>]*\brel\s*=\s*(["'])next\3/gi),
+  ];
+  for (const m of attrs) {
+    const raw = decodeHtmlAttr(m[2]);
+    if (seen.has(raw) || !/[?&]page=/.test(raw)) continue;
+    seen.add(raw);
+    let next;
+    try { next = new URL(raw, current); } catch { continue; }
+    if (next.origin !== current.origin) continue;
+    for (const [k, v] of current.searchParams) {
+      if (k !== 'page' && !next.searchParams.has(k)) next.searchParams.set(k, v);
+    }
+    if (next.href !== current.href) return next.href;
+  }
+  return null;
+}
+
 export function htmlToText(html, maxChars = SCRAPER_LIMITS.maxTextChars) {
   const text = String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -25,7 +54,7 @@ export function htmlToText(html, maxChars = SCRAPER_LIMITS.maxTextChars) {
   return Number.isFinite(maxChars) ? text.slice(0, maxChars) : text;
 }
 
-async function fetchPageText(url, maxChars = Infinity) {
+async function fetchSourcePage(url, { maxChars = Infinity, htmx = false } = {}) {
   let u;
   try { u = new URL(String(url)); } catch { fail('that does not look like a valid URL'); }
   if (u.protocol !== 'http:' && u.protocol !== 'https:') fail('only http(s) pages can be scraped');
@@ -33,7 +62,14 @@ async function fetchPageText(url, maxChars = Infinity) {
   const timer = setTimeout(() => ctrl.abort(), SCRAPER_LIMITS.fetchTimeoutMs);
   let res;
   try {
-    res = await fetch(u, { signal: ctrl.signal, redirect: 'follow', headers: { 'user-agent': 'HuisDashboard/1.0 (+scraper)' } });
+    res = await fetch(u, {
+      signal: ctrl.signal,
+      redirect: 'follow',
+      headers: {
+        'user-agent': 'HuisDashboard/1.0 (+scraper)',
+        ...(htmx ? { 'HX-Request': 'true' } : {}),
+      },
+    });
   } catch (err) {
     fail(`could not fetch the page: ${err.name === 'AbortError' ? 'timed out' : err.message}`);
   } finally {
@@ -41,7 +77,13 @@ async function fetchPageText(url, maxChars = Infinity) {
   }
   if (!res.ok) fail(`the page returned HTTP ${res.status}`);
   const raw = await res.text();
-  return htmlToText(raw, maxChars);
+  const finalUrl = res.url || u.href;
+  return {
+    url: finalUrl,
+    html: raw,
+    text: htmlToText(raw, maxChars),
+    nextUrl: nextSourceUrl(raw, finalUrl),
+  };
 }
 
 // Split text into slices of ~pageChars. Prefer a newline near the boundary and
@@ -104,10 +146,14 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
   let pageText = '';
   const rounds = [];
   const withNote = (table, note) => ({ ...table, note: [table.note, note].filter(Boolean).join(' · ') });
+  const sourceBlock = (src, i) => `Source page ${i}: ${src.url}\n${src.text}`;
+  const noteParts = ({ sourcePages, slices, failed, unreadable, mode }) => {
+    const parts = [`${mode}: ${sourcePages} source page(s), ${slices} model slice(s) of ~${pageTokens} tokens`];
+    if (failed) parts.push(`${failed} slice(s) failed`);
+    if (unreadable) parts.push(`${unreadable} unreadable slice(s)`);
+    return parts.join(' · ');
+  };
   try {
-    progress({ phase: 'fetch' });
-    pageText = await fetchPageText(sc.url, full ? Infinity : pageChars);
-
     // No num_ctx: the model runs at its default context size, so an
     // already-loaded model is reused as-is and never reloads to resize.
     const options = { temperature: 0 };
@@ -129,28 +175,21 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
       return parseTable(msg.content);
     };
 
-    if (!full) {
-      progress({ phase: 'preview' });
-      result = await ask(pageText, 'Preview this first slice of the page. Extract now. Reply with ONLY the JSON.');
-      if (!result) error = 'the model did not return a readable table';
-      else result = withNote(result, pageTokens > 0 ? `preview: first ~${pageTokens} tokens only` : `preview: first ${SCRAPER_LIMITS.maxTextChars} chars only`);
-    } else {
-      // Content pager: extract from each slice, fixing the columns after the
-      // first hit so later slices' rows stay alignable, then merge the rows.
-      const pages = paginate(pageText, pageChars, {
+    const extractPaged = async (content, { columns = null, rowsSoFar = 0, sourcePage = null, sourcePages = null } = {}) => {
+      const pages = paginate(content, pageChars, {
         overlapChars: SCRAPER_LIMITS.pageOverlapChars,
         boundaryScanChars: SCRAPER_LIMITS.pageBoundaryScanChars,
       });
-      let columns = null;
+      let localColumns = columns;
       let failed = 0;
       let unreadable = 0;
       const rows = [];
       for (let i = 0; i < pages.length; i += 1) {
-        progress({ phase: 'slice', slice: i + 1, slices: pages.length, rows: rows.length });
-        const userMsg = columns
-          ? `This is part ${i + 1} of ${pages.length} of the same page. Adjacent parts may overlap for boundary context; do not repeat rows already extracted unless the page itself repeats them. Use EXACTLY these columns, in order: ${JSON.stringify(columns)}. Extract any matching rows from this part; return empty rows if there are none. Reply with ONLY the JSON.`
-          : `This is part ${i + 1} of ${pages.length} of a page. Adjacent parts may overlap for boundary context; avoid duplicate rows from overlap. Extract now. Reply with ONLY the JSON.`;
-        // A slow or failed slice shouldn't discard rows already gathered.
+        progress({ phase: 'slice', sourcePage, sourcePages, slice: i + 1, slices: pages.length, rows: rowsSoFar + rows.length });
+        const scope = sourcePage ? `source page ${sourcePage}${sourcePages ? ` of ${sourcePages}` : ''}, model slice ${i + 1} of ${pages.length}` : `model slice ${i + 1} of ${pages.length}`;
+        const userMsg = localColumns
+          ? `This is ${scope}. Adjacent model slices may overlap for boundary context; do not repeat rows already extracted unless the source page itself repeats them. Use EXACTLY these columns, in order: ${JSON.stringify(localColumns)}. Extract any matching rows from this part; return empty rows if there are none. Reply with ONLY the JSON.`
+          : `This is ${scope}. Adjacent model slices may overlap for boundary context; avoid duplicate rows from overlap. Extract now. Reply with ONLY the JSON.`;
         let parsed = null;
         let sliceFailed = false;
         try {
@@ -161,18 +200,89 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
           rounds.push({ thinking: '', content: `(slice ${i + 1} failed: ${err.message})`, calls: 0 });
         }
         if (parsed) {
-          if (!columns && parsed.columns.length) columns = parsed.columns;
-          if (columns) for (const r of parsed.rows) rows.push(r);
+          if (!localColumns && parsed.columns.length) localColumns = parsed.columns;
+          if (localColumns) for (const r of parsed.rows) rows.push(r);
         } else if (!sliceFailed) {
           unreadable += 1;
         }
       }
-      const partials = [];
-      if (failed) partials.push(`${failed} slice(s) failed`);
-      if (unreadable) partials.push(`${unreadable} unreadable slice(s)`);
-      const partial = partials.length ? ` · ${partials.join(' · ')}` : '';
-      if (columns) result = { columns, rows, note: `full paged: ${pages.length} slice(s) of ~${pageTokens} tokens${partial}` };
-      else error = `the model returned no readable table from any slice${partial}`;
+      return { columns: localColumns, rows, failed, unreadable, slices: pages.length };
+    };
+
+    const collectSources = async ({ follow }) => {
+      const sources = [];
+      const visited = new Set();
+      let url = sc.url;
+      let htmx = false;
+      while (url && !visited.has(url)) {
+        visited.add(url);
+        progress({ phase: 'source', sourcePage: sources.length + 1 });
+        const src = await fetchSourcePage(url, { htmx });
+        sources.push(src);
+        if (!follow) break;
+        url = src.nextUrl;
+        htmx = true;
+      }
+      return sources;
+    };
+
+    if (!full) {
+      progress({ phase: 'source', sourcePage: 1 });
+      const source = await fetchSourcePage(sc.url, { maxChars: pageChars });
+      pageText = sourceBlock(source, 1);
+      progress({ phase: 'preview' });
+      result = await ask(source.text, 'Preview this first source page slice. Extract now. Reply with ONLY the JSON.');
+      if (!result) error = 'the model did not return a readable table';
+      else result = withNote(result, pageTokens > 0 ? `preview: first ~${pageTokens} tokens only` : `preview: first ${SCRAPER_LIMITS.maxTextChars} chars only`);
+    } else if (sc.sourceProcess === 'collect') {
+      const sources = await collectSources({ follow: sc.sourceMode === 'follow' });
+      pageText = sources.map((src, i) => sourceBlock(src, i + 1)).join('\n\n');
+      const extracted = await extractPaged(pageText, { sourcePages: sources.length });
+      if (extracted.columns) {
+        result = {
+          columns: extracted.columns,
+          rows: extracted.rows,
+          note: noteParts({
+            sourcePages: sources.length,
+            slices: extracted.slices,
+            failed: extracted.failed,
+            unreadable: extracted.unreadable,
+            mode: 'collected full paged',
+          }),
+        };
+      } else {
+        const partial = noteParts({ sourcePages: sources.length, slices: extracted.slices, failed: extracted.failed, unreadable: extracted.unreadable, mode: 'collected full paged' });
+        error = `the model returned no readable table from any slice · ${partial}`;
+      }
+    } else {
+      const follow = sc.sourceMode === 'follow';
+      const visited = new Set();
+      let columns = null;
+      let failed = 0;
+      let unreadable = 0;
+      let slices = 0;
+      const rows = [];
+      const sources = [];
+      let url = sc.url;
+      let htmx = false;
+      while (url && !visited.has(url)) {
+        visited.add(url);
+        progress({ phase: 'source', sourcePage: sources.length + 1 });
+        const src = await fetchSourcePage(url, { htmx });
+        sources.push(src);
+        pageText = sources.map((source, i) => sourceBlock(source, i + 1)).join('\n\n');
+        const extracted = await extractPaged(src.text, { columns, rowsSoFar: rows.length, sourcePage: sources.length });
+        columns = extracted.columns;
+        rows.push(...extracted.rows);
+        failed += extracted.failed;
+        unreadable += extracted.unreadable;
+        slices += extracted.slices;
+        if (!follow) break;
+        url = src.nextUrl;
+        htmx = true;
+      }
+      if (columns) result = { columns, rows, note: noteParts({ sourcePages: sources.length, slices, failed, unreadable, mode: 'per-source full paged' }) };
+      else error = `the model returned no readable table from any slice · ${noteParts({ sourcePages: sources.length, slices, failed, unreadable, mode: 'per-source full paged' })}`;
     }
   } catch (err) {
     error = err.message;

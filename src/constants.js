@@ -63,6 +63,8 @@ export const SCRAPER_LIMITS = {
   cellChars: 400,
   // Full pager: process the scraped page in slices of ~pageTokens tokens each.
   defaultPageTokens: 4_000,
+  defaultSourceMode: 'follow',
+  defaultSourceProcess: 'per-page',
   charsPerToken: 4, // rough estimate (no tokenizer); tokens × 4 ≈ chars
   maxPageTokens: 12_000, // largest slice the user may configure
   pageOverlapChars: 800, // carry context across slice boundaries

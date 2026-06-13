@@ -301,11 +301,25 @@ function normalizeScraperPageMode(raw) {
   return raw.pageMode;
 }
 
+function normalizeScraperSourceMode(raw) {
+  if (raw.sourceMode === undefined || raw.sourceMode === null || raw.sourceMode === '') return SCRAPER_LIMITS.defaultSourceMode;
+  if (raw.sourceMode !== 'single' && raw.sourceMode !== 'follow') fail('"scraper.sourceMode" must be "single" or "follow"');
+  return raw.sourceMode;
+}
+
+function normalizeScraperSourceProcess(raw) {
+  if (raw.sourceProcess === undefined || raw.sourceProcess === null || raw.sourceProcess === '') return SCRAPER_LIMITS.defaultSourceProcess;
+  if (raw.sourceProcess !== 'per-page' && raw.sourceProcess !== 'collect') fail('"scraper.sourceProcess" must be "per-page" or "collect"');
+  return raw.sourceProcess;
+}
+
 // A scraper card: a URL + an instruction. The engine fetches the page and a
 // model extracts the requested data into result (a table).
 export function normalizeScraper(raw) {
   if (!isPlainObject(raw)) fail('scraper must be an object');
   const pageMode = normalizeScraperPageMode(raw);
+  const sourceMode = normalizeScraperSourceMode(raw);
+  const sourceProcess = normalizeScraperSourceProcess(raw);
   const rawPageTokens = raw.pageTokens === undefined || raw.pageTokens === null || raw.pageTokens === ''
     ? SCRAPER_LIMITS.defaultPageTokens
     : raw.pageTokens;
@@ -319,6 +333,8 @@ export function normalizeScraper(raw) {
     model: checkString(raw.model, 'scraper.model', { required: false, max: SCHEMA_LIMITS.gameModelChars }), // '' = the dock's pick
     pageMode,
     pageTokens, // 0 = legacy single-pass preview
+    sourceMode,
+    sourceProcess,
     result: normalizeScrapeResult(raw.result),
     error: checkString(raw.error, 'scraper.error', { required: false, max: SCHEMA_LIMITS.scraperNoteChars }),
     lastRunAt: typeof raw.lastRunAt === 'string' && !Number.isNaN(Date.parse(raw.lastRunAt)) ? raw.lastRunAt : null,

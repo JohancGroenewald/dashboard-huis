@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import http from 'node:http';
 import { Store } from '../src/store.js';
-import { htmlToText, parseTable, paginate, runScraper } from '../src/scrapers.js';
+import { htmlToText, nextSourceUrl, parseTable, paginate, runScraper } from '../src/scrapers.js';
 import { normalizeScraper } from '../src/schema.js';
 import { SCRAPER_LIMITS } from '../src/constants.js';
 
@@ -10,7 +10,10 @@ const newStore = () => new Store({ persist: false }).load();
 const fakeOllama = (reply) => ({ calls: [], async chat(req) { this.calls.push(req); return { role: 'assistant', content: reply }; } });
 
 function pageServer(html) {
-  const server = http.createServer((req, res) => { res.writeHead(200, { 'content-type': 'text/html' }); res.end(html); });
+  const server = http.createServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'text/html' });
+    res.end(typeof html === 'function' ? html(req) : html);
+  });
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => resolve(server)));
 }
 
@@ -47,6 +50,8 @@ test('normalizeScraper defaults to full paged extraction but preserves legacy pr
   const def = normalizeScraper({ name: 'Default' });
   assert.equal(def.pageMode, 'full');
   assert.equal(def.pageTokens, SCRAPER_LIMITS.defaultPageTokens);
+  assert.equal(def.sourceMode, 'follow');
+  assert.equal(def.sourceProcess, 'per-page');
 
   const legacySingle = normalizeScraper({ name: 'Single', pageTokens: 0 });
   assert.equal(legacySingle.pageMode, 'preview');
@@ -57,6 +62,17 @@ test('normalizeScraper defaults to full paged extraction but preserves legacy pr
   assert.equal(fullZero.pageTokens, SCRAPER_LIMITS.defaultPageTokens);
 
   assert.throws(() => normalizeScraper({ name: 'Bad', pageMode: 'everything' }), /pageMode/);
+  assert.throws(() => normalizeScraper({ name: 'Bad', sourceMode: 'forever' }), /sourceMode/);
+  assert.throws(() => normalizeScraper({ name: 'Bad', sourceProcess: 'later' }), /sourceProcess/);
+});
+
+test('nextSourceUrl detects htmx pagination and carries current query params', () => {
+  const html = '<li hx-get="/search?page=2" hx-trigger="revealed" hx-include="[name=o]"></li>';
+  assert.equal(
+    nextSourceUrl(html, 'https://ollama.com/search?o=newest'),
+    'https://ollama.com/search?page=2&o=newest'
+  );
+  assert.equal(nextSourceUrl('<div>No next page</div>', 'https://ollama.com/search?o=newest'), null);
 });
 
 test('runScraper fetches the page, extracts a table, and stores it', async () => {
@@ -123,6 +139,103 @@ test('runScraper full paged extraction keeps scanning past the old page-count ce
     assert.equal(error, '');
     assert.ok(ollama.calls.length > 12, 'no hidden 12-page cutoff');
     assert.deepEqual(scraper.result.rows, [['Late needle', '$99']]);
+  } finally {
+    server.close();
+  }
+});
+
+test('runScraper can collect htmx source pages before model extraction', async () => {
+  const events = [];
+  const server = await pageServer((req) => {
+    const u = new URL(req.url, 'http://127.0.0.1');
+    const page = u.searchParams.get('page') || '1';
+    events.push(`fetch:${page}:${req.headers['hx-request'] || ''}:${u.searchParams.get('o') || ''}`);
+    if (page === '2') return '<body><p>Beta | $2</p></body>';
+    return '<body><p>Alpha | $1</p><li hx-get="/search?page=2" hx-trigger="revealed" hx-include="[name=o]"></li></body>';
+  });
+  try {
+    const store = newStore();
+    const sc = store.addScraper({
+      name: 'Collect',
+      url: `http://127.0.0.1:${server.address().port}/search?o=newest`,
+      model: 'm',
+      sourceMode: 'follow',
+      sourceProcess: 'collect',
+    });
+    const ollama = {
+      calls: [],
+      async chat(req) {
+        this.calls.push(req);
+        const content = req.messages[0].content;
+        events.push(`model:${content.includes('Alpha') && content.includes('Beta') ? 'both' : 'partial'}`);
+        return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[["Alpha","$1"],["Beta","$2"]]}' };
+      },
+    };
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(error, '');
+    assert.deepEqual(scraper.result.rows, [['Alpha', '$1'], ['Beta', '$2']]);
+    assert.deepEqual(events, ['fetch:1::newest', 'fetch:2:true:newest', 'model:both']);
+    assert.match(scraper.result.note, /2 source page/);
+  } finally {
+    server.close();
+  }
+});
+
+test('runScraper can process each htmx source page before fetching the next', async () => {
+  const events = [];
+  const server = await pageServer((req) => {
+    const u = new URL(req.url, 'http://127.0.0.1');
+    const page = u.searchParams.get('page') || '1';
+    events.push(`fetch:${page}:${req.headers['hx-request'] || ''}`);
+    if (page === '2') return '<body><p>Beta | $2</p></body>';
+    return '<body><p>Alpha | $1</p><li hx-get="/search?page=2" hx-trigger="revealed"></li></body>';
+  });
+  try {
+    const store = newStore();
+    const sc = store.addScraper({
+      name: 'Per page',
+      url: `http://127.0.0.1:${server.address().port}/search`,
+      model: 'm',
+      sourceMode: 'follow',
+      sourceProcess: 'per-page',
+    });
+    const ollama = {
+      calls: [],
+      async chat(req) {
+        this.calls.push(req);
+        const content = req.messages[0].content;
+        if (content.includes('Alpha')) {
+          events.push('model:alpha');
+          return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[["Alpha","$1"]]}' };
+        }
+        events.push('model:beta');
+        return { role: 'assistant', content: '{"columns":["Item","Price"],"rows":[["Beta","$2"]]}' };
+      },
+    };
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(error, '');
+    assert.deepEqual(scraper.result.rows, [['Alpha', '$1'], ['Beta', '$2']]);
+    assert.deepEqual(events, ['fetch:1:', 'model:alpha', 'fetch:2:true', 'model:beta']);
+    assert.match(scraper.result.note, /per-source/);
+  } finally {
+    server.close();
+  }
+});
+
+test('runScraper can stay on the first source page only', async () => {
+  let fetches = 0;
+  const server = await pageServer(() => {
+    fetches += 1;
+    return '<body><p>Alpha | $1</p><li hx-get="/search?page=2" hx-trigger="revealed"></li></body>';
+  });
+  try {
+    const store = newStore();
+    const sc = store.addScraper({ name: 'Single source', url: `http://127.0.0.1:${server.address().port}/search`, model: 'm', sourceMode: 'single' });
+    const ollama = fakeOllama('{"columns":["Item","Price"],"rows":[["Alpha","$1"]]}');
+    const { scraper, error } = await runScraper({ store, ollama, scraperId: sc.id, model: 'm' });
+    assert.equal(error, '');
+    assert.equal(fetches, 1);
+    assert.deepEqual(scraper.result.rows, [['Alpha', '$1']]);
   } finally {
     server.close();
   }

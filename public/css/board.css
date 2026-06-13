@@ -132,6 +132,8 @@
 .scraper-controls { display: flex; gap: var(--sp-2); align-items: center; }
 .scraper-model { flex: 1; min-width: 0; font-size: var(--fs-0); padding: 4px 8px; color: var(--muted); }
 .scraper-pages { flex: none; font-size: var(--fs-0); padding: 4px 6px; color: var(--muted); }
+.scraper-source-controls { margin-top: calc(-1 * var(--sp-1)); }
+.scraper-source, .scraper-process { flex: 1; min-width: 0; font-size: var(--fs-0); padding: 4px 6px; color: var(--muted); }
 .scraper-run { flex: none; border: 1px solid rgba(76, 141, 255, 0.45); background: var(--accent-dim); color: var(--accent-2); border-radius: var(--r-2); padding: 5px 12px; font-weight: 600; font-size: var(--fs-1); cursor: pointer; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
 .scraper-run:not(:disabled):hover { background: rgba(76, 141, 255, 0.3); color: var(--text); }
 /* Running: a violet shimmer sweeps across while the live phase label updates. */

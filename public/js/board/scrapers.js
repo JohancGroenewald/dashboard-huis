@@ -46,6 +46,19 @@ function pageOptions(sc) {
     `<option value="${esc(pageValue(opt))}"${selected === pageValue(opt) ? ' selected' : ''}>${esc(opt.label)}</option>`).join('');
 }
 
+const SOURCE_MODES = [
+  { label: 'Follow pages', value: 'follow' },
+  { label: 'This page only', value: 'single' },
+];
+const SOURCE_PROCESS = [
+  { label: 'Process each page', value: 'per-page' },
+  { label: 'Collect first', value: 'collect' },
+];
+const sourceModeOptions = (sc) => SOURCE_MODES.map(({ label, value }) =>
+  `<option value="${value}"${(sc.sourceMode || 'follow') === value ? ' selected' : ''}>${esc(label)}</option>`).join('');
+const sourceProcessOptions = (sc) => SOURCE_PROCESS.map(({ label, value }) =>
+  `<option value="${value}"${(sc.sourceProcess || 'per-page') === value ? ' selected' : ''}>${esc(label)}</option>`).join('');
+
 function resultTable(r) {
   if (!r || !r.columns.length) return '';
   const head = r.columns.map((c) => `<th>${esc(c)}</th>`).join('');
@@ -73,6 +86,10 @@ export function scraperInner(sc) {
       <select class="scraper-model" title="Which model extracts the data"${busy ? ' disabled' : ''}>${modelOptions(sc)}</select>
       <select class="scraper-pages" title="Full reviews all scraped text; preview reads only the first slice"${busy ? ' disabled' : ''}>${pageOptions(sc)}</select>
       <button type="button" class="scraper-run"${busy ? ' disabled' : ''}>${busy ? '⏳ scraping…' : '⛏ Scrape'}</button>
+    </div>
+    <div class="scraper-controls scraper-source-controls">
+      <select class="scraper-source" title="Follow website pagination links like infinite-scroll result pages"${busy ? ' disabled' : ''}>${sourceModeOptions(sc)}</select>
+      <select class="scraper-process" title="Process each source page before fetching the next one, or collect all source pages first"${busy ? ' disabled' : ''}>${sourceProcessOptions(sc)}</select>
     </div>
     ${sc.error ? `<div class="scraper-error">⚠️ ${esc(sc.error)}</div>` : ''}
     ${resultTable(sc.result)}
@@ -106,6 +123,16 @@ export function wireScraper(el, sc) {
     catch (err) { toast(err.message, { error: true }); }
     await loadDashboard();
   });
+  el.querySelector('.scraper-source').addEventListener('change', async (e) => {
+    try { await api(`/api/scrapers/${sc.id}`, jsonBody({ sourceMode: e.target.value }, 'PATCH')); }
+    catch (err) { toast(err.message, { error: true }); }
+    await loadDashboard();
+  });
+  el.querySelector('.scraper-process').addEventListener('change', async (e) => {
+    try { await api(`/api/scrapers/${sc.id}`, jsonBody({ sourceProcess: e.target.value }, 'PATCH')); }
+    catch (err) { toast(err.message, { error: true }); }
+    await loadDashboard();
+  });
   el.querySelector('.scraper-run').addEventListener('click', async () => {
     if (running.has(sc.id)) return;
     const model = scraperModel(sc);
@@ -133,6 +160,7 @@ export function wireScraper(el, sc) {
 // Live progress (server → events → here): paint the running button with the
 // current phase so a long scrape shows what it's actually doing.
 function progressLabel(s) {
+  if (s.phase === 'source') return `📥 source page ${s.sourcePage || 1}…`;
   if (s.phase === 'fetch') return '📥 fetching page…';
   if (s.phase === 'preview') return '⛏ previewing…';
   if (s.phase === 'extract') return '⛏ extracting…';
