@@ -130,8 +130,9 @@
 .scraper-inst { font-size: 12.5px; color: var(--text); cursor: text; line-height: 1.4; }
 .scraper-url.empty, .scraper-inst.empty { color: var(--muted); font-style: italic; font-family: inherit; }
 .scraper-controls { display: flex; gap: var(--sp-2); align-items: center; }
-.scraper-model { flex: 1; min-width: 0; font-size: var(--fs-0); padding: 4px 8px; color: var(--muted); }
-.scraper-pages { flex: none; font-size: var(--fs-0); padding: 4px 6px; color: var(--muted); }
+.scraper-controls:not(.scraper-source-controls) { display: grid; grid-template-columns: calc(50% - (var(--sp-2) / 2)) minmax(0, 1fr) auto; }
+.scraper-model { width: 100%; min-width: 0; font-size: var(--fs-0); padding: 4px 8px; color: var(--muted); }
+.scraper-pages { width: 100%; min-width: 0; font-size: var(--fs-0); padding: 4px 6px; color: var(--muted); }
 .scraper-source-controls { margin-top: calc(-1 * var(--sp-1)); }
 .scraper-source, .scraper-process { flex: 1; min-width: 0; font-size: var(--fs-0); padding: 4px 6px; color: var(--muted); }
 .scraper-run { flex: none; border: 1px solid rgba(76, 141, 255, 0.45); background: var(--accent-dim); color: var(--accent-2); border-radius: var(--r-2); padding: 5px 12px; font-weight: 600; font-size: var(--fs-1); cursor: pointer; white-space: nowrap; transition: background var(--t-fast), color var(--t-fast); }
