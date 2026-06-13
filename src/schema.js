@@ -278,7 +278,7 @@ function normalizeScrapeResult(raw) {
   const columns = raw.columns.slice(0, SCRAPER_LIMITS.maxColumns).map(cell);
   const width = columns.length;
   if (!width) return null;
-  const rows = raw.rows.slice(0, SCRAPER_LIMITS.maxRows)
+  const rows = raw.rows
     .filter(Array.isArray)
     .map((r) => {
       const row = r.slice(0, width).map(cell);

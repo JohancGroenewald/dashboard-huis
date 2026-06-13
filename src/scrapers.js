@@ -126,7 +126,7 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
       let columns = null;
       let failed = 0;
       const rows = [];
-      for (let i = 0; i < pages.length && rows.length < SCRAPER_LIMITS.maxRows; i += 1) {
+      for (let i = 0; i < pages.length; i += 1) {
         progress({ phase: 'slice', slice: i + 1, slices: pages.length, rows: rows.length });
         const userMsg = columns
           ? `This is part ${i + 1} of ${pages.length} of the same page. Use EXACTLY these columns, in order: ${JSON.stringify(columns)}. Extract any matching rows from this part; return empty rows if there are none. Reply with ONLY the JSON.`
@@ -145,7 +145,7 @@ export async function runScraper({ store, ollama, scraperId, model, onProgress }
         }
       }
       const partial = failed ? ` · ${failed} slice(s) failed` : '';
-      if (columns) result = { columns, rows: rows.slice(0, SCRAPER_LIMITS.maxRows), note: `paged: ${pages.length} slice(s) of ~${sc.pageTokens} tokens${partial}` };
+      if (columns) result = { columns, rows, note: `paged: ${pages.length} slice(s) of ~${sc.pageTokens} tokens${partial}` };
       else error = `the model returned no readable table from any slice${partial}`;
     }
   } catch (err) {

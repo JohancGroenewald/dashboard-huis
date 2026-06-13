@@ -61,7 +61,6 @@ export const SCRAPER_LIMITS = {
   maxHtmlChars: 2_000_000, // cap the raw download before stripping tags
   maxTextChars: 16_000, // visible text handed to the model
   maxColumns: 8,
-  maxRows: 100,
   cellChars: 400,
   // Content pager: process a big page in slices of ~pageTokens tokens each.
   charsPerToken: 4, // rough estimate (no tokenizer); tokens × 4 ≈ chars
