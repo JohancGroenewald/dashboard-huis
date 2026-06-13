@@ -12,7 +12,7 @@ import { addTileTo } from './board/editor.js';
 import { sendChat } from './dock/chat.js';
 import { toggleDock } from './dock/dock.js';
 
-const ICON = { tile: '🔗', section: '🗂️', note: '📝', workspace: '🪟', game: '⭕', trigger: '⏱' };
+const ICON = { tile: '🔗', section: '🗂️', note: '📝', workspace: '🪟', game: '⭕', trigger: '⏱', scraper: '⛏' };
 let backdrop;
 let input;
 let resultsEl;
@@ -41,6 +41,9 @@ function findItems(q) {
   }
   for (const t of d.triggers || []) {
     items.push({ type: 'trigger', id: t.id, workspaceId: t.workspaceId, label: t.name, sub: `trigger · ${wsName(t.workspaceId)}`, hay: `trigger ${t.name}` });
+  }
+  for (const s of d.scrapers || []) {
+    items.push({ type: 'scraper', id: s.id, workspaceId: s.workspaceId, label: s.name, sub: `scraper · ${wsName(s.workspaceId)}`, hay: `scraper ${s.name} ${s.url || ''}` });
   }
   for (const w of d.workspaces) items.push({ type: 'workspace', id: w.id, workspaceId: w.id, label: w.name, sub: 'workspace', hay: `workspace ${w.name}` });
   return items
@@ -98,6 +101,23 @@ function buildActions() {
         const v = await openDialog({ title: 'New trigger', fields: [{ name: 'name', placeholder: 'What does it track? e.g. Fed the dog' }], submitLabel: 'Create' });
         if (!v?.name) return;
         await api('/api/triggers', jsonBody({ name: v.name }));
+        await loadDashboard();
+      },
+    },
+    {
+      icon: '⛏', label: 'New scraper…', hay: 'new add scraper scrape fetch url web page extract table data',
+      run: async () => {
+        const v = await openDialog({
+          title: 'New scraper',
+          fields: [
+            { name: 'name', placeholder: 'Name, e.g. Hardware prices' },
+            { name: 'url', placeholder: 'Page URL (https://…)' },
+            { name: 'instruction', placeholder: 'What to look for and tabulate' },
+          ],
+          submitLabel: 'Create',
+        });
+        if (!v?.name) return;
+        await api('/api/scrapers', jsonBody({ name: v.name, url: v.url, instruction: v.instruction }));
         await loadDashboard();
       },
     },

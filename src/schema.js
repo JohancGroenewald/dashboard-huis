@@ -3,7 +3,7 @@
 import crypto from 'node:crypto';
 import {
   DEFAULT_DASHBOARD, FEATURE_REQUEST_STATUSES, PROBLEM_STATUSES, HEALTH_TYPES as HEALTH_TYPE_VALUES,
-  NOTE_COLOR_NAMES, SCHEMA_LIMITS, SECTION_HEADING_EFFECTS, WORKSPACE_BACKGROUND_EFFECTS,
+  NOTE_COLOR_NAMES, SCHEMA_LIMITS, SCRAPER_LIMITS, SECTION_HEADING_EFFECTS, WORKSPACE_BACKGROUND_EFFECTS,
 } from './constants.js';
 // The same compiler the browser renders with — one grammar, validated here at
 // the tool boundary. A deliberate import across the src/public seam.
@@ -270,6 +270,49 @@ export function normalizeProblem(raw) {
   };
 }
 
+// A scraper's last extraction: a bounded table the model returned. Re-validated
+// on every load/commit so whatever is stored can never exceed the limits.
+function normalizeScrapeResult(raw) {
+  if (!isPlainObject(raw) || !Array.isArray(raw.columns) || !Array.isArray(raw.rows)) return null;
+  const cell = (v) => String(v ?? '').slice(0, SCRAPER_LIMITS.cellChars);
+  const columns = raw.columns.slice(0, SCRAPER_LIMITS.maxColumns).map(cell);
+  const width = columns.length;
+  if (!width) return null;
+  const rows = raw.rows.slice(0, SCRAPER_LIMITS.maxRows)
+    .filter(Array.isArray)
+    .map((r) => {
+      const row = r.slice(0, width).map(cell);
+      while (row.length < width) row.push('');
+      return row;
+    });
+  return {
+    columns,
+    rows,
+    note: typeof raw.note === 'string' ? raw.note.slice(0, SCHEMA_LIMITS.scraperNoteChars) : '',
+    at: typeof raw.at === 'string' && !Number.isNaN(Date.parse(raw.at)) ? raw.at : new Date().toISOString(),
+  };
+}
+
+// A scraper card: a URL + an instruction. The engine fetches the page and a
+// model extracts the requested data into result (a table).
+export function normalizeScraper(raw) {
+  if (!isPlainObject(raw)) fail('scraper must be an object');
+  return {
+    id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
+    name: checkString(raw.name, 'scraper.name', { required: false, max: SCHEMA_LIMITS.scraperNameChars }) || 'Scraper',
+    url: checkString(raw.url, 'scraper.url', { required: false, max: SCHEMA_LIMITS.scraperUrlChars }),
+    instruction: checkString(raw.instruction, 'scraper.instruction', { required: false, max: SCHEMA_LIMITS.scraperInstructionChars }),
+    model: checkString(raw.model, 'scraper.model', { required: false, max: SCHEMA_LIMITS.gameModelChars }), // '' = the dock's pick
+    result: normalizeScrapeResult(raw.result),
+    error: checkString(raw.error, 'scraper.error', { required: false, max: SCHEMA_LIMITS.scraperNoteChars }),
+    lastRunAt: typeof raw.lastRunAt === 'string' && !Number.isNaN(Date.parse(raw.lastRunAt)) ? raw.lastRunAt : null,
+    workspaceId: checkString(raw.workspaceId, 'scraper.workspaceId', { required: false, max: SCHEMA_LIMITS.workspaceIdChars }),
+    layout: normalizeLayout(raw.layout),
+    createdAt: raw.createdAt || new Date().toISOString(),
+    updatedAt: raw.updatedAt || new Date().toISOString(),
+  };
+}
+
 const FR_STATUS = new Set(FEATURE_REQUEST_STATUSES);
 
 export function normalizeFeatureRequest(raw) {
@@ -297,6 +340,8 @@ export function normalizeState(raw) {
   if (!Array.isArray(games)) fail('"games" must be an array');
   const triggers = raw.triggers ?? [];
   if (!Array.isArray(triggers)) fail('"triggers" must be an array');
+  const scrapers = raw.scrapers ?? [];
+  if (!Array.isArray(scrapers)) fail('"scrapers" must be an array');
   const featureRequests = raw.featureRequests ?? [];
   if (!Array.isArray(featureRequests)) fail('"featureRequests" must be an array');
   const problems = raw.problems ?? [];
@@ -311,6 +356,7 @@ export function normalizeState(raw) {
     notes: notes.map(normalizeNote),
     games: games.map(normalizeGame),
     triggers: triggers.map(normalizeTrigger),
+    scrapers: scrapers.map(normalizeScraper),
     featureRequests: featureRequests.map(normalizeFeatureRequest),
     problems: problems.map(normalizeProblem),
     updatedAt: new Date().toISOString(),
@@ -325,6 +371,7 @@ export function normalizeState(raw) {
   for (const n of state.notes) if (!wsIds.has(n.workspaceId)) n.workspaceId = fallbackWs;
   for (const g of state.games) if (!wsIds.has(g.workspaceId)) g.workspaceId = fallbackWs;
   for (const t of state.triggers) if (!wsIds.has(t.workspaceId)) t.workspaceId = fallbackWs;
+  for (const sc of state.scrapers) if (!wsIds.has(sc.workspaceId)) sc.workspaceId = fallbackWs;
   state.activeWorkspaceId = wsIds.has(raw.activeWorkspaceId) ? raw.activeWorkspaceId : fallbackWs;
 
   // Enforce unique ids across the whole tree.
@@ -341,6 +388,7 @@ export function normalizeState(raw) {
   for (const n of state.notes) claim(n.id);
   for (const g of state.games) claim(g.id);
   for (const t of state.triggers) claim(t.id);
+  for (const sc of state.scrapers) claim(sc.id);
   for (const fr of state.featureRequests) claim(fr.id);
   for (const p of state.problems) claim(p.id);
   return state;

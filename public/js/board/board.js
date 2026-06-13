@@ -15,6 +15,7 @@ import { store, subscribe, publish, flushDeferred, applyDashboard } from '../sta
 import { sectionInner, noteInner, ghostInner, wireSection, wireNote, wireGhost } from './cards.js';
 import { gameInner, wireGame } from './games.js';
 import { triggerInner, wireTrigger } from './triggers.js';
+import { scraperInner, wireScraper } from './scrapers.js';
 
 const gridEl = $('#board');
 let grid = null;
@@ -94,7 +95,8 @@ function renderBoard() {
   const notes = store.dashboard.notes.filter((n) => n.workspaceId === ws);
   const games = (store.dashboard.games || []).filter((g) => g.workspaceId === ws);
   const triggers = (store.dashboard.triggers || []).filter((t) => t.workspaceId === ws);
-  $('#empty-hero').classList.toggle('hidden', sections.length + notes.length + games.length + triggers.length > 0);
+  const scrapers = (store.dashboard.scrapers || []).filter((s) => s.workspaceId === ws);
+  $('#empty-hero').classList.toggle('hidden', sections.length + notes.length + games.length + triggers.length + scrapers.length > 0);
 
   const cab = $('#collapse-all');
   const allCollapsed = sections.length > 0 && sections.every((s) => s.collapsed);
@@ -128,6 +130,12 @@ function renderBoard() {
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireTrigger(el, trigger);
+  }
+  for (const scraper of scrapers) {
+    const el = widgetEl(scraper.id, scraper.layout || {}, GRID_UI.scraperDefaultWidth, GRID_UI.scraperDefaultHeight, scraperInner(scraper));
+    gridEl.appendChild(el);
+    grid.makeWidget(el);
+    wireScraper(el, scraper);
   }
   requestAnimationFrame(() => grid.setAnimation(true));
   rendering = false;

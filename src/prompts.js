@@ -32,6 +32,7 @@ Rules:
 - Workspaces can have animated math-art backgrounds set with set_workspace_background. Choose from waves, orbits, plasma, or stars — or invent your own with effect "formula": one math expression over x, y, r, a, t (e.g. "sin(8*r - 2*t) * exp(-r)") rendered live across the workspace, with palette/speed/density/intensity. Use effect "none" to clear a background. Formulas run in a safe whitelisted math sandbox, not arbitrary JavaScript.
 - The board can also hold GAME cards (kringetjies en kruisies / tic-tac-toe): add one with add_game when the user wants to play, remove one with remove_game. The user plays on the card itself and a model answers the moves — you do not play the moves through these tools.
 - TRIGGER cards are named buttons that stamp the date and time when pressed, then refuse repeat presses until a cooldown expires (add_trigger with a name and cooldown_minutes; press_trigger presses one for the user and reports the remaining time if it is still cooling down; remove_trigger deletes one). Good for "fed the dog" / "took medication" style tracking.
+- SCRAPER cards fetch a web page and extract data from it into a table. Use add_scraper with a name, a url, and an instruction describing what to pull out and tabulate (e.g. "the title and price of each product"); remove_scraper deletes one. The user presses Scrape on the card to run it — you set it up, you do not fetch the page yourself.
 - If a tool call fails unexpectedly, something seems broken, or you cannot finish a task for a TECHNICAL reason, file it with report_problem (what you tried + the error), tell the user you did, and stop retrying. Problems are defects; missing capabilities are request_feature.
 - Only call request_feature for a DASHBOARD capability your tools genuinely don't have. Check your tool list first — do NOT file a request for something you can already do (e.g. setting a tile's or section's description). For unrelated questions (weather, trivia, chit-chat), just answer briefly or say it's out of scope — do NOT file a request or change anything.
 - When you need a decision or confirmation (yes/no or either/or), call offer_choices with the options and put the question in your reply — the user gets clickable buttons instead of having to type.
@@ -106,6 +107,24 @@ Think about: where the game was decided, any move you would take back, what the 
 
 Reply with ONLY this JSON:
 {"say": "<one short, gracious line about the game for the user to read>", "memory": "<your rewritten private memory: lessons and the user's habits, for the next match>"}`,
+
+  scraper: `You extract structured data from the text of a web page and return it as a table.
+
+What the user wants extracted:
+{{INSTRUCTION}}
+
+Page URL: {{URL}}
+Page text (tags stripped, may be truncated):
+"""
+{{CONTENT}}
+"""
+
+Read the page text and pull out exactly what was asked for. Choose concise, sensible column names. Put one record per row, with cells in the same order as the columns. Use the page's own wording for values; do not invent data that is not present.
+
+Reply with ONLY this JSON:
+{"columns": ["col1", "col2"], "rows": [["v1", "v2"], ["v1", "v2"]], "note": "<short note only if the data was partial, missing, or ambiguous — otherwise empty>"}
+
+If you find nothing matching the request, return empty rows and explain briefly in note.`,
 };
 
 export const PROMPT_DEFS = [
@@ -136,6 +155,13 @@ export const PROMPT_DEFS = [
     description: 'After a game ends the model sees the final position (screenshot for vision models), reflects on its play, and rewrites its in-game memory for the next match.',
     placeholders: ['{{BOARD}}', '{{RESULT}}', '{{HISTORY}}', '{{MEMORY}}'],
     warning: 'The engine expects the JSON shape at the end ({"say": …, "memory": …}); reshape it and reflections stop updating the memory.',
+  },
+  {
+    id: 'scraper',
+    name: 'Scraper extractor',
+    description: 'Drives scraper cards: the model reads a fetched page\'s text and the user\'s instruction, and returns the requested data as a table.',
+    placeholders: ['{{INSTRUCTION}}', '{{URL}}', '{{CONTENT}}'],
+    warning: 'The engine expects the JSON shape at the end ({"columns": …, "rows": …}); reshape it and scrape results stop parsing into a table.',
   },
 ];
 

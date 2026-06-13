@@ -11,8 +11,8 @@ import { CONFIG_DEFAULTS, SCHEMA_LIMITS, STORE_LIMITS } from './constants.js';
 import { searchState } from './search.js';
 import {
   fail, checkString, checkColor, normalizeState, normalizeSection, normalizeTile, normalizeNote, normalizeGame,
-  normalizeTrigger, normalizeFeatureRequest, normalizeProblem, normalizeWorkspace, normalizeWorkspaceBackground,
-  normalizeLayout, defaultState,
+  normalizeTrigger, normalizeScraper, normalizeFeatureRequest, normalizeProblem, normalizeWorkspace,
+  normalizeWorkspaceBackground, normalizeLayout, defaultState,
 } from './schema.js';
 
 export class Store {
@@ -142,7 +142,7 @@ export class Store {
   removeWorkspace(id) {
     const w = this.#workspace(id);
     if (this.state.workspaces.length <= 1) fail('cannot remove the last workspace');
-    const used = ['sections', 'notes', 'games', 'triggers'].some((k) => this.state[k].some((x) => x.workspaceId === id));
+    const used = ['sections', 'notes', 'games', 'triggers', 'scrapers'].some((k) => this.state[k].some((x) => x.workspaceId === id));
     if (used) fail(`workspace "${w.name}" is not empty — move or delete its content first`);
     this.state.workspaces = this.state.workspaces.filter((x) => x.id !== id);
     if (this.state.activeWorkspaceId === id) this.state.activeWorkspaceId = this.state.workspaces[0].id;
@@ -283,8 +283,9 @@ export class Store {
     const card = this.state.sections.find((s) => s.id === id)
       || this.state.notes.find((n) => n.id === id)
       || this.state.games.find((g) => g.id === id)
-      || this.state.triggers.find((t) => t.id === id);
-    if (!card) fail(`nothing movable matching "${id}" — use the id of a section, note, game, or trigger`);
+      || this.state.triggers.find((t) => t.id === id)
+      || this.state.scrapers.find((sc) => sc.id === id);
+    if (!card) fail(`nothing movable matching "${id}" — use the id of a section, note, game, trigger, or scraper`);
     return card;
   }
 
@@ -308,6 +309,7 @@ export class Store {
     for (const n of this.state.notes) byId.set(n.id, n);
     for (const g of this.state.games) byId.set(g.id, g);
     for (const t of this.state.triggers) byId.set(t.id, t);
+    for (const sc of this.state.scrapers) byId.set(sc.id, sc);
     for (const it of items) {
       const target = byId.get(it.id);
       if (target) target.layout = normalizeLayout(it);
@@ -371,6 +373,17 @@ export class Store {
   getTrigger(id) { return structuredClone(this.#trigger(id)); }
 
   #trigger(id) { return this.#find(this.state.triggers, id, 'trigger'); }
+
+  // ---- scrapers -----------------------------------------------------------
+  addScraper(scraper = {}) { return this.#addCard(this.state.scrapers, normalizeScraper, scraper); }
+
+  updateScraper(id, patch) { return this.#patch(this.#scraper(id), normalizeScraper, patch); }
+
+  removeScraper(id) { return this.#removeFrom(this.state.scrapers, id, 'scraper'); }
+
+  getScraper(id) { return structuredClone(this.#scraper(id)); }
+
+  #scraper(id) { return this.#find(this.state.scrapers, id, 'scraper'); }
 
   // ---- feature requests -------------------------------------------------
   addFeatureRequest(fr) { return this.#addCard(this.state.featureRequests, normalizeFeatureRequest, fr); }

@@ -138,6 +138,34 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'add_scraper',
+      description: 'Add a scraper card that fetches a web page and extracts data from it into a table. The user runs it from the card. Give it a name, the page url, and an instruction describing what to pull out (e.g. "the name and price of each product").',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'A short name for the scraper.' },
+          url: { type: 'string', description: 'The http(s) URL of the page to scrape.' },
+          instruction: { type: 'string', description: 'What to look for and tabulate.' },
+        },
+        required: ['name', 'url', 'instruction'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_scraper',
+      description: 'Delete a scraper card by id.',
+      parameters: {
+        type: 'object',
+        properties: { scraper_id: { type: 'string', description: 'Scraper id.' } },
+        required: ['scraper_id'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'switch_workspace',
       description: 'Make a workspace the active one — the board shows it and new sections/notes land in it.',
       parameters: {

@@ -69,6 +69,7 @@ function indexCards(d) {
   for (const n of d.notes) m.set(n.id, JSON.stringify(n));
   for (const g of d.games || []) m.set(g.id, JSON.stringify(g));
   for (const t of d.triggers || []) m.set(t.id, JSON.stringify(t));
+  for (const s of d.scrapers || []) m.set(s.id, JSON.stringify(s));
   return m;
 }
 

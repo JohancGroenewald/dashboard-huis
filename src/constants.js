@@ -56,6 +56,15 @@ export const SERVER_LIMITS = {
   logsMaxLimit: 200,
 };
 
+export const SCRAPER_LIMITS = {
+  fetchTimeoutMs: 12_000,
+  maxHtmlChars: 2_000_000, // cap the raw download before stripping tags
+  maxTextChars: 16_000, // visible text handed to the model
+  maxColumns: 8,
+  maxRows: 100,
+  cellChars: 400,
+};
+
 export const SSE_LIMITS = {
   heartbeatMs: 25_000,
   coalesceMs: 100,
@@ -147,6 +156,10 @@ export const SCHEMA_LIMITS = {
   gameModelChars: 120,
   triggerNameChars: 120,
   triggerHistoryMax: 12,
+  scraperNameChars: 120,
+  scraperUrlChars: 2_000,
+  scraperInstructionChars: 600,
+  scraperNoteChars: 500,
   triggerCooldownMaxMs: 365 * 24 * 60 * 60 * 1000, // a year (room for month-scale cooldowns)
   triggerCooldownDefaultMs: 6 * 60 * 60 * 1000, // 6 hours
   requestedByChars: 120,

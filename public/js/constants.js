@@ -33,6 +33,8 @@ export const GRID_UI = {
   noteDefaultHeight: 3,
   gameDefaultWidth: 3,
   gameDefaultHeight: 5,
+  scraperDefaultWidth: 5,
+  scraperDefaultHeight: 6,
   triggerDefaultWidth: 2,
   triggerDefaultHeight: 2,
   attachLabelChars: 40,

@@ -16,6 +16,7 @@ import { mountAgentRoutes } from './routes/agent.js';
 import { listPrompts, setPromptOverride } from './prompts.js';
 import { humanMove, aiMove, resetGame, reflectOnGame, isModelTurn } from './games.js';
 import { pressTrigger } from './triggers.js';
+import { runScraper } from './scrapers.js';
 import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired, isApproved } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -230,6 +231,29 @@ app.patch('/api/triggers/:id', wrap((req, res) => {
 }));
 app.delete('/api/triggers/:id', wrap((req, res) => res.json(store.removeTrigger(req.params.id))));
 app.post('/api/triggers/:id/press', wrap((req, res) => res.json(pressTrigger(store, req.params.id))));
+
+// ---- scrapers ----------------------------------------------------------------
+const runningScrapers = new Set(); // one run at a time per scraper
+app.post('/api/scrapers', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addScraper(req.body || {}))));
+app.patch('/api/scrapers/:id', wrap((req, res) => {
+  const { name, url, instruction, model } = req.body || {};
+  const patch = {};
+  for (const [k, v] of Object.entries({ name, url, instruction, model })) if (v !== undefined) patch[k] = v;
+  res.json(store.updateScraper(req.params.id, patch));
+}));
+app.delete('/api/scrapers/:id', wrap((req, res) => res.json(store.removeScraper(req.params.id))));
+app.post('/api/scrapers/:id/run', wrap(async (req, res) => {
+  const id = req.params.id;
+  const model = req.body?.model || store.getScraper(id).model;
+  if (!model || !isApproved(model)) { res.status(HTTP_STATUS.forbidden).json({ error: `"${model || '(none)'}" has not passed pre-validation` }); return; }
+  if (runningScrapers.has(id)) { res.status(HTTP_STATUS.conflict).json({ error: 'this scraper is already running' }); return; }
+  runningScrapers.add(id);
+  try {
+    res.json(await runScraper({ store, ollama, scraperId: id, model }));
+  } finally {
+    runningScrapers.delete(id);
+  }
+}));
 
 // ---- editable model prompts ------------------------------------------------
 app.get('/api/prompts', wrap((req, res) => res.json(listPrompts())));

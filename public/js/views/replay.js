@@ -12,7 +12,7 @@ import { LOGS_UI, STORAGE_KEYS } from '../constants.js';
 import { store, subscribe } from '../state/store.js';
 import { showView } from '../workspaces.js';
 
-const KIND = { chat: '💬', validate: '🧪', redteam: '🛡️', game: '⭕' };
+const KIND = { chat: '💬', validate: '🧪', redteam: '🛡️', game: '⭕', scrape: '⛏' };
 // Per-frame display time at 1× (ms); the scheduler divides by the speed.
 const DUR = { prompt: 600, toolStart: 480, toolDone: 320, think: 30, say: 50, reply: 55, end: 500 };
 const SPEEDS = [1, 2, 4];

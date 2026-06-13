@@ -39,6 +39,9 @@ export function searchState(state, query) {
   for (const t of state.triggers) {
     items.push({ type: 'trigger', id: t.id, label: t.name, layout: t.layout, _hay: `trigger button ${t.name}` });
   }
+  for (const sc of state.scrapers) {
+    items.push({ type: 'scraper', id: sc.id, label: sc.name, layout: sc.layout, _hay: `scraper ${sc.name} ${sc.url} ${sc.instruction}` });
+  }
   return items
     .map((it) => {
       const hay = it._hay.toLowerCase();
