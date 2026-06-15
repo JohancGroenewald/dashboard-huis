@@ -118,6 +118,14 @@ export const toolSpecs = [
   {
     type: 'function',
     function: {
+      name: 'stop_trigger',
+      description: 'Stop a trigger card cooldown by making it ready to press again. This does not delete the trigger or erase its press history.',
+      parameters: { type: 'object', properties: { trigger_id: { type: 'string', description: 'Trigger id.' } }, required: ['trigger_id'] },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'remove_trigger',
       description: 'Delete a trigger card by id.',
       parameters: { type: 'object', properties: { trigger_id: { type: 'string', description: 'Trigger id.' } }, required: ['trigger_id'] },

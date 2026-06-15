@@ -91,6 +91,24 @@ test('move_to_workspace resolves a trigger by its unique name', () => {
   assert.equal(out.moved.workspaceId, ws.id);
 });
 
+test('stop_trigger tool clears an active trigger cooldown', () => {
+  const store = new Store({ persist: false }).load();
+  const handlers = makeToolHandlers(store);
+  const t = store.addTrigger({
+    name: 'Water plants',
+    cooldownMs: 60_000,
+    lastPressedAt: new Date(Date.now() - 1_000).toISOString(),
+    history: [new Date(Date.now() - 1_000).toISOString()],
+  });
+
+  const out = handlers.stop_trigger({ trigger_id: t.id });
+
+  assert.equal(out.stopped.id, t.id);
+  assert.equal(out.stopped.stopped, true);
+  assert.equal(store.getTrigger(t.id).lastPressedAt, null);
+  assert.equal(store.getTrigger(t.id).history.length, 1);
+});
+
 test('read_scraper returns a paged slice of the extracted rows', () => {
   const store = new Store({ persist: false }).load();
   const handlers = makeToolHandlers(store);

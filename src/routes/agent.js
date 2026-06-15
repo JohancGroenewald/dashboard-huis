@@ -14,6 +14,7 @@ import { isApproved } from '../validation/registry.js';
 const MUTATING = new Set([
   'add_tile', 'add_section', 'add_note', 'update_tile', 'update_note', 'rename_section', 'update_section',
   'remove_tile', 'remove_section', 'remove_note', 'move_tile', 'move_section', 'resize_card',
+  'add_trigger', 'press_trigger', 'stop_trigger', 'remove_trigger',
   'add_workspace', 'rename_workspace', 'set_workspace_background', 'remove_workspace', 'switch_workspace', 'move_to_workspace',
   'undo', 'redo',
 ]);
@@ -34,9 +35,12 @@ export function followupsFromTrace(trace = []) {
     case 'add_workspace': return ['Switch to it', 'Add a section to it', 'Rename it'];
     case 'switch_workspace': return ['Add a section', 'Add a tile', 'Add a note'];
     case 'move_to_workspace': return ['Switch to that workspace', 'Move another', 'Undo that'];
+    case 'press_trigger':
+    case 'stop_trigger': return ['Undo that', 'Show triggers'];
     case 'rename_workspace': return ['Switch to it', 'Undo that'];
     case 'set_workspace_background': return ['Try a calmer background', 'Clear the background', 'Undo that'];
     case 'remove_workspace':
+    case 'remove_trigger':
     case 'remove_tile':
     case 'remove_section':
     case 'remove_note': return ['Undo that', 'Add something new'];
@@ -52,7 +56,7 @@ export function followupsFromTrace(trace = []) {
 
 // Ids a tool call touches, for board pulses. Args may hold names instead of
 // ids (the client just won't match those); results carry canonical objects.
-const ID_ARG_KEYS = ['tile_id', 'note_id', 'card', 'section', 'item', 'workspace'];
+const ID_ARG_KEYS = ['tile_id', 'note_id', 'trigger_id', 'card', 'section', 'item', 'workspace'];
 function idsFromCall(args = {}, result) {
   const ids = new Set();
   for (const k of ID_ARG_KEYS) if (typeof args[k] === 'string') ids.add(args[k]);

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Store } from '../src/store.js';
-import { pressTrigger, fmtRemaining } from '../src/triggers.js';
+import { pressTrigger, stopTrigger, fmtRemaining } from '../src/triggers.js';
 import { normalizeTrigger } from '../src/schema.js';
 
 const newStore = () => new Store({ persist: false }).load();
@@ -29,6 +29,23 @@ test('history is capped and junk timestamps are dropped', () => {
   for (let i = 0; i < 15; i++) pressTrigger(store, t.id, (now += 1000));
   assert.equal(store.getTrigger(t.id).history.length, 12); // capped
   assert.deepEqual(normalizeTrigger({ history: ['not a date', '2026-06-12T08:00:00Z', 42] }).history, ['2026-06-12T08:00:00Z']);
+});
+
+test('stopTrigger clears only an active cooldown and preserves history', () => {
+  const store = newStore();
+  const t = store.addTrigger({ name: 'Water plants', cooldownMs: 60_000 });
+  const t0 = Date.parse('2026-06-15T08:00:00Z');
+  pressTrigger(store, t.id, t0);
+
+  const stopped = stopTrigger(store, t.id, t0 + 30_000);
+  assert.equal(stopped.stopped, true);
+  assert.equal(stopped.lastPressedAt, null);
+  assert.equal(stopped.history.length, 1);
+  assert.doesNotThrow(() => pressTrigger(store, t.id, t0 + 31_000));
+
+  const ready = stopTrigger(store, t.id, t0 + 120_000);
+  assert.equal(ready.stopped, false);
+  assert.ok(ready.lastPressedAt);
 });
 
 test('normalizeTrigger applies defaults and bounds', () => {

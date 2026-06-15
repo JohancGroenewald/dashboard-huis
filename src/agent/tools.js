@@ -4,7 +4,7 @@
 // live store (the agent) and a throwaway store (the validation sandbox).
 // The JSON-schema specs live in tool-specs.js (re-exported here).
 import { AGENT_LIMITS } from '../constants.js';
-import { pressTrigger } from '../triggers.js';
+import { pressTrigger, stopTrigger } from '../triggers.js';
 import { readScraperRows } from '../scraper-results.js';
 import { toolSpecs } from './tool-specs.js';
 
@@ -124,6 +124,7 @@ export function makeToolHandlers(store, { requestedBy = 'agent', scraperResults 
       added: store.addTrigger({ name, ...(cooldown_minutes !== undefined ? { cooldownMs: Number(cooldown_minutes) * 60_000 } : {}) }),
     }),
     press_trigger: ({ trigger_id }) => ({ pressed: pressTrigger(store, trigger_id) }),
+    stop_trigger: ({ trigger_id }) => ({ stopped: stopTrigger(store, trigger_id) }),
     remove_trigger: ({ trigger_id }) => ({ removed: store.removeTrigger(trigger_id) }),
 
     add_scraper: ({ name, url, instruction }) => ({ added: store.addScraper({ name, url, instruction, model: requestedBy }) }),

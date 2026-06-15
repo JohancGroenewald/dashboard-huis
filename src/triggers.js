@@ -22,3 +22,11 @@ export function pressTrigger(store, id, now = Date.now()) {
   const stamp = new Date(now).toISOString();
   return store.updateTrigger(id, { lastPressedAt: stamp, history: [stamp, ...t.history] });
 }
+
+export function stopTrigger(store, id, now = Date.now()) {
+  const t = store.getTrigger(id);
+  const last = t.lastPressedAt ? Date.parse(t.lastPressedAt) : 0;
+  const readyAt = last + t.cooldownMs;
+  if (!last || now >= readyAt) return { ...t, stopped: false };
+  return { ...store.updateTrigger(id, { lastPressedAt: null }), stopped: true };
+}
