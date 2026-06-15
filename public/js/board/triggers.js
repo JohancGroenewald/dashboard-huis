@@ -5,6 +5,7 @@ import { $$, esc, toast } from '../lib/dom.js';
 import { api, jsonBody } from '../lib/api.js';
 import { TRIGGER_COOLDOWNS } from '../constants.js';
 import { loadDashboard } from '../state/store.js';
+import { openAiMenu } from './ai-menu.js';
 import { inlineEdit, deleteWithUndo } from './editor.js';
 
 function fmtRemaining(ms) {
@@ -54,6 +55,7 @@ export function triggerInner(t) {
     <div class="sec-head trigger-head">
       <span class="card-grip" title="Drag trigger">⠿</span>
       <span class="trigger-name" title="Click to rename">${esc(t.name)}</span>
+      <button class="ctl ai-btn trigger-ai" type="button" title="Dashy: act on this trigger">✦</button>
       <button class="ctl danger trigger-del" type="button" title="Delete trigger">✕</button>
     </div>
     <button type="button" class="trigger-press${cooling ? ' cooling' : ''}"${cooling || busy ? ' disabled' : ''}>
@@ -78,6 +80,18 @@ function setBusy(el, on) {
 
 export function wireTrigger(el, t) {
   const nameEl = el.querySelector('.trigger-name');
+  el.querySelector('.trigger-ai').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAiMenu({
+      anchor: e.currentTarget,
+      item: { type: 'trigger', id: t.id, label: t.name },
+      prompts: [
+        'Press this trigger',
+        'Stop this trigger cooldown',
+        'Summarize this trigger history',
+      ],
+    });
+  });
   nameEl.addEventListener('click', () => inlineEdit(nameEl, {
     value: t.name,
     onSubmit: (name) => api(`/api/triggers/${t.id}`, jsonBody({ name }, 'PATCH')).then(loadDashboard),

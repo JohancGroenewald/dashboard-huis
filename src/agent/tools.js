@@ -87,9 +87,13 @@ export function makeToolHandlers(store, { requestedBy = 'agent', scraperResults 
           workspaceId: n.workspaceId,
           layout: n.layout,
         })),
-        games: s.games.map((g) => ({ id: g.id, kind: g.kind, workspaceId: g.workspaceId, layout: g.layout })),
+        games: s.games.map((g) => ({
+          id: g.id, kind: g.kind, board: g.board, turn: g.turn, moves: g.moves, memory: g.memory || '', say: g.say || '',
+          model: g.model || '', workspaceId: g.workspaceId, layout: g.layout,
+        })),
         triggers: s.triggers.map((t) => ({
-          id: t.id, name: t.name, cooldownMs: t.cooldownMs, lastPressedAt: t.lastPressedAt, workspaceId: t.workspaceId, layout: t.layout,
+          id: t.id, name: t.name, cooldownMs: t.cooldownMs, lastPressedAt: t.lastPressedAt, history: t.history,
+          workspaceId: t.workspaceId, layout: t.layout,
         })),
         scrapers: s.scrapers.map((sc) => ({
           id: sc.id, name: sc.name, url: sc.url, instruction: sc.instruction, pageMode: sc.pageMode, pageTokens: sc.pageTokens,

@@ -5,6 +5,7 @@ import { esc, toast } from '../lib/dom.js';
 import { api, jsonBody } from '../lib/api.js';
 import { loadDashboard, subscribe } from '../state/store.js';
 import { activeModel, approvedModels } from '../dock/models.js';
+import { openAiMenu } from './ai-menu.js';
 import { inlineEdit, deleteWithUndo } from './editor.js';
 
 const running = new Set(); // scraper ids with a run in flight
@@ -95,6 +96,7 @@ export function scraperInner(sc) {
     <div class="sec-head scraper-head">
       <span class="card-grip" title="Drag scraper">⠿</span>
       <span class="scraper-name" title="Click to rename">${esc(sc.name)}</span>
+      <button class="ctl ai-btn scraper-ai" type="button" title="Dashy: act on this scraper">✦</button>
       <button class="ctl danger scraper-del" type="button" title="Delete scraper">✕</button>
     </div>
     <div class="scraper-url${sc.url ? '' : ' empty'}" title="Click to edit the URL">${esc(sc.url || '＋ add a page URL')}</div>
@@ -117,6 +119,18 @@ export function wireScraper(el, sc) {
   const cardEl = el.querySelector('.scraper-card');
   loadStoredRows(cardEl, sc);
   const nameEl = el.querySelector('.scraper-name');
+  el.querySelector('.scraper-ai').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAiMenu({
+      anchor: e.currentTarget,
+      item: { type: 'scraper', id: sc.id, label: sc.name },
+      prompts: [
+        'Summarize these scraped rows',
+        'Find patterns in these rows',
+        'Show me the next rows',
+      ],
+    });
+  });
   nameEl.addEventListener('click', () => inlineEdit(nameEl, {
     value: sc.name,
     onSubmit: (name) => api(`/api/scrapers/${sc.id}`, jsonBody({ name }, 'PATCH')).then(loadDashboard),

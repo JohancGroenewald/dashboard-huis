@@ -109,6 +109,22 @@ test('stop_trigger tool clears an active trigger cooldown', () => {
   assert.equal(store.getTrigger(t.id).history.length, 1);
 });
 
+test('get_dashboard exposes enough game and trigger state for item menus', () => {
+  const store = new Store({ persist: false }).load();
+  const handlers = makeToolHandlers(store);
+  const game = store.addGame({ memory: 'Prefer centre', board: ['X', '', '', '', 'O', '', '', '', ''], moves: [{ p: 'X', cell: 0 }] });
+  const trigger = store.addTrigger({ name: 'Water plants', history: ['2026-06-15T08:00:00.000Z'] });
+
+  const dashboard = handlers.get_dashboard();
+
+  const gameSummary = dashboard.games.find((g) => g.id === game.id);
+  assert.deepEqual(gameSummary.board, game.board);
+  assert.equal(gameSummary.memory, 'Prefer centre');
+  assert.deepEqual(gameSummary.moves, game.moves);
+  const triggerSummary = dashboard.triggers.find((t) => t.id === trigger.id);
+  assert.deepEqual(triggerSummary.history, ['2026-06-15T08:00:00.000Z']);
+});
+
 test('read_scraper returns a paged slice of the extracted rows', () => {
   const store = new Store({ persist: false }).load();
   const handlers = makeToolHandlers(store);

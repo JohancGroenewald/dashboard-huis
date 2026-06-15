@@ -7,6 +7,7 @@ import { api, jsonBody } from '../lib/api.js';
 import { judge } from '../lib/tictactoe.js';
 import { loadDashboard } from '../state/store.js';
 import { activeModel, modelHasVision, approvedModels } from '../dock/models.js';
+import { openAiMenu } from './ai-menu.js';
 import { deleteWithUndo } from './editor.js';
 
 const thinking = new Set(); // game ids with a move request in flight
@@ -45,6 +46,7 @@ export function gameInner(game) {
     <div class="sec-head game-head">
       <span class="card-grip" title="Drag game">⠿</span>
       <span class="game-title" title="tic-tac-toe — you are X, the dock's model plays O">⭕ Kringetjies &amp; kruisies</span>
+      <button class="ctl ai-btn game-ai" type="button" title="Dashy: act on this game">✦</button>
       <button class="ctl game-reset" type="button" title="Rematch (the model keeps its memory)">↺</button>
       <button class="ctl danger game-del" type="button" title="Delete game">✕</button>
     </div>
@@ -95,6 +97,18 @@ function snapshot(game) {
 
 export function wireGame(el, game) {
   const grid = el.querySelector('.game-grid');
+  el.querySelector('.game-ai').addEventListener('click', (e) => {
+    e.stopPropagation();
+    openAiMenu({
+      anchor: e.currentTarget,
+      item: { type: 'game', id: game.id, label: 'Kringetjies & kruisies' },
+      prompts: [
+        'Explain this position',
+        'Suggest my best next move',
+        'Summarize this game memory',
+      ],
+    });
+  });
   grid.addEventListener('click', async (e) => {
     const btn = e.target.closest('.game-cell');
     if (!btn || btn.disabled || thinking.has(game.id)) return;
