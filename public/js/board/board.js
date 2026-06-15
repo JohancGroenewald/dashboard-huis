@@ -16,6 +16,7 @@ import { sectionInner, noteInner, ghostInner, wireSection, wireNote, wireGhost }
 import { gameInner, wireGame } from './games.js';
 import { triggerInner, wireTrigger } from './triggers.js';
 import { scraperInner, wireScraper } from './scrapers.js';
+import { LAYOUT_MODES, layoutFor, mergeDeviceLayouts, readDeviceLayouts, saveDeviceLayouts } from './device-layout.js';
 
 const gridEl = $('#board');
 let grid = null;
@@ -28,10 +29,12 @@ let cellH = Math.min(
 );
 let autoArrange = localStorage.getItem(STORAGE_KEYS.autoArrange) !== '0';
 let showGrid = localStorage.getItem(STORAGE_KEYS.showGrid) === '1';
-// Narrow screens stack everything in one column; layouts are never persisted
-// in that mode, so the real 12-column positions survive untouched.
+let deviceLayouts = readDeviceLayouts();
+// Narrow screens stack everything in one column. Their positions are saved in
+// a separate local bucket so phone/tablet layout never overwrites desktop.
 const oneColQuery = window.matchMedia(`(max-width: ${GRID_UI.oneColumnBelowPx}px)`);
 let oneColumn = false;
+let applyingColumns = false;
 
 // True while the user is mid-interaction on the board — remote updates are
 // deferred (state/store.js) until this clears.
@@ -52,15 +55,36 @@ function updateGridOverlay() {
   gridEl.style.backgroundSize = `${gridEl.clientWidth / GRID_UI.columns}px ${cellH}px`;
 }
 
+function layoutMode() {
+  return oneColumn ? LAYOUT_MODES.narrow : LAYOUT_MODES.wide;
+}
+
+function dashboardCardIds() {
+  const ids = new Set();
+  for (const s of store.dashboard.sections) ids.add(s.id);
+  for (const n of store.dashboard.notes) ids.add(n.id);
+  for (const g of store.dashboard.games || []) ids.add(g.id);
+  for (const t of store.dashboard.triggers || []) ids.add(t.id);
+  for (const s of store.dashboard.scrapers || []) ids.add(s.id);
+  return ids;
+}
+
+function cardLayout(id, fallback = {}) {
+  return layoutFor(deviceLayouts, id, fallback, layoutMode());
+}
+
 function persistLayout() {
-  if (rendering || oneColumn) return;
+  if (rendering || applyingColumns) return;
   clearTimeout(persistTimer);
   persistTimer = setTimeout(() => {
+    if (!grid || applyingColumns) return;
     const items = grid.save(false).map((n) => {
       const sec = store.dashboard.sections.find((s) => s.id === n.id);
-      return { id: n.id, x: n.x, y: n.y, w: n.w, h: sec?.collapsed ? (sec.layout?.h || GRID_UI.sectionDefaultHeight) : n.h };
+      const saved = sec ? cardLayout(sec.id, sec.layout || {}) : {};
+      return { id: n.id, x: n.x, y: n.y, w: n.w, h: sec?.collapsed ? (saved.h || GRID_UI.sectionDefaultHeight) : n.h };
     });
-    api('/api/layout', jsonBody({ items })).catch(() => {});
+    deviceLayouts = mergeDeviceLayouts(deviceLayouts, items, layoutMode(), dashboardCardIds());
+    saveDeviceLayouts(deviceLayouts);
   }, GRID_UI.layoutPersistDebounceMs);
 }
 
@@ -104,7 +128,8 @@ function renderBoard() {
   cab.classList.toggle('hidden', sections.length === 0);
 
   for (const section of sections) {
-    const layout = section.collapsed ? { ...(section.layout || {}), h: GRID_UI.collapsedHeight } : (section.layout || {});
+    const saved = cardLayout(section.id, section.layout || {});
+    const layout = section.collapsed ? { ...saved, h: GRID_UI.collapsedHeight } : saved;
     const el = widgetEl(section.id, layout, GRID_UI.sectionDefaultWidth, GRID_UI.sectionDefaultHeight, sectionInner(section));
     gridEl.appendChild(el);
     grid.makeWidget(el);
@@ -112,27 +137,27 @@ function renderBoard() {
   }
   for (const note of notes) {
     const el = note.hidden
-      ? widgetEl(note.id, note.layout || {}, GRID_UI.noteDefaultWidth, GRID_UI.noteDefaultHeight, ghostInner())
-      : widgetEl(note.id, note.layout || {}, GRID_UI.noteDefaultWidth, GRID_UI.noteDefaultHeight, noteInner(note));
+      ? widgetEl(note.id, cardLayout(note.id, note.layout || {}), GRID_UI.noteDefaultWidth, GRID_UI.noteDefaultHeight, ghostInner())
+      : widgetEl(note.id, cardLayout(note.id, note.layout || {}), GRID_UI.noteDefaultWidth, GRID_UI.noteDefaultHeight, noteInner(note));
     gridEl.appendChild(el);
     grid.makeWidget(el);
     if (note.hidden) wireGhost(el, note);
     else wireNote(el, note);
   }
   for (const game of games) {
-    const el = widgetEl(game.id, game.layout || {}, GRID_UI.gameDefaultWidth, GRID_UI.gameDefaultHeight, gameInner(game));
+    const el = widgetEl(game.id, cardLayout(game.id, game.layout || {}), GRID_UI.gameDefaultWidth, GRID_UI.gameDefaultHeight, gameInner(game));
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireGame(el, game);
   }
   for (const trigger of triggers) {
-    const el = widgetEl(trigger.id, trigger.layout || {}, GRID_UI.triggerDefaultWidth, GRID_UI.triggerDefaultHeight, triggerInner(trigger));
+    const el = widgetEl(trigger.id, cardLayout(trigger.id, trigger.layout || {}), GRID_UI.triggerDefaultWidth, GRID_UI.triggerDefaultHeight, triggerInner(trigger));
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireTrigger(el, trigger);
   }
   for (const scraper of scrapers) {
-    const el = widgetEl(scraper.id, scraper.layout || {}, GRID_UI.scraperDefaultWidth, GRID_UI.scraperDefaultHeight, scraperInner(scraper));
+    const el = widgetEl(scraper.id, cardLayout(scraper.id, scraper.layout || {}), GRID_UI.scraperDefaultWidth, GRID_UI.scraperDefaultHeight, scraperInner(scraper));
     gridEl.appendChild(el);
     grid.makeWidget(el);
     wireScraper(el, scraper);
@@ -202,17 +227,32 @@ export function initBoard() {
   );
   grid.on('change', persistLayout);
   const applyColumns = () => {
-    oneColumn = oneColQuery.matches;
+    const next = oneColQuery.matches;
+    if (oneColumn === next) {
+      updateGridOverlay();
+      return;
+    }
+    oneColumn = next;
+    applyingColumns = true;
     grid.column(oneColumn ? 1 : GRID_UI.columns, oneColumn ? 'list' : 'moveScale');
-    updateGridOverlay();
+    renderBoard();
+    requestAnimationFrame(() => {
+      applyingColumns = false;
+      updateGridOverlay();
+    });
   };
   oneColQuery.addEventListener('change', applyColumns);
-  if (oneColQuery.matches) applyColumns();
+  applyColumns();
   // A finished drag/resize or leaving an editable field releases any deferred
   // remote update.
   grid.on('dragstop resizestop', () => setTimeout(flushDeferred));
   gridEl.addEventListener('focusout', () => setTimeout(flushDeferred));
   window.addEventListener('resize', updateGridOverlay);
+  window.addEventListener('storage', (e) => {
+    if (e.key !== STORAGE_KEYS.deviceLayouts) return;
+    deviceLayouts = readDeviceLayouts();
+    renderBoard();
+  });
 
   wireLayoutMenu();
   subscribe('dashboard', renderBoard);

@@ -8,6 +8,7 @@ export const STORAGE_KEYS = {
   gridCellHeight: 'dash2-cellh',
   autoArrange: 'dash2-autoarrange',
   showGrid: 'dash2-showgrid',
+  deviceLayouts: 'dash2-device-layouts',
   modelsCollapsed: 'dash2-models-collapsed',
   replayHideFake: 'dash2-replay-hidefake',
   replayHideAborted: 'dash2-replay-hideaborted',
