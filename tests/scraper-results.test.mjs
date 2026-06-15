@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { makeToolHandlers } from '../src/agent/tools.js';
-import { ScraperResultStore, readScraperRows } from '../src/scraper-results.js';
+import { ScraperResultStore, hydrateScraperRows, readScraperRows } from '../src/scraper-results.js';
 import { runScraper } from '../src/scrapers.js';
 import { Store } from '../src/store.js';
 
@@ -95,4 +95,27 @@ test('read_scraper tool pages SQLite-backed rows', (t) => {
   assert.equal(page.total, 12);
   assert.equal(page.returned, 2);
   assert.deepEqual(page.rows[1], ['Item11', '$11']);
+});
+
+test('hydrateScraperRows puts a bounded SQLite row preview in dashboard payloads', (t) => {
+  const scraperResults = new ScraperResultStore({ dbPath: tmpDb(t) });
+  const saved = scraperResults.saveRun({
+    scraperId: 'scraper-1',
+    model: 'm',
+    result: { columns: ['Item'], rows: [['A'], ['B']], note: 'ok' },
+  });
+  const dashboard = {
+    title: 'T',
+    scrapers: [{
+      id: 'scraper-1',
+      name: 'S',
+      result: { columns: ['Item'], rows: [], rowCount: 2, note: 'ok', runId: saved.runId },
+    }],
+  };
+
+  const hydrated = hydrateScraperRows(dashboard, scraperResults, { limit: 1 });
+
+  assert.deepEqual(dashboard.scrapers[0].result.rows, []);
+  assert.deepEqual(hydrated.scrapers[0].result.rows, [['A']]);
+  assert.equal(hydrated.scrapers[0].result.rowCount, 2);
 });

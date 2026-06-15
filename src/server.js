@@ -17,7 +17,7 @@ import { listPrompts, setPromptOverride } from './prompts.js';
 import { humanMove, aiMove, resetGame, reflectOnGame, isModelTurn } from './games.js';
 import { pressTrigger } from './triggers.js';
 import { runScraper } from './scrapers.js';
-import { ScraperResultStore, readScraperRows } from './scraper-results.js';
+import { ScraperResultStore, hydrateScraperRows, readScraperRows } from './scraper-results.js';
 import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired, isApproved } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -33,11 +33,13 @@ const health = new HealthMonitor(store).start();
 const ollama = new Ollama();
 const events = new EventHub();
 const scraperResults = new ScraperResultStore({ dbPath: paths.scraperResults });
+const clientDashboard = (dashboard) =>
+  hydrateScraperRows(dashboard, scraperResults, { limit: SCRAPER_LIMITS.displayRowsDefault });
 
 // Broadcast every store change to connected browsers. The originating tab's
 // X-Client-Id rides along so clients can tell their own echo from real news.
 store.onChange = (dashboard, { rev, viewOnly }) =>
-  events.broadcastDashboard({ rev, viewOnly: viewOnly || undefined, dashboard, sourceClient: events.lastClientId || undefined });
+  events.broadcastDashboard({ rev, viewOnly: viewOnly || undefined, dashboard: clientDashboard(dashboard), sourceClient: events.lastClientId || undefined });
 
 const app = express();
 app.use(express.json({ limit: config.jsonBodyLimit }));
@@ -68,7 +70,7 @@ const wrap = (fn) => async (req, res) => {
 // ---- dashboard state -----------------------------------------------------
 app.get('/api/dashboard', (req, res) => {
   res.set('X-Dashboard-Rev', String(store.rev));
-  res.json(store.getState());
+  res.json(clientDashboard(store.getState()));
 });
 
 // Long-lived SSE channel: dashboard changes + ambient agent activity.

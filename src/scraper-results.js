@@ -174,3 +174,27 @@ export function readScraperRows(sc, scraperResults, { offset = 0, limit = 50 } =
     runId: r.runId || '',
   };
 }
+
+export function hydrateScraperRows(dashboard, scraperResults, { limit = 250 } = {}) {
+  if (!dashboard?.scrapers?.length || !scraperResults) return dashboard;
+  return {
+    ...dashboard,
+    scrapers: dashboard.scrapers.map((sc) => {
+      const r = sc.result;
+      if (!r?.runId || r.rows?.length) return sc;
+      const page = readScraperRows(sc, scraperResults, { offset: 0, limit });
+      if (!page?.rows?.length) return sc;
+      return {
+        ...sc,
+        result: {
+          ...r,
+          rows: page.rows,
+          rowCount: page.total,
+          note: page.note,
+          at: page.at,
+          runId: page.runId,
+        },
+      };
+    }),
+  };
+}
