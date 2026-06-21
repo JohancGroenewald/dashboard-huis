@@ -6,12 +6,13 @@ import { streamSse } from '../lib/sse.js';
 import { mdToHtml } from '../lib/markdown.js';
 import { toolIntentLabel, toolIntentState, toolIntentTitle } from '../lib/tool-intent.js';
 import { DOCK_UI, SPEED_LIMITS, STORAGE_KEYS } from '../constants.js';
-import { store, loadDashboard } from '../state/store.js';
+import { store, subscribe, loadDashboard } from '../state/store.js';
 import { activeModel, modelHasVision } from './models.js';
 import { addAttachment, addImageAttachment, hasImageAttachments, consumeAttachments } from './attachments.js';
 import { createStepTimeline, showRunBar } from './steps.js';
 import { openDock } from './dock.js';
 import { initVoiceInput } from './voice.js';
+import { introSuggestions } from './suggestions.js';
 
 const log = $('#dock-log');
 const input = $('#dock-input');
@@ -22,17 +23,30 @@ let histDraft = '';
 let SESSION = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
 let busy = false;
 
-const INTRO = `<div class="intro">
-  <div class="intro-avatar">✦</div>
-  <p>Hi — I'm <strong>Dashy</strong>. I can add, edit, move, group, or remove tiles, sections and notes — just ask. Changes light up on the board as I make them, and every run can be reverted.</p>
-  <div class="suggestions">
-    <button class="suggestion" type="button">Add a Grafana tile to a new Monitoring section</button>
-    <button class="suggestion" type="button">Add a sticky note to call the plumber</button>
-    <button class="suggestion" type="button">Group my media apps into a Media section</button>
-  </div>
-</div>`;
-
 const scroll = () => { log.scrollTop = log.scrollHeight; };
+
+function introEl() {
+  return h('div', { class: 'intro' },
+    h('div', { class: 'intro-avatar' }, '✦'),
+    h('p', {}, 'Hi — I\'m ', h('strong', {}, 'Dashy'), '. I can add, edit, move, group, or remove tiles, sections and notes — just ask. Changes light up on the board as I make them, and every run can be reverted.'),
+    h('div', { class: 'suggestions' }, introSuggestions(store.dashboard).map((s) =>
+      h('button', { class: 'suggestion', type: 'button' }, s)
+    ))
+  );
+}
+
+function renderIntro() {
+  log.innerHTML = '';
+  log.append(introEl());
+  wireSuggestions();
+}
+
+function refreshIntro() {
+  const intro = log.querySelector('.intro');
+  if (!intro || history.length) return;
+  intro.replaceWith(introEl());
+  wireSuggestions();
+}
 
 function wireSuggestions() {
   for (const b of log.querySelectorAll('.suggestion')) {
@@ -313,8 +327,7 @@ function initComposerTools() {
 }
 
 export function initChat() {
-  log.innerHTML = INTRO;
-  wireSuggestions();
+  renderIntro();
 
   const caretEnd = () => input.setSelectionRange(input.value.length, input.value.length);
   input.addEventListener('input', () => { autoGrow(); histIdx = -1; syncComposerTools(); });
@@ -360,12 +373,12 @@ export function initChat() {
     history.length = 0;
     SESSION = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
     localStorage.removeItem(STORAGE_KEYS.chat);
-    log.innerHTML = INTRO;
-    wireSuggestions();
+    renderIntro();
   });
 
   // The Models view picks a driver and hands focus here.
   document.addEventListener('select-model', () => openDock());
+  subscribe('dashboard', refreshIntro);
 
   // Restore the persisted conversation (same session, turns keep grouping).
   try {
