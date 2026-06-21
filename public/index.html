@@ -128,7 +128,12 @@
               <div id="dock-bar-resizer" class="dock-bar-resizer" title="Drag to resize"></div>
               <div id="dock-attachments" class="attachments hidden"></div>
               <div class="dock-bar-row">
-                <button id="dock-voice" class="voice-btn" type="button" title="Record voice input" aria-label="Record voice input">◉</button>
+                <div class="composer-tools">
+                  <button id="dock-voice" class="composer-tool voice-btn" type="button" title="Record voice input" aria-label="Record voice input">◉</button>
+                  <button id="dock-copy" class="composer-tool" type="button" title="Copy composer text" aria-label="Copy composer text">⧉</button>
+                  <button id="dock-paste" class="composer-tool" type="button" title="Paste clipboard text" aria-label="Paste clipboard text">⎘</button>
+                  <button id="dock-clear" class="composer-tool danger" type="button" title="Clear composer" aria-label="Clear composer">⌫</button>
+                </div>
                 <textarea id="dock-input" rows="2" placeholder="Ask Dashy…" title="Enter to send · Shift+Enter for a newline" autocomplete="off"></textarea>
                 <button type="submit" title="Send">↵</button>
               </div>

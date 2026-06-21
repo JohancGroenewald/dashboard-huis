@@ -1,6 +1,6 @@
 // The copilot conversation: streamed replies, live step timeline, revert bar,
 // choice/follow-up chips, input history, and localStorage restore.
-import { $, h } from '../lib/dom.js';
+import { $, h, toast } from '../lib/dom.js';
 import { clientId } from '../lib/api.js';
 import { streamSse } from '../lib/sse.js';
 import { mdToHtml } from '../lib/markdown.js';
@@ -36,7 +36,7 @@ const scroll = () => { log.scrollTop = log.scrollHeight; };
 
 function wireSuggestions() {
   for (const b of log.querySelectorAll('.suggestion')) {
-    b.addEventListener('click', () => { input.value = b.textContent; autoGrow(); input.focus(); });
+    b.addEventListener('click', () => { input.value = b.textContent; autoGrow(); syncComposerTools(); input.focus(); });
   }
 }
 
@@ -253,7 +253,7 @@ export async function sendChat(text) {
 export function askAbout(item, prompt = '') {
   addAttachment(item);
   openDock();
-  if (prompt) { input.value = prompt; autoGrow(); }
+  if (prompt) { input.value = prompt; autoGrow(); syncComposerTools(); }
 }
 
 function autoGrow() {
@@ -261,12 +261,63 @@ function autoGrow() {
   input.style.height = `${input.scrollHeight}px`;
 }
 
+function insertAtCursor(text) {
+  const start = input.selectionStart ?? input.value.length;
+  const end = input.selectionEnd ?? input.value.length;
+  input.value = `${input.value.slice(0, start)}${text}${input.value.slice(end)}`;
+  const pos = start + text.length;
+  input.setSelectionRange(pos, pos);
+  autoGrow();
+  input.focus();
+}
+
+function syncComposerTools() {
+  const hasText = Boolean(input.value);
+  $('#dock-copy').disabled = !hasText || !navigator.clipboard?.writeText;
+  $('#dock-clear').disabled = !hasText;
+  $('#dock-paste').disabled = !navigator.clipboard?.readText;
+}
+
+function initComposerTools() {
+  $('#dock-copy').addEventListener('click', async () => {
+    const selected = input.value.slice(input.selectionStart ?? 0, input.selectionEnd ?? 0);
+    const text = selected || input.value;
+    if (!text) return;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(selected ? 'Copied selection.' : 'Copied composer text.');
+    } catch {
+      toast('Clipboard copy was blocked by the browser.', { error: true });
+    }
+  });
+  $('#dock-paste').addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) { toast('Clipboard is empty.'); return; }
+      insertAtCursor(text);
+      histIdx = -1;
+      syncComposerTools();
+    } catch {
+      toast('Clipboard paste was blocked by the browser.', { error: true });
+    }
+  });
+  $('#dock-clear').addEventListener('click', () => {
+    if (!input.value) return;
+    input.value = '';
+    histIdx = -1;
+    autoGrow();
+    syncComposerTools();
+    input.focus();
+  });
+  syncComposerTools();
+}
+
 export function initChat() {
   log.innerHTML = INTRO;
   wireSuggestions();
 
   const caretEnd = () => input.setSelectionRange(input.value.length, input.value.length);
-  input.addEventListener('input', () => { autoGrow(); histIdx = -1; });
+  input.addEventListener('input', () => { autoGrow(); histIdx = -1; syncComposerTools(); });
   // Pasting a screenshot attaches it as an image chip for the next prompt.
   input.addEventListener('paste', (e) => {
     const files = [...(e.clipboardData?.items || [])]
@@ -298,9 +349,11 @@ export function initChat() {
     if (!text) return;
     input.value = '';
     autoGrow();
+    syncComposerTools();
     sendChat(text);
   });
-  initVoiceInput({ input, onText: autoGrow });
+  initComposerTools();
+  initVoiceInput({ input, onText: () => { autoGrow(); syncComposerTools(); } });
 
   // New conversation: fresh session, clean transcript.
   $('#dock-new').addEventListener('click', () => {
@@ -326,4 +379,5 @@ export function initChat() {
       }
     }
   } catch { /* corrupt */ }
+  syncComposerTools();
 }
