@@ -179,7 +179,10 @@
   border-radius: 9px; padding: 10px 12px; line-height: 1.45; resize: none; overflow-y: auto;
 }
 .dock-bar textarea:focus { border-color: var(--ai); }
-.composer-tools { flex: none; display: grid; grid-template-columns: repeat(2, 32px); gap: 4px; align-self: stretch; }
+.composer-tools {
+  flex: none; display: grid; grid-template-columns: repeat(2, 32px); grid-auto-rows: 30px;
+  gap: 4px; align-self: flex-start;
+}
 .dock-bar .composer-tool {
   width: 32px; height: 30px; min-height: 0; border-radius: 8px; border: 1px solid var(--edge);
   background: var(--surface-2); color: var(--muted); cursor: pointer; font-size: var(--fs-1);
