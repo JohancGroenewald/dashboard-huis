@@ -179,6 +179,17 @@
   border-radius: 9px; padding: 10px 12px; line-height: 1.45; resize: none; overflow-y: auto;
 }
 .dock-bar textarea:focus { border-color: var(--ai); }
+.dock-bar .voice-btn {
+  width: 42px; flex: none; border-radius: 9px; border: 1px solid var(--edge);
+  background: var(--surface-2); color: var(--muted); cursor: pointer; font-size: var(--fs-2);
+}
+.dock-bar .voice-btn:hover { border-color: var(--ai); color: var(--text); }
+.dock-bar .voice-btn.recording {
+  border-color: var(--down); color: #ffb4ae; background: rgba(248, 81, 73, 0.14);
+  animation: activity-blink 1s infinite;
+}
+.dock-bar .voice-btn.transcribing { cursor: wait; color: var(--ai-2); border-color: var(--ai); }
+.dock-bar .voice-btn:disabled { opacity: 0.55; cursor: default; }
 .dock-bar button[type="submit"] { background: var(--ai-dim); color: var(--ai-2); border: 1px solid var(--ai); border-radius: 9px; padding: 0 16px; cursor: pointer; font-weight: 600; font-size: var(--fs-3); }
 .dock-bar button[type="submit"]:hover { background: rgba(163, 113, 247, 0.3); color: var(--text); }
 .dock-bar button[type="submit"]:disabled { opacity: 0.5; cursor: default; }

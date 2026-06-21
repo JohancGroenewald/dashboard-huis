@@ -11,6 +11,7 @@ import { activeModel, modelHasVision } from './models.js';
 import { addAttachment, addImageAttachment, hasImageAttachments, consumeAttachments } from './attachments.js';
 import { createStepTimeline, showRunBar } from './steps.js';
 import { openDock } from './dock.js';
+import { initVoiceInput } from './voice.js';
 
 const log = $('#dock-log');
 const input = $('#dock-input');
@@ -299,6 +300,7 @@ export function initChat() {
     autoGrow();
     sendChat(text);
   });
+  initVoiceInput({ input, onText: autoGrow });
 
   // New conversation: fresh session, clean transcript.
   $('#dock-new').addEventListener('click', () => {

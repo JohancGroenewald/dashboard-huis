@@ -4,11 +4,18 @@ export const HTTP_DEFAULT_PORTS = {
 };
 
 export const HTTP_STATUS = {
+  ok: 200,
   created: 201,
   badRequest: 400,
   forbidden: 403,
   conflict: 409,
+  payloadTooLarge: 413,
+  unsupportedMedia: 415,
+  unprocessable: 422,
   internalServerError: 500,
+  badGateway: 502,
+  serviceUnavailable: 503,
+  gatewayTimeout: 504,
 };
 
 export const ENV_BOUNDS = {
@@ -55,6 +62,11 @@ export const SERVER_LIMITS = {
   jsonBodyLimit: '25mb', // pasted screenshots ride as base64 in chat messages
   logsDefaultLimit: 40,
   logsMaxLimit: 200,
+};
+
+export const SPEECH_TO_TEXT_LIMITS = {
+  timeoutMs: 90_000,
+  maxUploadBytes: 26 * 1024 * 1024, // upstream allows 25 MB audio; multipart adds a little overhead
 };
 
 export const SCRAPER_LIMITS = {

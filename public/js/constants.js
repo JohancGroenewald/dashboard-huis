@@ -80,6 +80,10 @@ export const DOCK_UI = {
   narrowBelowPx: 900,
 };
 
+export const VOICE_UI = {
+  maxRecordMs: 120_000,
+};
+
 // Cooldown presets offered on trigger cards. Months are approximate (30 days).
 const HOUR = 60 * 60_000;
 const DAY = 24 * HOUR;

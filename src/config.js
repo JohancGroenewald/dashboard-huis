@@ -3,7 +3,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  AGENT_LIMITS, CHAT_MESSAGE_LIMITS, CONFIG_DEFAULTS, OLLAMA_LIMITS, SERVER_LIMITS,
+  AGENT_LIMITS, CHAT_MESSAGE_LIMITS, CONFIG_DEFAULTS, OLLAMA_LIMITS, SERVER_LIMITS, SPEECH_TO_TEXT_LIMITS,
   ENV_BOUNDS, PATH_NAMES, STORE_LIMITS, VALIDATION_DEFAULTS,
 } from './constants.js';
 
@@ -75,6 +75,12 @@ export const config = {
   }),
   toolIntentModel: optionalModelEnv('DASH_TOOL_INTENT_MODEL', CONFIG_DEFAULTS.toolIntentModel),
   toolIntentTimeoutMs: boundedIntegerEnv('DASH_TOOL_INTENT_TIMEOUT_MS', AGENT_LIMITS.toolIntentTimeoutMs, {
+    min: ENV_BOUNDS.timeoutMinMs,
+    max: ENV_BOUNDS.timeoutMaxMs,
+  }),
+  speechToTextUrl: (process.env.DASH_STT_URL || process.env.SPEECH_TO_TEXT_URL || 'https://speech-to-text.huis').replace(/\/$/, ''),
+  speechToTextToken: process.env.DASH_STT_TOKEN || process.env.SPEECH_TO_TEXT_CLIENT_KEY || '',
+  speechToTextTimeoutMs: boundedIntegerEnv('DASH_STT_TIMEOUT_MS', SPEECH_TO_TEXT_LIMITS.timeoutMs, {
     min: ENV_BOUNDS.timeoutMinMs,
     max: ENV_BOUNDS.timeoutMaxMs,
   }),

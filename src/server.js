@@ -18,6 +18,7 @@ import { humanMove, aiMove, resetGame, reflectOnGame, isModelTurn } from './game
 import { pressTrigger } from './triggers.js';
 import { runScraper } from './scrapers.js';
 import { ScraperResultStore, hydrateScraperRows, readScraperRows } from './scraper-results.js';
+import { forwardTranscription } from './speech-to-text.js';
 import { listApproved, listResults, listSupervised, listDelegated, listParallel, listRetired, isApproved } from './validation/registry.js';
 
 fs.mkdirSync(config.dataDir, { recursive: true });
@@ -142,6 +143,20 @@ app.delete('/api/feature-requests/:id', wrap((req, res) => res.json(store.remove
 
 // ---- health --------------------------------------------------------------
 app.get('/api/health', (req, res) => res.json(health.getStatuses()));
+
+// Browser microphone uploads are proxied so the speech-to-text bearer token
+// stays server-side. The proxy deliberately returns only JSON.
+app.get('/api/speech-to-text/status', (req, res) => {
+  res.json({ enabled: Boolean(config.speechToTextToken) });
+});
+app.post('/api/speech-to-text/transcriptions', wrap(async (req, res) => {
+  const out = await forwardTranscription(req, {
+    baseUrl: config.speechToTextUrl,
+    token: config.speechToTextToken,
+    timeoutMs: config.speechToTextTimeoutMs,
+  });
+  res.status(out.status).json(out.body);
+}));
 
 // ---- agent abilities (the tools the model can call) ----------------------
 app.get('/api/abilities', (req, res) =>
