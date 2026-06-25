@@ -58,6 +58,20 @@ test('workspace background updates are validated and undoable', () => {
   assert.equal(store.getState().workspaces[0].background.effect, 'none');
 });
 
+test('workspaces can be reordered and undone', () => {
+  const store = new Store({ persist: false }).load();
+  const first = store.getState().workspaces[0];
+  const second = store.addWorkspace({ name: 'Second' });
+  const third = store.addWorkspace({ name: 'Third' });
+
+  const moved = store.moveWorkspace(third.id, 0);
+
+  assert.deepEqual(moved.workspaces.map((w) => w.id), [third.id, first.id, second.id]);
+  assert.equal(store.rev, 3);
+  store.undo();
+  assert.deepEqual(store.getState().workspaces.map((w) => w.id), [first.id, second.id, third.id]);
+});
+
 test('onChange fires for commits and flags view-only writes', () => {
   const store = new Store({ persist: false }).load();
   const seen = [];

@@ -5,9 +5,11 @@ import { $, esc, toast } from './lib/dom.js';
 import { api, jsonBody } from './lib/api.js';
 import { openDialog } from './lib/dialog.js';
 import { STORAGE_KEYS } from './constants.js';
-import { store, subscribe, setView, switchWorkspace, loadDashboard } from './state/store.js';
+import { store, subscribe, setView, switchWorkspace, loadDashboard, applyDashboard } from './state/store.js';
 
 const systemViews = new Map(); // id -> onActivate
+let draggingWs = null;
+let suppressClickUntil = 0;
 
 export function registerView(id, onActivate) {
   systemViews.set(id, onActivate);
@@ -37,7 +39,7 @@ function renderTabs() {
   $('#ws-tabs').innerHTML = workspaces
     .map((w) => {
       const active = store.view === 'board' && w.id === activeWorkspaceId;
-      return `<button type="button" class="ws-tab${active ? ' active' : ''}" data-ws="${esc(w.id)}" title="Double-click to rename">
+      return `<button type="button" class="ws-tab${active ? ' active' : ''}" data-ws="${esc(w.id)}" draggable="true" title="Drag to reorder · double-click to rename">
         <span class="ws-name">${esc(w.name)}</span>
         ${multi ? '<span class="ws-x" title="Delete workspace">✕</span>' : ''}
       </button>`;
@@ -85,9 +87,38 @@ async function deleteWorkspace(id) {
   }
 }
 
+function clearDropMarks() {
+  for (const tab of $('#ws-tabs').querySelectorAll('.ws-tab')) tab.classList.remove('dragging', 'drop-before', 'drop-after');
+}
+
+function dropPosition(tab, x) {
+  const rect = tab.getBoundingClientRect();
+  return x < rect.left + rect.width / 2 ? 'before' : 'after';
+}
+
+function finalDropIndex(targetId, side) {
+  const ids = store.dashboard.workspaces.map((w) => w.id);
+  const sourceIndex = ids.indexOf(draggingWs);
+  const targetIndex = ids.indexOf(targetId);
+  if (sourceIndex === -1 || targetIndex === -1) return -1;
+  const raw = targetIndex + (side === 'after' ? 1 : 0);
+  return raw > sourceIndex ? raw - 1 : raw;
+}
+
+async function moveWorkspaceTab(id, position) {
+  try {
+    const dashboard = await api(`/api/workspaces/${id}/move`, jsonBody({ position }));
+    applyDashboard(dashboard);
+  } catch (err) {
+    toast(`Could not move workspace: ${err.message}`, { error: true });
+    await loadDashboard().catch(() => {});
+  }
+}
+
 export function initWorkspaces() {
   const tabs = $('#ws-tabs');
   tabs.addEventListener('click', (e) => {
+    if (Date.now() < suppressClickUntil) return;
     if (e.target.closest('.ws-add')) return addWorkspace();
     const tab = e.target.closest('.ws-tab');
     if (!tab) return;
@@ -97,6 +128,41 @@ export function initWorkspaces() {
   tabs.addEventListener('dblclick', (e) => {
     const tab = e.target.closest('.ws-tab');
     if (tab) renameWorkspace(tab.dataset.ws);
+  });
+  tabs.addEventListener('dragstart', (e) => {
+    const tab = e.target.closest('.ws-tab');
+    if (!tab || e.target.closest('.ws-x')) { e.preventDefault(); return; }
+    draggingWs = tab.dataset.ws;
+    tab.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', draggingWs);
+  });
+  tabs.addEventListener('dragover', (e) => {
+    if (!draggingWs) return;
+    const tab = e.target.closest('.ws-tab');
+    if (!tab || tab.dataset.ws === draggingWs) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    clearDropMarks();
+    tab.classList.add(dropPosition(tab, e.clientX) === 'before' ? 'drop-before' : 'drop-after');
+  });
+  tabs.addEventListener('dragleave', (e) => {
+    if (!tabs.contains(e.relatedTarget)) clearDropMarks();
+  });
+  tabs.addEventListener('drop', async (e) => {
+    const tab = e.target.closest('.ws-tab');
+    if (!draggingWs || !tab || tab.dataset.ws === draggingWs) return;
+    e.preventDefault();
+    const position = finalDropIndex(tab.dataset.ws, dropPosition(tab, e.clientX));
+    const id = draggingWs;
+    draggingWs = null;
+    clearDropMarks();
+    suppressClickUntil = Date.now() + 250;
+    if (position >= 0) await moveWorkspaceTab(id, position);
+  });
+  tabs.addEventListener('dragend', () => {
+    draggingWs = null;
+    clearDropMarks();
   });
 
   // Mobile dropdown: switch workspace, or fall to the New-workspace dialog.

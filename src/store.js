@@ -132,6 +132,17 @@ export class Store {
     return structuredClone(w);
   }
 
+  moveWorkspace(id, toIndex) {
+    const idx = this.state.workspaces.findIndex((w) => w.id === id);
+    if (idx === -1) fail(`workspace not found: ${id}`);
+    const [workspace] = this.state.workspaces.splice(idx, 1);
+    const pos = Number(toIndex);
+    const clamped = Math.max(STORE_LIMITS.minIndex, Math.min(Number.isFinite(pos) ? pos : STORE_LIMITS.minIndex, this.state.workspaces.length));
+    this.state.workspaces.splice(clamped, 0, workspace);
+    if (idx === clamped) return this.getState();
+    return this.#commit();
+  }
+
   updateWorkspaceBackground(id, background) {
     const w = this.#workspace(id);
     w.background = normalizeWorkspaceBackground({ ...w.background, ...background });

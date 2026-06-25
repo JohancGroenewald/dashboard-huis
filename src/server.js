@@ -81,6 +81,7 @@ app.get('/api/events', (req, res) => events.attach(req, res, { rev: store.rev })
 app.post('/api/workspaces', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addWorkspace(req.body))));
 app.patch('/api/workspaces/:id', wrap((req, res) => res.json(store.renameWorkspace(req.params.id, req.body.name))));
 app.patch('/api/workspaces/:id/background', wrap((req, res) => res.json(store.updateWorkspaceBackground(req.params.id, req.body))));
+app.post('/api/workspaces/:id/move', wrap((req, res) => res.json(store.moveWorkspace(req.params.id, req.body.position))));
 app.delete('/api/workspaces/:id', wrap((req, res) => res.json(store.removeWorkspace(req.params.id))));
 // Switch the active workspace; returns the full state so the board can refresh.
 app.post('/api/workspaces/:id/activate', wrap((req, res) => res.json(store.setActiveWorkspace(req.params.id))));
