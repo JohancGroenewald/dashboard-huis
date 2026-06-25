@@ -54,12 +54,6 @@ for (const r of rows) {
   if (r.error) console.log(`  ${C.red}✗ error: ${r.error}${C.reset}`);
   console.log(`  ${C.yellow}▸ user:${C.reset} ${full ? r.user_msg : trunc(r.user_msg, CHATLOG_CLI_LIMITS.userPreviewChars)}`);
   if (r.reply) console.log(`  ${C.green}◂ asst:${C.reset} ${full ? r.reply : trunc(r.reply, CHATLOG_CLI_LIMITS.replyPreviewChars)}`);
-  const intent = parseJson(r.tool_intent, null);
-  if (intent) {
-    const label = intent.intended === true ? `${C.green}yes${C.reset}` : intent.intended === false ? `${C.gray}no${C.reset}` : `${C.yellow}?${C.reset}`;
-    const note = intent.error || intent.reason || '';
-    console.log(`  ${C.cyan}tool intent:${C.reset} ${label} ${C.gray}${intent.reviewer || ''}${note ? ` · ${trunc(note, CHATLOG_CLI_LIMITS.replyPreviewChars)}` : ''}${C.reset}`);
-  }
   const trace = parseJson(r.trace, []);
   for (const t of trace) {
     const mark = t.ok ? `${C.green}✓${C.reset}` : `${C.red}✗${C.reset}`;

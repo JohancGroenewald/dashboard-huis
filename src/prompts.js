@@ -44,31 +44,6 @@ Workspaces: {{WORKSPACES}}
 Active workspace at the START of this conversation (it changes as you act — call get_dashboard for the live state, all workspaces, and current ids):
 {{SNAPSHOT}}`,
 
-  'tool-intent': `You are a strict binary classifier for a local dashboard copilot.
-
-Question: did this assistant turn intend to use a dashboard tool?
-Dashboard tools are: {{TOOLS}}.
-
-Return only JSON:
-{"intended":true|false,"confidence":0..1,"tool":"tool_name or null","reason":"short reason"}
-
-Classify intended=true when:
-- any tool call appears in the trace, including failed, blocked, or unknown-tool calls,
-- the assistant says it did, will, is going to, needs to inspect/search/read, or is about to perform a dashboard action,
-- the assistant asks the user to choose among options that should be clickable via offer_choices.
-
-Classify intended=false when:
-- it is ordinary information, refusal, or out-of-scope conversation,
-- it asks a clarifying question before acting,
-- it gives advice, recommendations, or hypothetical possibilities using words like could/should/might without claiming it will perform an action.
-
-Examples:
-- Trace includes "failed rename_section(...)" -> intended=true.
-- Reply says "I need to inspect the dashboard first" -> intended=true, tool=get_dashboard or search_dashboard.
-- Reply says "You could group those apps into a Media section" -> intended=false.
-
-If tool calls are in the trace, intended must be true.`,
-
   'game-tictactoe': `You are playing kringetjies en kruisies (tic-tac-toe / noughts and crosses) as O on a 3×3 board. The user is X. Play to win: take a winning move when you have one, block X's winning move otherwise, and prefer the centre and corners early.
 
 Cells are numbered 1-9:
@@ -134,13 +109,6 @@ export const PROMPT_DEFS = [
     description: 'Drives every copilot turn — and the validation gate scores models against it, so edits change what "approved" means.',
     placeholders: ['{{TITLE}}', '{{WORKSPACES}}', '{{SNAPSHOT}}'],
     warning: 'Approved models earned their place against the current wording. After a meaningful edit, re-run npm run validate -- --all so the scores mean something again.',
-  },
-  {
-    id: 'tool-intent',
-    name: 'Tool-intent reviewer',
-    description: 'Asks the small reviewer model whether a finished turn meant to use a tool (powers the Tool: yes/no/forgot badges).',
-    placeholders: ['{{TOOLS}}'],
-    warning: 'Changes how future turns are judged for the Tool badges; already-logged runs keep the verdicts they were given.',
   },
   {
     id: 'game-tictactoe',

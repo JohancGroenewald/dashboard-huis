@@ -183,19 +183,16 @@ app.get('/api/logs', wrap((req, res) => {
   if (req.query.excludeModel) { where.push('model != ?'); params.push(req.query.excludeModel); }
   // error is NULL on successful rows; a bare != would drop those too.
   if (req.query.excludeError) { where.push('(error IS NULL OR error != ?)'); params.push(req.query.excludeError); }
-  let sql = 'SELECT id, ts, kind, model, task, user_msg, reply, trace, rounds, tool_intent, content, steps, ms, pass, error FROM chat_log';
+  let sql = 'SELECT id, ts, kind, model, task, user_msg, reply, trace, rounds, content, steps, ms, pass, error FROM chat_log';
   if (where.length) sql += ` WHERE ${where.join(' AND ')}`;
   sql += ' ORDER BY id DESC LIMIT ?';
   params.push(limit);
   const rows = query(sql, params).map((r) => {
     let trace = [];
     let rounds = [];
-    let toolIntent = null;
     try { trace = JSON.parse(r.trace || '[]'); } catch { /* ignore */ }
     try { rounds = JSON.parse(r.rounds || '[]'); } catch { /* ignore */ }
-    try { toolIntent = r.tool_intent ? JSON.parse(r.tool_intent) : null; } catch { /* ignore */ }
-    const { tool_intent: _toolIntent, ...row } = r;
-    return { ...row, trace, rounds, toolIntent };
+    return { ...r, trace, rounds };
   });
   res.json(rows);
 }));
@@ -351,7 +348,6 @@ if (fs.existsSync(config.tlsCert) && fs.existsSync(config.tlsKey)) {
 }
 
 console.log(`Ollama backend → ${config.ollamaHost}`);
-console.log(`Tool-intent reviewer → ${config.toolIntentModel || 'disabled'}`);
 const approved = Object.keys(listApproved());
 console.log(approved.length
   ? `Approved agent models: ${approved.join(', ')}`

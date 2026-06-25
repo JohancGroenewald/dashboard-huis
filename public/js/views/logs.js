@@ -2,7 +2,6 @@
 import { $, esc } from '../lib/dom.js';
 import { api } from '../lib/api.js';
 import { fmtMs } from '../lib/format.js';
-import { toolIntentLabel, toolIntentState, toolIntentTitle } from '../lib/tool-intent.js';
 import { LOGS_UI } from '../constants.js';
 import { replayRun } from './replay.js';
 
@@ -24,15 +23,7 @@ export async function renderLogsView() {
         .map((r) => {
           const verdict = r.kind !== 'chat' && r.pass !== null ? (r.pass ? ' ✓' : ' ✗') : '';
           const meta = `${esc(r.model || '?')}${r.kind !== 'chat' ? ` · ${esc(r.task || '')}${verdict}` : ''}${r.ms ? ` · ${fmtMs(r.ms)}` : ''}`;
-          const calls = (r.trace || []).length;
-          const intentState = toolIntentState(r.toolIntent, calls);
-          const intent = intentState
-            ? `<span class="tchip intent ${intentState}" title="${esc(toolIntentTitle(r.toolIntent, calls))}">${esc(toolIntentLabel(r.toolIntent, calls))}</span>`
-            : '';
-          const chips = [
-            ...(r.trace || []).map((t) => `<span class="tchip ${t.ok ? 'ok' : 'bad'}">${t.ok ? '✓' : '✗'} ${esc(t.name)}</span>`),
-            intent,
-          ].filter(Boolean).join('');
+          const chips = (r.trace || []).map((t) => `<span class="tchip ${t.ok ? 'ok' : 'bad'}">${t.ok ? '✓' : '✗'} ${esc(t.name)}</span>`).join('');
           const tools = chips ? `<div class="lg-tools">${chips}</div>` : '';
           const body = r.error
             ? `<div class="lg-fail">✗ ${esc(trunc(r.error, LOGS_UI.errorPreviewChars))}</div>`

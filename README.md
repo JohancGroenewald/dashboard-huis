@@ -33,8 +33,6 @@ Config via env vars (all optional):
 | `DASH_CHATLOG_DB` | `data/chatlog.db` | conversation log SQLite path |
 | `DASH_AGENT_MAX_TOOL_CALLS` | `16` | max tool calls per assistant turn |
 | `DASH_AGENT_REVIEW_TIMEOUT_MS` | `90000` | supervisor/orchestrator review timeout |
-| `DASH_TOOL_INTENT_MODEL` | `ministral-3:3b` | small model that labels whether a turn intended tool use (`off` disables) |
-| `DASH_TOOL_INTENT_TIMEOUT_MS` | `30000` | timeout for the tool-intent reviewer |
 | `DASH_CHAT_MAX_MESSAGES` | `40` | chat history messages sent to the agent |
 | `DASH_CHAT_MAX_CONTENT_CHARS` | `8000` | max content kept per chat message |
 | `DASH_HEALTH_INTERVAL` | `30000` | health-check interval (ms) |

@@ -27,11 +27,6 @@ function numberEnv(name, fallback) {
   return Number.isFinite(n) ? n : fallback;
 }
 
-function optionalModelEnv(name, fallback) {
-  const value = String(process.env[name] ?? fallback).trim();
-  return /^(0|false|none|off)$/i.test(value) ? '' : value;
-}
-
 const logMaxLimit = boundedIntegerEnv('DASH_LOG_MAX_LIMIT', SERVER_LIMITS.logsMaxLimit, {
   min: ENV_BOUNDS.minPositiveInt,
   max: ENV_BOUNDS.logMaxLimitMax,
@@ -70,11 +65,6 @@ export const config = {
     max: AGENT_LIMITS.toolCallMax,
   }),
   agentReviewTimeoutMs: boundedIntegerEnv('DASH_AGENT_REVIEW_TIMEOUT_MS', AGENT_LIMITS.reviewTimeoutMs, {
-    min: ENV_BOUNDS.timeoutMinMs,
-    max: ENV_BOUNDS.timeoutMaxMs,
-  }),
-  toolIntentModel: optionalModelEnv('DASH_TOOL_INTENT_MODEL', CONFIG_DEFAULTS.toolIntentModel),
-  toolIntentTimeoutMs: boundedIntegerEnv('DASH_TOOL_INTENT_TIMEOUT_MS', AGENT_LIMITS.toolIntentTimeoutMs, {
     min: ENV_BOUNDS.timeoutMinMs,
     max: ENV_BOUNDS.timeoutMaxMs,
   }),

@@ -14,7 +14,7 @@ test('prompts list defaults with placeholders intact', () => {
   const agent = all.find((p) => p.id === 'agent');
   assert.ok(agent.isDefault);
   assert.ok(agent.template.includes('{{SNAPSHOT}}'));
-  assert.ok(all.find((p) => p.id === 'tool-intent').template.includes('{{TOOLS}}'));
+  assert.ok(all.find((p) => p.id === 'scraper').template.includes('{{CONTENT}}'));
 });
 
 test('renderPrompt fills known placeholders and leaves unknown ones', () => {
@@ -24,12 +24,12 @@ test('renderPrompt fills known placeholders and leaves unknown ones', () => {
 });
 
 test('override persists, and saving default text resets it', () => {
-  const r = setPromptOverride('tool-intent', 'Classify: {{TOOLS}}');
+  const r = setPromptOverride('scraper', 'Extract: {{CONTENT}}');
   assert.equal(r.isDefault, false);
-  assert.equal(getPromptTemplate('tool-intent'), 'Classify: {{TOOLS}}');
-  const back = setPromptOverride('tool-intent', '');
+  assert.equal(getPromptTemplate('scraper'), 'Extract: {{CONTENT}}');
+  const back = setPromptOverride('scraper', '');
   assert.equal(back.isDefault, true);
-  assert.ok(back.template.includes('strict binary classifier'));
+  assert.ok(back.template.includes('structured data'));
 });
 
 test('unknown prompt ids and oversized templates are rejected', () => {

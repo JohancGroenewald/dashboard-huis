@@ -28,7 +28,6 @@ function getDb() {
     reply TEXT,
     trace TEXT,
     rounds TEXT,
-    tool_intent TEXT,
     content TEXT,
     steps INTEGER,
     ms INTEGER,
@@ -36,7 +35,7 @@ function getDb() {
     error TEXT
   )`);
   // Migrate DBs created before kind/task/pass/rounds existed (ALTER throws if present).
-  for (const col of ["kind TEXT DEFAULT 'chat'", 'task TEXT', 'pass INTEGER', 'rounds TEXT', 'tool_intent TEXT', 'content TEXT']) {
+  for (const col of ["kind TEXT DEFAULT 'chat'", 'task TEXT', 'pass INTEGER', 'rounds TEXT', 'content TEXT']) {
     try { db.exec(`ALTER TABLE chat_log ADD COLUMN ${col}`); } catch { /* already there */ }
   }
   return db;
@@ -46,8 +45,8 @@ function insert(e) {
   try {
     getDb()
       .prepare(
-        `INSERT INTO chat_log (ts, kind, session, model, task, user_msg, messages, reply, trace, rounds, tool_intent, content, steps, ms, pass, error)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO chat_log (ts, kind, session, model, task, user_msg, messages, reply, trace, rounds, content, steps, ms, pass, error)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         new Date().toISOString(),
@@ -60,7 +59,6 @@ function insert(e) {
         e.reply ?? null,
         JSON.stringify(e.trace || []),
         e.rounds ? JSON.stringify(e.rounds) : null,
-        e.toolIntent ? JSON.stringify(e.toolIntent) : null,
         e.content ?? null, // raw source material the model worked with (e.g. scraped page text)
         e.steps ?? null,
         e.ms ?? null,

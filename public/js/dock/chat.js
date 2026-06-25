@@ -4,7 +4,6 @@ import { $, h, toast } from '../lib/dom.js';
 import { clientId } from '../lib/api.js';
 import { streamSse } from '../lib/sse.js';
 import { mdToHtml } from '../lib/markdown.js';
-import { toolIntentLabel, toolIntentState, toolIntentTitle } from '../lib/tool-intent.js';
 import { DOCK_UI, SPEED_LIMITS, STORAGE_KEYS } from '../constants.js';
 import { store, subscribe, loadDashboard } from '../state/store.js';
 import { activeModel, modelHasVision } from './models.js';
@@ -137,15 +136,6 @@ function renderFollowups(items = []) {
   scroll();
 }
 
-function renderToolIntentBadge(intent, calls) {
-  const state = toolIntentState(intent, calls);
-  if (!state) return null;
-  return h('div', {
-    class: `tool-intent-badge ${state}`,
-    title: toolIntentTitle(intent, calls),
-  }, h('span', { class: 'tool-intent-dot' }), h('span', {}, toolIntentLabel(intent, calls)));
-}
-
 // The streaming assistant turn: thinking dots → live tokens (with cursor)
 // → final markdown. Tokens streamed before a tool call are scratch work and
 // are cleared when the tool round starts.
@@ -186,12 +176,10 @@ function startTurn() {
       streamed = '';
       if (!bubble.classList.contains('thinking')) bubble.querySelector('.stream').textContent = '';
     },
-    finish(reply, toolIntent, calls) {
+    finish(reply) {
       clearInterval(timer);
       bubble.classList.remove('thinking');
       bubble.innerHTML = mdToHtml(reply || '(no reply)');
-      const badge = renderToolIntentBadge(toolIntent, calls);
-      if (badge) turn.append(badge);
       scroll();
     },
     fail(message) {
@@ -240,7 +228,7 @@ export async function sendChat(text) {
     });
     if (!done) throw new Error('the stream ended without a reply');
 
-    view.finish(done.reply, done.toolIntent, (done.trace || []).length);
+    view.finish(done.reply);
     const asstEntry = { role: 'assistant', content: done.reply || '' };
     history.push(asstEntry);
     view.row.append(tickEl(asstEntry));

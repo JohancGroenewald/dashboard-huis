@@ -39,7 +39,6 @@ export const CONFIG_DEFAULTS = {
   port: 8080,
   httpsPort: HTTP_DEFAULT_PORTS.https,
   ollamaHost: 'http://ollama.huis:11434',
-  toolIntentModel: 'ministral-3:3b',
   healthIntervalMs: 30_000,
   healthTimeoutMs: 5_000,
   maxBackups: 25,
@@ -96,10 +95,7 @@ export const AGENT_LIMITS = {
   toolCallMin: 1,
   toolCallMax: 100,
   reviewTimeoutMs: 90_000,
-  toolIntentTimeoutMs: 30_000,
   reviewPreviewChars: 120,
-  toolIntentInputChars: 2_000,
-  toolIntentTraceChars: 2_000,
   offeredChoicesMax: 6,
   followupsMax: 4,
   scraperReadDefault: 25, // rows returned by read_scraper when no limit is given
