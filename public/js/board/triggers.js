@@ -18,10 +18,39 @@ function fmtRemaining(ms) {
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
 
-const readyAt = (t) => (t.lastPressedAt ? Date.parse(t.lastPressedAt) + t.cooldownMs : 0);
-
 const fmtStamp = (iso) =>
   new Date(iso).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+
+const monotonicNow = () => globalThis.performance?.now?.() ?? Date.now();
+const persistedReadyAt = (t) => (t.lastPressedAt ? Date.parse(t.lastPressedAt) + t.cooldownMs : 0);
+
+function snapshotRemaining(timer) {
+  const remaining = Number(timer?.remainingMs);
+  const seenAt = Number(timer?.seenAt);
+  if (!Number.isFinite(remaining) || !Number.isFinite(seenAt)) return null;
+  return Math.max(0, remaining - (monotonicNow() - seenAt));
+}
+
+function remainingMs(t) {
+  const fromSnapshot = snapshotRemaining(t.timer);
+  if (fromSnapshot != null) return fromSnapshot;
+  return Math.max(0, persistedReadyAt(t) - Date.now());
+}
+
+function readyAt(t) {
+  const serverReadyAt = Date.parse(t.timer?.readyAt || '');
+  return Number.isFinite(serverReadyAt) ? serverReadyAt : persistedReadyAt(t);
+}
+
+function timerDataset(t, ready, left) {
+  const snapshot = Number(t.timer?.remainingMs);
+  const seenAt = Number(t.timer?.seenAt);
+  return {
+    remaining: Number.isFinite(snapshot) ? Math.max(0, snapshot) : Math.max(0, left),
+    seenAt: Number.isFinite(seenAt) ? seenAt : monotonicNow(),
+    ready,
+  };
+}
 
 function cooldownOptions(t) {
   const opts = TRIGGER_COOLDOWNS.map(({ label, ms }) =>
@@ -49,9 +78,11 @@ function historyTable(history) {
 }
 
 export function triggerInner(t) {
-  const cooling = readyAt(t) > Date.now();
+  const left = remainingMs(t);
+  const cooling = left > 0;
   const busy = running.has(t.id);
-  return `<div class="card trigger-card${busy ? ' running' : ''}" data-id="${t.id}" data-ready-at="${readyAt(t)}">
+  const timer = timerDataset(t, readyAt(t), left);
+  return `<div class="card trigger-card${busy ? ' running' : ''}" data-id="${t.id}" data-ready-at="${timer.ready}" data-remaining-ms="${timer.remaining}" data-timer-seen-at="${timer.seenAt}">
     <div class="sec-head trigger-head">
       <span class="card-grip" title="Drag trigger">⠿</span>
       <span class="trigger-name" title="Click to rename">${esc(t.name)}</span>
@@ -59,7 +90,7 @@ export function triggerInner(t) {
       <button class="ctl danger trigger-del" type="button" title="Delete trigger">✕</button>
     </div>
     <button type="button" class="trigger-press${cooling ? ' cooling' : ''}"${cooling || busy ? ' disabled' : ''}>
-      ${busy ? '⏳ …' : cooling ? `⏳ <span class="trigger-count">${fmtRemaining(readyAt(t) - Date.now())}</span>` : '⏱ Press'}
+      ${busy ? '⏳ …' : cooling ? `⏳ <span class="trigger-count">${fmtRemaining(left)}</span>` : '⏱ Press'}
     </button>
     <div class="trigger-sub">${t.lastPressedAt ? `last: ${esc(fmtStamp(t.lastPressedAt))}` : 'never pressed'}</div>
     <select class="trigger-cooldown" title="${cooling ? 'Locked while cooling down' : 'How long before it can be pressed again'}"${busy || cooling ? ' disabled' : ''}>${cooldownOptions(t)}</select>
@@ -76,6 +107,16 @@ function setBusy(el, on) {
   press.disabled = on || press.classList.contains('cooling');
   if (on) press.innerHTML = '⏳ …';
   card.querySelector('.trigger-cooldown').disabled = on;
+}
+
+function cardRemaining(card) {
+  const remaining = Number(card.dataset.remainingMs);
+  const seenAt = Number(card.dataset.timerSeenAt);
+  if (Number.isFinite(remaining) && Number.isFinite(seenAt)) {
+    return remaining - (monotonicNow() - seenAt);
+  }
+  const ready = Number(card.dataset.readyAt);
+  return ready ? ready - Date.now() : 0;
 }
 
 export function wireTrigger(el, t) {
@@ -128,7 +169,7 @@ setInterval(() => {
     const ready = Number(card.dataset.readyAt);
     if (!ready) continue;
     const btn = card.querySelector('.trigger-press');
-    const left = ready - Date.now();
+    const left = cardRemaining(card);
     if (left > 0) {
       const count = card.querySelector('.trigger-count');
       if (count) count.textContent = fmtRemaining(left);
@@ -137,6 +178,8 @@ setInterval(() => {
       btn.classList.remove('cooling');
       btn.innerHTML = '⏱ Press';
       card.dataset.readyAt = '0';
+      card.dataset.remainingMs = '0';
+      card.dataset.timerSeenAt = String(monotonicNow());
       // Cooldown's over: the period dropdown becomes editable again.
       const sel = card.querySelector('.trigger-cooldown');
       sel.disabled = false;

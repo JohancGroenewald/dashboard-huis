@@ -101,7 +101,7 @@ function chatRequest(req, res) {
   return { model, safeMessages, logMessages, session, userMsg };
 }
 
-export function mountAgentRoutes(app, { store, ollama, events, wrap, scraperResults = null }) {
+export function mountAgentRoutes(app, { store, ollama, events, wrap, scraperResults = null, clientDashboard = (dashboard) => dashboard }) {
   // Agent tool calls should update every open tab, including the tab that asked
   // for the run. The chat UI does not locally apply tool results, so tagging
   // these broadcasts as a same-tab echo would make the requester wait until the
@@ -125,7 +125,7 @@ export function mountAgentRoutes(app, { store, ollama, events, wrap, scraperResu
         steps: result.steps,
         toolCalls: result.toolCalls ?? result.trace.length,
         followups: followupsFromTrace(result.trace),
-        dashboard: store.getState(), // so the UI can refresh after agent edits
+        dashboard: clientDashboard(store.getState()), // so the UI can refresh after agent edits
       });
     } catch (err) {
       logTurn({ session: r.session, model: r.model, userMsg: r.userMsg, messages: r.logMessages, ms: Date.now() - started, error: err.message });

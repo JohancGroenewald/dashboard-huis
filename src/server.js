@@ -15,7 +15,7 @@ import { query } from './chatlog.js';
 import { mountAgentRoutes } from './routes/agent.js';
 import { listPrompts, setPromptOverride } from './prompts.js';
 import { humanMove, aiMove, resetGame, reflectOnGame, isModelTurn } from './games.js';
-import { pressTrigger } from './triggers.js';
+import { pressTrigger, withTriggerTimers } from './triggers.js';
 import { runScraper } from './scrapers.js';
 import { ScraperResultStore, hydrateScraperRows, readScraperRows } from './scraper-results.js';
 import { forwardTranscription } from './speech-to-text.js';
@@ -35,7 +35,7 @@ const ollama = new Ollama();
 const events = new EventHub();
 const scraperResults = new ScraperResultStore({ dbPath: paths.scraperResults });
 const clientDashboard = (dashboard) =>
-  hydrateScraperRows(dashboard, scraperResults, { limit: SCRAPER_LIMITS.displayRowsDefault });
+  withTriggerTimers(hydrateScraperRows(dashboard, scraperResults, { limit: SCRAPER_LIMITS.displayRowsDefault }));
 
 // Broadcast every store change to connected browsers. The originating tab's
 // X-Client-Id rides along so clients can tell their own echo from real news.
@@ -81,10 +81,10 @@ app.get('/api/events', (req, res) => events.attach(req, res, { rev: store.rev })
 app.post('/api/workspaces', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addWorkspace(req.body))));
 app.patch('/api/workspaces/:id', wrap((req, res) => res.json(store.renameWorkspace(req.params.id, req.body.name))));
 app.patch('/api/workspaces/:id/background', wrap((req, res) => res.json(store.updateWorkspaceBackground(req.params.id, req.body))));
-app.post('/api/workspaces/:id/move', wrap((req, res) => res.json(store.moveWorkspace(req.params.id, req.body.position))));
+app.post('/api/workspaces/:id/move', wrap((req, res) => res.json(clientDashboard(store.moveWorkspace(req.params.id, req.body.position)))));
 app.delete('/api/workspaces/:id', wrap((req, res) => res.json(store.removeWorkspace(req.params.id))));
 // Switch the active workspace; returns the full state so the board can refresh.
-app.post('/api/workspaces/:id/activate', wrap((req, res) => res.json(store.setActiveWorkspace(req.params.id))));
+app.post('/api/workspaces/:id/activate', wrap((req, res) => res.json(clientDashboard(store.setActiveWorkspace(req.params.id)))));
 app.post('/api/sections/:id/workspace', wrap((req, res) => res.json(store.moveSectionToWorkspace(req.params.id, req.body.workspaceId))));
 app.post('/api/notes/:id/workspace', wrap((req, res) => res.json(store.moveNoteToWorkspace(req.params.id, req.body.workspaceId))));
 
@@ -92,10 +92,10 @@ app.post('/api/sections', wrap((req, res) => res.status(HTTP_STATUS.created).jso
 app.patch('/api/sections/:id', wrap((req, res) => res.json(store.updateSection(req.params.id, req.body))));
 app.delete('/api/sections/:id', wrap((req, res) => res.json(store.removeSection(req.params.id))));
 
-app.post('/api/sections/:id/move', wrap((req, res) => res.json(store.moveSection(req.params.id, req.body.position))));
+app.post('/api/sections/:id/move', wrap((req, res) => res.json(clientDashboard(store.moveSection(req.params.id, req.body.position)))));
 
 // Collapse/expand: one section, or all in the active workspace.
-app.post('/api/sections/collapse', wrap((req, res) => res.json(store.setAllCollapsed(req.body.collapsed))));
+app.post('/api/sections/collapse', wrap((req, res) => res.json(clientDashboard(store.setAllCollapsed(req.body.collapsed)))));
 app.post('/api/sections/:id/collapse', wrap((req, res) => res.json(store.setSectionCollapsed(req.params.id, req.body.collapsed))));
 
 app.post('/api/sections/:id/tiles', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addTile(req.params.id, req.body))));
@@ -106,16 +106,16 @@ app.post('/api/tiles/:id/move', wrap((req, res) =>
 ));
 
 // Persist grid layout (drag/resize) for many cards at once.
-app.post('/api/layout', wrap((req, res) => res.json(store.setLayouts(req.body.items || []))));
+app.post('/api/layout', wrap((req, res) => res.json(clientDashboard(store.setLayouts(req.body.items || [])))));
 
 // Undo / redo the last dashboard change(s).
 app.post('/api/undo', wrap((req, res) => {
   const dashboard = store.undo() || store.getState();
-  res.json({ dashboard, canUndo: store.canUndo(), canRedo: store.canRedo() });
+  res.json({ dashboard: clientDashboard(dashboard), canUndo: store.canUndo(), canRedo: store.canRedo() });
 }));
 app.post('/api/redo', wrap((req, res) => {
   const dashboard = store.redo() || store.getState();
-  res.json({ dashboard, canUndo: store.canUndo(), canRedo: store.canRedo() });
+  res.json({ dashboard: clientDashboard(dashboard), canUndo: store.canUndo(), canRedo: store.canRedo() });
 }));
 
 // Revert a batch of changes (e.g. everything one agent run did). Refuses when
@@ -127,7 +127,7 @@ app.post('/api/undo-batch', wrap((req, res) => {
     return res.status(HTTP_STATUS.conflict).json({ error: `dashboard changed since rev ${expectedRev} (now ${store.rev})` });
   }
   const dashboard = store.undoTimes(steps);
-  res.json({ dashboard, rev: store.rev, canUndo: store.canUndo(), canRedo: store.canRedo() });
+  res.json({ dashboard: clientDashboard(dashboard), rev: store.rev, canUndo: store.canUndo(), canRedo: store.canRedo() });
 }));
 
 // ---- sticky notes --------------------------------------------------------
@@ -324,7 +324,7 @@ app.get('/api/models', wrap(async (req, res) => {
 }));
 
 // Agent chat (whole-reply + streaming) — see src/routes/agent.js.
-mountAgentRoutes(app, { store, ollama, events, wrap, scraperResults });
+mountAgentRoutes(app, { store, ollama, events, wrap, scraperResults, clientDashboard });
 
 // no-cache + ETag: the browser always revalidates, so updated JS/CSS/HTML load
 // immediately (a 304 when unchanged) — no more stale modules / hard-refreshing.

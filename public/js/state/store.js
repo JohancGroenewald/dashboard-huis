@@ -30,6 +30,15 @@ export function publish(topic, payload) {
 let interactionCheck = null;
 let deferred = null;
 
+function stampTimerSnapshots(dashboard) {
+  const seenAt = globalThis.performance?.now?.() ?? Date.now();
+  for (const trigger of dashboard?.triggers || []) {
+    if (!trigger.timer || !Number.isFinite(Number(trigger.timer.remainingMs))) continue;
+    trigger.timer = { ...trigger.timer, seenAt };
+  }
+  return dashboard;
+}
+
 export function setInteractionCheck(fn) {
   interactionCheck = fn;
 }
@@ -44,16 +53,17 @@ export function flushDeferred() {
 // Apply a new dashboard tree. rev-stamped calls (SSE) are deduped against the
 // last seen revision; un-stamped calls (REST responses) always apply.
 export function applyDashboard(dashboard, rev = null, { viewOnly = false } = {}) {
+  const nextDashboard = stampTimerSnapshots(dashboard);
   if (rev != null) {
     if (viewOnly ? rev < store.rev : rev <= store.rev) return false;
     if (interactionCheck?.()) {
-      deferred = { dashboard, rev };
+      deferred = { dashboard: nextDashboard, rev };
       return false;
     }
     store.rev = Math.max(store.rev, rev);
   }
-  store.dashboard = dashboard;
-  publish('dashboard', dashboard);
+  store.dashboard = nextDashboard;
+  publish('dashboard', nextDashboard);
   return true;
 }
 
@@ -61,8 +71,9 @@ export async function loadDashboard() {
   const { data, res } = await apiWithRes('/api/dashboard');
   const rev = Number(res.headers.get('x-dashboard-rev'));
   if (Number.isFinite(rev)) store.rev = rev;
-  store.dashboard = data;
-  publish('dashboard', data);
+  const dashboard = stampTimerSnapshots(data);
+  store.dashboard = dashboard;
+  publish('dashboard', dashboard);
 }
 
 export async function switchWorkspace(id) {

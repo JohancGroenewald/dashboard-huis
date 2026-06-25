@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Store } from '../src/store.js';
-import { pressTrigger, stopTrigger, fmtRemaining } from '../src/triggers.js';
+import { pressTrigger, stopTrigger, fmtRemaining, triggerTimer, withTriggerTimers } from '../src/triggers.js';
 import { normalizeTrigger } from '../src/schema.js';
 
 const newStore = () => new Store({ persist: false }).load();
@@ -46,6 +46,29 @@ test('stopTrigger clears only an active cooldown and preserves history', () => {
   const ready = stopTrigger(store, t.id, t0 + 120_000);
   assert.equal(ready.stopped, false);
   assert.ok(ready.lastPressedAt);
+});
+
+test('trigger timer state is derived from persisted timestamps after downtime', () => {
+  const store = newStore();
+  const t = store.addTrigger({ name: 'Generator check', cooldownMs: 60_000 });
+  const t0 = Date.parse('2026-06-15T08:00:00Z');
+  const pressed = pressTrigger(store, t.id, t0);
+
+  assert.deepEqual(triggerTimer(pressed, t0 + 30_000), {
+    readyAt: '2026-06-15T08:01:00.000Z',
+    remainingMs: 30_000,
+    cooling: true,
+  });
+  assert.deepEqual(triggerTimer(pressed, t0 + 75_000), {
+    readyAt: '2026-06-15T08:01:00.000Z',
+    remainingMs: 0,
+    cooling: false,
+  });
+
+  const clientState = withTriggerTimers(store.getState(), t0 + 45_000);
+  assert.equal(clientState.triggers[0].timer.remainingMs, 15_000);
+  assert.equal(clientState.triggers[0].timer.cooling, true);
+  assert.equal(store.getState().triggers[0].timer, undefined);
 });
 
 test('normalizeTrigger applies defaults and bounds', () => {
