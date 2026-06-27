@@ -4,8 +4,9 @@
 import { $, esc, toast } from './lib/dom.js';
 import { api, jsonBody } from './lib/api.js';
 import { openDialog } from './lib/dialog.js';
-import { STORAGE_KEYS } from './constants.js';
+import { STORAGE_KEYS, WORKSPACE_TAB_TEXT_COLORS } from './constants.js';
 import { store, subscribe, setView, switchWorkspace, loadDashboard, applyDashboard } from './state/store.js';
+import { openPalette } from './board/palette.js';
 
 const systemViews = new Map(); // id -> onActivate
 let draggingWs = null;
@@ -39,16 +40,24 @@ function renderTabs() {
   $('#ws-tabs').innerHTML = workspaces
     .map((w) => {
       const active = store.view === 'board' && w.id === activeWorkspaceId;
-      return `<button type="button" class="ws-tab${active ? ' active' : ''}" data-ws="${esc(w.id)}" draggable="true" title="Drag to reorder · double-click to rename">
+      const style = w.textColor ? ` style="color:${esc(w.textColor)}"` : '';
+      return `<button type="button" class="ws-tab${active ? ' active' : ''}" data-ws="${esc(w.id)}" draggable="true" title="Drag to reorder · double-click to rename"${style}>
         <span class="ws-name">${esc(w.name)}</span>
+        <span class="ws-style" title="Tab text colour">🎨</span>
         ${multi ? '<span class="ws-x" title="Delete workspace">✕</span>' : ''}
       </button>`;
     })
     .join('') + '<button type="button" class="ws-add" title="New workspace">＋</button>';
 
   // Mobile mirror: a native dropdown (CSS swaps it in for the tab row).
+  const activeWs = workspaces.find((w) => w.id === activeWorkspaceId);
+  $('#ws-select').style.color = store.view === 'board' && activeWs?.textColor ? activeWs.textColor : '';
   $('#ws-select').innerHTML = workspaces
-    .map((w) => `<option value="${esc(w.id)}"${store.view === 'board' && w.id === activeWorkspaceId ? ' selected' : ''}>${esc(w.name)}</option>`)
+    .map((w) => {
+      const selected = store.view === 'board' && w.id === activeWorkspaceId;
+      const optionStyle = w.textColor ? ` style="color:${esc(w.textColor)}"` : '';
+      return `<option value="${esc(w.id)}"${selected ? ' selected' : ''}${optionStyle}>${esc(w.name)}</option>`;
+    })
     .join('') + '<option value="__add__">＋ New workspace…</option>';
 }
 
@@ -75,6 +84,23 @@ async function renameWorkspace(id) {
   } catch (err) {
     toast(`Could not rename: ${err.message}`, { error: true });
   }
+}
+
+function styleWorkspace(id, anchor) {
+  const w = store.dashboard.workspaces.find((x) => x.id === id);
+  if (!w) return;
+  openPalette({
+    anchor,
+    title: `Workspace: ${w.name}`,
+    rows: [{ label: 'Text', prop: 'textColor', colors: WORKSPACE_TAB_TEXT_COLORS, current: w.textColor }],
+    onSwatch: ({ color }) => {
+      w.textColor = color;
+      anchor.closest('.ws-tab')?.style.setProperty('color', color || '');
+      if (w.id === store.dashboard.activeWorkspaceId) $('#ws-select').style.color = color || '';
+      api(`/api/workspaces/${id}`, jsonBody({ textColor: color }, 'PATCH'))
+        .catch((err) => toast(`Could not save tab colour: ${err.message}`, { error: true }));
+    },
+  });
 }
 
 async function deleteWorkspace(id) {
@@ -122,6 +148,8 @@ export function initWorkspaces() {
     if (e.target.closest('.ws-add')) return addWorkspace();
     const tab = e.target.closest('.ws-tab');
     if (!tab) return;
+    const style = e.target.closest('.ws-style');
+    if (style) return styleWorkspace(tab.dataset.ws, style);
     if (e.target.closest('.ws-x')) return deleteWorkspace(tab.dataset.ws);
     showBoardWorkspace(tab.dataset.ws);
   });
@@ -131,7 +159,7 @@ export function initWorkspaces() {
   });
   tabs.addEventListener('dragstart', (e) => {
     const tab = e.target.closest('.ws-tab');
-    if (!tab || e.target.closest('.ws-x')) { e.preventDefault(); return; }
+    if (!tab || e.target.closest('.ws-x, .ws-style')) { e.preventDefault(); return; }
     draggingWs = tab.dataset.ws;
     tab.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';

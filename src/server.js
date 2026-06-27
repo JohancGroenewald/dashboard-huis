@@ -79,7 +79,7 @@ app.get('/api/events', (req, res) => events.attach(req, res, { rev: store.rev })
 
 // ---- workspaces ----------------------------------------------------------
 app.post('/api/workspaces', wrap((req, res) => res.status(HTTP_STATUS.created).json(store.addWorkspace(req.body))));
-app.patch('/api/workspaces/:id', wrap((req, res) => res.json(store.renameWorkspace(req.params.id, req.body.name))));
+app.patch('/api/workspaces/:id', wrap((req, res) => res.json(store.updateWorkspace(req.params.id, req.body || {}))));
 app.patch('/api/workspaces/:id/background', wrap((req, res) => res.json(store.updateWorkspaceBackground(req.params.id, req.body))));
 app.post('/api/workspaces/:id/move', wrap((req, res) => res.json(clientDashboard(store.moveWorkspace(req.params.id, req.body.position)))));
 app.delete('/api/workspaces/:id', wrap((req, res) => res.json(store.removeWorkspace(req.params.id))));

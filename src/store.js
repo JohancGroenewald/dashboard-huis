@@ -118,19 +118,25 @@ export class Store {
   }
 
   // ---- workspaces -------------------------------------------------------
-  addWorkspace({ name }) {
-    const workspace = normalizeWorkspace({ name });
+  addWorkspace({ name, textColor }) {
+    const workspace = normalizeWorkspace({ name, textColor });
     this.state.workspaces.push(workspace);
     this.#commit();
     return workspace;
   }
 
-  renameWorkspace(id, name) {
+  updateWorkspace(id, patch) {
     const w = this.#workspace(id);
-    w.name = checkString(name, 'workspace.name', { max: SCHEMA_LIMITS.workspaceNameChars });
+    const next = {};
+    if (patch.name !== undefined) next.name = checkString(patch.name, 'workspace.name', { max: SCHEMA_LIMITS.workspaceNameChars });
+    if (patch.textColor !== undefined) next.textColor = checkColor(patch.textColor, 'workspace.textColor');
+    if (!Object.keys(next).length) return structuredClone(w);
+    Object.assign(w, normalizeWorkspace({ ...w, ...next, id: w.id }));
     this.#commit();
     return structuredClone(w);
   }
+
+  renameWorkspace(id, name) { return this.updateWorkspace(id, { name }); }
 
   moveWorkspace(id, toIndex) {
     const idx = this.state.workspaces.findIndex((w) => w.id === id);

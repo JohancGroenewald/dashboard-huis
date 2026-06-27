@@ -1,5 +1,4 @@
-// Tool/function definitions advertised to the model (the JSON-schema specs).
-// Kept separate from the handler logic in tools.js so each file stays small.
+// Tool/function definitions advertised to the model (the JSON-schema specs). Kept separate from the handler logic in tools.js so each file stays small.
 // These declarations are the agent's entire capability surface.
 
 export const toolSpecs = [
@@ -39,6 +38,7 @@ export const toolSpecs = [
       },
     },
   },
+  { type: 'function', function: { name: 'set_workspace_style', description: 'Set workspace tab styling. Use textColor to change the text colour of a workspace tab; pass an empty string to clear it back to the default.', parameters: { type: 'object', properties: { workspace: { type: 'string', description: 'Workspace id or name.' }, textColor: { type: 'string', description: 'Tab text colour: CSS colour name or hex, or empty string to clear.' } }, required: ['workspace'] } } },
   {
     type: 'function',
     function: {

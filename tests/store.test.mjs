@@ -58,6 +58,20 @@ test('workspace background updates are validated and undoable', () => {
   assert.equal(store.getState().workspaces[0].background.effect, 'none');
 });
 
+test('workspace tab text colour updates are validated and undoable', () => {
+  const store = new Store({ persist: false }).load();
+  const wsId = store.getState().workspaces[0].id;
+
+  const updated = store.updateWorkspace(wsId, { textColor: 'Gold' });
+
+  assert.equal(updated.textColor, 'gold');
+  assert.equal(store.rev, 1);
+  assert.throws(() => store.updateWorkspace(wsId, { textColor: 'url(https://example.test/x)' }), /workspace\.textColor/);
+  assert.equal(store.getState().workspaces[0].textColor, 'gold');
+  store.undo();
+  assert.equal(store.getState().workspaces[0].textColor, '');
+});
+
 test('workspaces can be reordered and undone', () => {
   const store = new Store({ persist: false }).load();
   const first = store.getState().workspaces[0];

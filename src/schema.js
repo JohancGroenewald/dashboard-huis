@@ -152,6 +152,7 @@ export function normalizeWorkspace(raw) {
   return {
     id: raw.id && typeof raw.id === 'string' ? raw.id : crypto.randomUUID(),
     name: checkString(raw.name, 'workspace.name', { max: SCHEMA_LIMITS.workspaceNameChars }),
+    textColor: checkColor(raw.textColor, 'workspace.textColor'),
     background: normalizeWorkspaceBackground(raw.background),
   };
 }

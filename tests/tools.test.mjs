@@ -67,6 +67,18 @@ test('set_workspace_background updates a workspace math-art spec', () => {
   assert.equal(store.getState().workspaces.find((w) => w.name === 'B').background.palette[1], 'gold');
 });
 
+test('set_workspace_style updates a workspace tab text colour', () => {
+  const store = duplicateSectionStore();
+  const handlers = makeToolHandlers(store);
+
+  const result = handlers.set_workspace_style({ workspace: 'B', textColor: '#ABCDEF' });
+
+  assert.equal(result.workspace.name, 'B');
+  assert.equal(result.updated.textColor, '#abcdef');
+  assert.equal(handlers.get_dashboard().workspaces.find((w) => w.name === 'B').textColor, '#abcdef');
+  assert.equal(handlers.set_workspace_style({ workspace: 'B', textColor: '' }).updated.textColor, '');
+});
+
 test('report_problem files into the problems queue with the model as reporter', () => {
   const store = new Store({ persist: false }).load();
   const handlers = makeToolHandlers(store, { requestedBy: 'gemma4:e4b' });

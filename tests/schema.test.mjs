@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { normalizeNote, normalizeSection, normalizeTile, normalizeWorkspaceBackground } from '../src/schema.js';
+import { normalizeNote, normalizeSection, normalizeTile, normalizeWorkspace, normalizeWorkspaceBackground } from '../src/schema.js';
 
 test('color fields allow hex and color names', () => {
   assert.equal(normalizeSection({ name: 'Ops', color: '#ABC', tiles: [] }).color, '#abc');
   assert.equal(normalizeNote({ text: 'Check backups', color: 'Blue' }).color, 'blue');
   assert.equal(normalizeNote({ text: 'Check backups', color: 'transparent' }).color, 'transparent');
+  assert.equal(normalizeWorkspace({ name: 'Ops', textColor: '#ABC' }).textColor, '#abc');
 });
 
 test('color fields reject CSS declarations and functions', () => {
@@ -15,6 +16,10 @@ test('color fields reject CSS declarations and functions', () => {
   );
   assert.throws(
     () => normalizeNote({ text: 'Check backups', textColor: 'url(https://example.test/x)' }),
+    /hex colour or CSS colour name/
+  );
+  assert.throws(
+    () => normalizeWorkspace({ name: 'Ops', textColor: 'red;display:none' }),
     /hex colour or CSS colour name/
   );
 });

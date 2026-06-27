@@ -14,7 +14,8 @@ const MUTATING = new Set([
   'add_tile', 'add_section', 'add_note', 'update_tile', 'update_note', 'rename_section', 'update_section',
   'remove_tile', 'remove_section', 'remove_note', 'move_tile', 'move_section', 'resize_card',
   'add_trigger', 'press_trigger', 'stop_trigger', 'remove_trigger',
-  'add_workspace', 'rename_workspace', 'set_workspace_background', 'remove_workspace', 'switch_workspace', 'move_to_workspace',
+  'add_workspace', 'rename_workspace', 'set_workspace_style', 'set_workspace_background',
+  'remove_workspace', 'switch_workspace', 'move_to_workspace',
   'undo', 'redo',
 ]);
 
@@ -37,6 +38,7 @@ export function followupsFromTrace(trace = []) {
     case 'press_trigger':
     case 'stop_trigger': return ['Undo that', 'Show triggers'];
     case 'rename_workspace': return ['Switch to it', 'Undo that'];
+    case 'set_workspace_style': return ['Try another colour', 'Clear the tab colour', 'Undo that'];
     case 'set_workspace_background': return ['Try a calmer background', 'Clear the background', 'Undo that'];
     case 'remove_workspace':
     case 'remove_trigger':

@@ -145,6 +145,7 @@ export const NOTE_TRANSPARENT_COLOR = 'transparent';
 export const NOTE_DEFAULT_COLOR = '#f6d365';
 export const NOTE_COLORS = [...STYLE_COLORS, NOTE_TRANSPARENT_COLOR];
 export const NOTE_TEXT_COLORS = STYLE_COLORS;
+export const WORKSPACE_TAB_TEXT_COLORS = STYLE_COLORS;
 
 export const SECTION_PALETTES = {
   background: STYLE_COLORS,
