@@ -58,14 +58,17 @@ function renderPrimaryTabs() {
   }
 }
 
-function setRailPinned(pinned, { persist = true } = {}) {
+function setRailPinned(pinned, { persist = true, suppressHover = false } = {}) {
   const rail = $('#workspace-rail');
   const button = $('#workspace-rail-pin');
   if (!rail || !button) return;
   rail.dataset.pinned = pinned ? 'true' : 'false';
+  if (pinned) delete rail.dataset.hoverSuppressed;
+  else if (suppressHover) rail.dataset.hoverSuppressed = 'true';
   button.setAttribute('aria-pressed', String(pinned));
   button.title = pinned ? 'Unpin workspace rail' : 'Pin workspace rail';
   button.setAttribute('aria-label', button.title);
+  if (suppressHover) button.blur();
   if (persist) localStorage.setItem(STORAGE_KEYS.workspaceRail, pinned ? 'pinned' : 'rail');
   requestAnimationFrame(refreshGridWidth);
   setTimeout(refreshGridWidth, 220);
@@ -77,7 +80,7 @@ function renderTabs() {
   $('#ws-tabs').innerHTML = workspaces
     .map((w) => {
       const active = store.view === 'board' && w.id === activeWorkspaceId;
-      const style = w.textColor ? ` style="color:${esc(w.textColor)}"` : '';
+      const style = w.textColor ? ` style="color:${esc(w.textColor)};--ws-color:${esc(w.textColor)}"` : '';
       const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
       return `<button type="button" class="ws-tab${active ? ' active' : ''}" data-ws="${esc(w.id)}" draggable="true" title="Drag to reorder · double-click to rename"${style}>
         <span class="ws-initial" aria-hidden="true">${esc(initial)}</span>
@@ -134,7 +137,10 @@ function styleWorkspace(id, anchor) {
     rows: [{ label: 'Text', prop: 'textColor', colors: WORKSPACE_TAB_TEXT_COLORS, current: w.textColor }],
     onSwatch: ({ color }) => {
       w.textColor = color;
-      anchor.closest('.ws-tab')?.style.setProperty('color', color || '');
+      const tab = anchor.closest('.ws-tab');
+      tab?.style.setProperty('color', color || '');
+      if (color) tab?.style.setProperty('--ws-color', color);
+      else tab?.style.removeProperty('--ws-color');
       if (w.id === store.dashboard.activeWorkspaceId) $('#ws-select').style.color = color || '';
       api(`/api/workspaces/${id}`, jsonBody({ textColor: color }, 'PATCH'))
         .catch((err) => toast(`Could not save tab colour: ${err.message}`, { error: true }));
@@ -184,15 +190,21 @@ async function moveWorkspaceTab(id, position) {
 export function initWorkspaces() {
   setRailPinned(localStorage.getItem(STORAGE_KEYS.workspaceRail) === 'pinned', { persist: false });
 
+  const rail = $('#workspace-rail');
+  rail?.addEventListener('pointerleave', () => {
+    delete rail.dataset.hoverSuppressed;
+  });
+
   $('#workspace-rail-pin')?.addEventListener('click', () => {
-    const rail = $('#workspace-rail');
-    setRailPinned(rail?.dataset.pinned !== 'true');
+    const nextPinned = rail?.dataset.pinned !== 'true';
+    setRailPinned(nextPinned, { suppressHover: !nextPinned });
   });
 
   $('#primary-tabs')?.addEventListener('click', (e) => {
     const tab = e.target.closest('.primary-tab');
     if (!tab) return;
     const id = tab.dataset.shellTab;
+    if (id === 'search') return;
     if (id === 'dashboard') { showBoardWorkspace(store.dashboard.activeWorkspaceId); return; }
     if (id === 'chat') {
       showBoardWorkspace(store.dashboard.activeWorkspaceId, { shellTab: 'chat' });
