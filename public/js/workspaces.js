@@ -7,10 +7,13 @@ import { openDialog } from './lib/dialog.js';
 import { STORAGE_KEYS, WORKSPACE_TAB_TEXT_COLORS } from './constants.js';
 import { store, subscribe, setView, switchWorkspace, loadDashboard, applyDashboard } from './state/store.js';
 import { openPalette } from './board/palette.js';
+import { refreshGridWidth } from './board/board.js';
+import { openDock } from './dock/dock.js';
 
 const systemViews = new Map(); // id -> onActivate
 let draggingWs = null;
 let suppressClickUntil = 0;
+let activeShellTab = 'dashboard';
 
 export function registerView(id, onActivate) {
   systemViews.set(id, onActivate);
@@ -19,19 +22,53 @@ export function registerView(id, onActivate) {
 export function showView(id) {
   setView(id);
   localStorage.setItem(STORAGE_KEYS.view, id);
+  activeShellTab = id === 'models' ? 'models' : id === 'prompts' ? 'teach' : null;
+  renderPrimaryTabs();
   systemViews.get(id)?.();
 }
 
 // Show the board, optionally jumping to another workspace (used by ⌘K).
-export async function showBoardWorkspace(id) {
+export async function showBoardWorkspace(id, { shellTab = 'dashboard' } = {}) {
+  activeShellTab = shellTab;
   setView('board');
   localStorage.setItem(STORAGE_KEYS.view, 'board');
+  renderPrimaryTabs();
   if (id && id !== store.dashboard.activeWorkspaceId) await switchWorkspace(id);
 }
 
 function applyPanels() {
   $('#view-board').classList.toggle('hidden', store.view !== 'board');
   for (const id of systemViews.keys()) $(`#view-${id}`)?.classList.toggle('hidden', store.view !== id);
+}
+
+function currentShellTab() {
+  if (store.view === 'models') return 'models';
+  if (store.view === 'prompts') return 'teach';
+  if (store.view === 'board') return activeShellTab === 'chat' ? 'chat' : 'dashboard';
+  return null;
+}
+
+function renderPrimaryTabs() {
+  const active = currentShellTab();
+  for (const tab of document.querySelectorAll('#primary-tabs .primary-tab')) {
+    const on = tab.dataset.shellTab === active;
+    tab.classList.toggle('active', on);
+    if (on) tab.setAttribute('aria-current', 'page');
+    else tab.removeAttribute('aria-current');
+  }
+}
+
+function setRailPinned(pinned, { persist = true } = {}) {
+  const rail = $('#workspace-rail');
+  const button = $('#workspace-rail-pin');
+  if (!rail || !button) return;
+  rail.dataset.pinned = pinned ? 'true' : 'false';
+  button.setAttribute('aria-pressed', String(pinned));
+  button.title = pinned ? 'Unpin workspace rail' : 'Pin workspace rail';
+  button.setAttribute('aria-label', button.title);
+  if (persist) localStorage.setItem(STORAGE_KEYS.workspaceRail, pinned ? 'pinned' : 'rail');
+  requestAnimationFrame(refreshGridWidth);
+  setTimeout(refreshGridWidth, 220);
 }
 
 function renderTabs() {
@@ -41,7 +78,9 @@ function renderTabs() {
     .map((w) => {
       const active = store.view === 'board' && w.id === activeWorkspaceId;
       const style = w.textColor ? ` style="color:${esc(w.textColor)}"` : '';
+      const initial = (w.name || '?').trim().charAt(0).toUpperCase() || '?';
       return `<button type="button" class="ws-tab${active ? ' active' : ''}" data-ws="${esc(w.id)}" draggable="true" title="Drag to reorder · double-click to rename"${style}>
+        <span class="ws-initial" aria-hidden="true">${esc(initial)}</span>
         <span class="ws-name">${esc(w.name)}</span>
         <span class="ws-style" title="Tab text colour">🎨</span>
         ${multi ? '<span class="ws-x" title="Delete workspace">✕</span>' : ''}
@@ -117,9 +156,10 @@ function clearDropMarks() {
   for (const tab of $('#ws-tabs').querySelectorAll('.ws-tab')) tab.classList.remove('dragging', 'drop-before', 'drop-after');
 }
 
-function dropPosition(tab, x) {
+function dropPosition(tab, e) {
   const rect = tab.getBoundingClientRect();
-  return x < rect.left + rect.width / 2 ? 'before' : 'after';
+  if (tab.closest('.workspace-rail')) return e.clientY < rect.top + rect.height / 2 ? 'before' : 'after';
+  return e.clientX < rect.left + rect.width / 2 ? 'before' : 'after';
 }
 
 function finalDropIndex(targetId, side) {
@@ -142,6 +182,27 @@ async function moveWorkspaceTab(id, position) {
 }
 
 export function initWorkspaces() {
+  setRailPinned(localStorage.getItem(STORAGE_KEYS.workspaceRail) === 'pinned', { persist: false });
+
+  $('#workspace-rail-pin')?.addEventListener('click', () => {
+    const rail = $('#workspace-rail');
+    setRailPinned(rail?.dataset.pinned !== 'true');
+  });
+
+  $('#primary-tabs')?.addEventListener('click', (e) => {
+    const tab = e.target.closest('.primary-tab');
+    if (!tab) return;
+    const id = tab.dataset.shellTab;
+    if (id === 'dashboard') { showBoardWorkspace(store.dashboard.activeWorkspaceId); return; }
+    if (id === 'chat') {
+      showBoardWorkspace(store.dashboard.activeWorkspaceId, { shellTab: 'chat' });
+      openDock({ focus: true });
+      return;
+    }
+    if (id === 'models') { showView('models'); return; }
+    if (id === 'teach') showView('prompts');
+  });
+
   const tabs = $('#ws-tabs');
   tabs.addEventListener('click', (e) => {
     if (Date.now() < suppressClickUntil) return;
@@ -172,7 +233,7 @@ export function initWorkspaces() {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     clearDropMarks();
-    tab.classList.add(dropPosition(tab, e.clientX) === 'before' ? 'drop-before' : 'drop-after');
+    tab.classList.add(dropPosition(tab, e) === 'before' ? 'drop-before' : 'drop-after');
   });
   tabs.addEventListener('dragleave', (e) => {
     if (!tabs.contains(e.relatedTarget)) clearDropMarks();
@@ -181,7 +242,7 @@ export function initWorkspaces() {
     const tab = e.target.closest('.ws-tab');
     if (!draggingWs || !tab || tab.dataset.ws === draggingWs) return;
     e.preventDefault();
-    const position = finalDropIndex(tab.dataset.ws, dropPosition(tab, e.clientX));
+    const position = finalDropIndex(tab.dataset.ws, dropPosition(tab, e));
     const id = draggingWs;
     draggingWs = null;
     clearDropMarks();
@@ -207,8 +268,8 @@ export function initWorkspaces() {
     showView(item.dataset.view);
   });
 
-  subscribe('dashboard', () => { renderTabs(); applyPanels(); });
-  subscribe('view', () => { renderTabs(); applyPanels(); });
+  subscribe('dashboard', () => { renderTabs(); applyPanels(); renderPrimaryTabs(); });
+  subscribe('view', () => { renderTabs(); applyPanels(); renderPrimaryTabs(); });
 
   const saved = localStorage.getItem(STORAGE_KEYS.view);
   if (saved && saved !== 'board' && systemViews.has(saved)) showView(saved);

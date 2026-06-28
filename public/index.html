@@ -16,51 +16,68 @@
   </head>
   <body>
     <div class="app">
-      <header class="topbar">
-        <div class="topbar-left">
-          <h1 id="title">Dashboard</h1>
-          <nav id="ws-tabs" class="ws-tabs"></nav>
+      <header class="app-header">
+        <div class="topbar">
+          <div class="brand-lockup">
+            <img class="brand-mark" src="/assets/mellowrobot-logo-144.png" alt="" width="72" height="72" />
+            <h1 id="title" class="brand-title logo-rainbow">Dashboard</h1>
+          </div>
           <select id="ws-select" class="ws-select" title="Switch workspace"></select>
-        </div>
-        <div class="topbar-right">
-          <button id="cmdk-pill" class="cmdk-pill" type="button" title="Search, act, or ask Dashy (Ctrl+K)">
-            <span class="cmdk-pill-icon">⌕</span>
-            <span class="cmdk-pill-text">Search or ask…</span>
-            <kbd>⌘K</kbd>
-          </button>
-          <button id="undo-btn" class="icon-btn" type="button" title="Undo (Ctrl+Z)">↶</button>
-          <button id="redo-btn" class="icon-btn" type="button" title="Redo (Ctrl+Shift+Z)">↷</button>
-          <span id="clock" class="clock"></span>
-          <div class="dropdown">
-            <button id="menu-toggle" class="icon-btn" type="button" title="Layout &amp; system views">⋯</button>
-            <div id="overflow-menu" class="dropdown-menu overflow-menu hidden">
-              <div class="menu-label">Layout</div>
-              <button id="collapse-all" class="menu-item" type="button" title="Collapse or expand all sections">⊟ Collapse all</button>
-              <button id="snap-toggle" class="menu-item" type="button" title="Show grid guides (cards always snap)">⊞ Grid: off</button>
-              <button id="arrange-toggle" class="menu-item" type="button" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
-              <button id="edit-toggle" class="menu-item" type="button" title="Lock / unlock the layout">🔓 Edit</button>
-              <div class="menu-row">
-                <span>Grid size</span>
-                <span class="stepper">
-                  <button id="grid-smaller" type="button" title="Smaller cells">−</button>
-                  <span id="grid-size-val">92</span>
-                  <button id="grid-bigger" type="button" title="Bigger cells">+</button>
-                </span>
+          <div class="topbar-right">
+            <button id="cmdk-pill" class="cmdk-pill" type="button" title="Search, act, or ask Dashy (Ctrl+K)">
+              <span class="cmdk-pill-icon">⌕</span>
+              <span class="cmdk-pill-text">Search or ask…</span>
+              <kbd>⌘K</kbd>
+            </button>
+            <button id="undo-btn" class="icon-btn" type="button" title="Undo (Ctrl+Z)">↶</button>
+            <button id="redo-btn" class="icon-btn" type="button" title="Redo (Ctrl+Shift+Z)">↷</button>
+            <span id="clock" class="clock"></span>
+            <div class="dropdown">
+              <button id="menu-toggle" class="icon-btn" type="button" title="Layout &amp; system views">⋯</button>
+              <div id="overflow-menu" class="dropdown-menu overflow-menu hidden">
+                <div class="menu-label">Layout</div>
+                <button id="collapse-all" class="menu-item" type="button" title="Collapse or expand all sections">⊟ Collapse all</button>
+                <button id="snap-toggle" class="menu-item" type="button" title="Show grid guides (cards always snap)">⊞ Grid: off</button>
+                <button id="arrange-toggle" class="menu-item" type="button" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
+                <button id="edit-toggle" class="menu-item" type="button" title="Lock / unlock the layout">🔓 Edit</button>
+                <div class="menu-row">
+                  <span>Grid size</span>
+                  <span class="stepper">
+                    <button id="grid-smaller" type="button" title="Smaller cells">−</button>
+                    <span id="grid-size-val">92</span>
+                    <button id="grid-bigger" type="button" title="Bigger cells">+</button>
+                  </span>
+                </div>
+                <div class="menu-label">System</div>
+                <button class="menu-item" type="button" data-view="models">🧪 Models</button>
+                <button class="menu-item" type="button" data-view="abilities">🛠️ Abilities</button>
+                <button class="menu-item" type="button" data-view="requests">🗒️ Requests<span id="fr-count" class="menu-count hidden"></span></button>
+                <button class="menu-item" type="button" data-view="problems">🚨 Problems<span id="pb-count" class="menu-count hidden"></span></button>
+                <button class="menu-item" type="button" data-view="logs">🧾 Logs</button>
+                <button class="menu-item" type="button" data-view="replay">🎬 Replay</button>
+                <button class="menu-item" type="button" data-view="prompts">📜 Prompts</button>
               </div>
-              <div class="menu-label">System</div>
-              <button class="menu-item" type="button" data-view="models">🧪 Models</button>
-              <button class="menu-item" type="button" data-view="abilities">🛠️ Abilities</button>
-              <button class="menu-item" type="button" data-view="requests">🗒️ Requests<span id="fr-count" class="menu-count hidden"></span></button>
-              <button class="menu-item" type="button" data-view="problems">🚨 Problems<span id="pb-count" class="menu-count hidden"></span></button>
-              <button class="menu-item" type="button" data-view="logs">🧾 Logs</button>
-              <button class="menu-item" type="button" data-view="replay">🎬 Replay</button>
-              <button class="menu-item" type="button" data-view="prompts">📜 Prompts</button>
             </div>
           </div>
         </div>
+        <nav id="primary-tabs" class="primary-tabs" aria-label="Primary">
+          <button class="primary-tab active" type="button" data-shell-tab="dashboard" aria-current="page">Dashboard</button>
+          <button class="primary-tab" type="button" data-shell-tab="chat">Chat</button>
+          <button class="primary-tab" type="button" data-shell-tab="models">Models</button>
+          <button class="primary-tab" type="button" data-shell-tab="teach">Teach</button>
+        </nav>
       </header>
 
       <div class="main-row">
+        <aside id="workspace-rail" class="workspace-rail" data-pinned="false" aria-label="Workspaces">
+          <div class="workspace-rail-panel">
+            <div class="workspace-rail-head">
+              <span class="workspace-rail-title">Workspaces</span>
+              <button id="workspace-rail-pin" class="workspace-rail-pin" type="button" title="Pin workspace rail" aria-label="Pin workspace rail" aria-pressed="false">📌</button>
+            </div>
+            <nav id="ws-tabs" class="ws-tabs"></nav>
+          </div>
+        </aside>
         <main class="board-wrap">
           <section id="view-board" class="view">
             <canvas id="workspace-bg" class="workspace-bg" aria-hidden="true"></canvas>

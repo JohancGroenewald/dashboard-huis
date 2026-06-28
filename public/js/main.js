@@ -50,10 +50,12 @@ registerView('replay', renderReplayView);
 registerView('prompts', renderPromptsView);
 
 // ---- shell wiring ----
-// The top-left heading is a fixed "Dashboard" brand label (static in the HTML);
-// the dashboard's own name still drives the browser tab title.
+// The header uses the dashboard's own title; the screenshot brand is just the
+// visual reference for the logo/wordmark treatment.
 subscribe('dashboard', () => {
-  document.title = `${store.dashboard.title} · Dashboard`;
+  const title = store.dashboard.title || 'Dashboard';
+  $('#title').textContent = title;
+  document.title = `${title} · Dashboard`;
 });
 
 const overflowMenu = $('#overflow-menu');

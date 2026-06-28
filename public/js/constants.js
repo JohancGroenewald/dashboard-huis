@@ -5,6 +5,7 @@ export const STORAGE_KEYS = {
   model: 'dash2-model',
   chat: 'dash2-chat',
   dock: 'dash2-dock',
+  workspaceRail: 'dash2-workspace-rail',
   gridCellHeight: 'dash2-cellh',
   autoArrange: 'dash2-autoarrange',
   showGrid: 'dash2-showgrid',
