@@ -27,32 +27,6 @@
             <button id="undo-btn" class="icon-btn" type="button" title="Undo (Ctrl+Z)">↶</button>
             <button id="redo-btn" class="icon-btn" type="button" title="Redo (Ctrl+Shift+Z)">↷</button>
             <span id="clock" class="clock"></span>
-            <div class="dropdown">
-              <button id="menu-toggle" class="icon-btn" type="button" title="Layout &amp; system views">⋯</button>
-              <div id="overflow-menu" class="dropdown-menu overflow-menu hidden">
-                <div class="menu-label">Layout</div>
-                <button id="collapse-all" class="menu-item" type="button" title="Collapse or expand all sections">⊟ Collapse all</button>
-                <button id="snap-toggle" class="menu-item" type="button" title="Show grid guides (cards always snap)">⊞ Grid: off</button>
-                <button id="arrange-toggle" class="menu-item" type="button" title="Auto-arrange: compact cards up to fill gaps">🧲 Arrange: on</button>
-                <button id="edit-toggle" class="menu-item" type="button" title="Lock / unlock the layout">🔓 Edit</button>
-                <div class="menu-row">
-                  <span>Grid size</span>
-                  <span class="stepper">
-                    <button id="grid-smaller" type="button" title="Smaller cells">−</button>
-                    <span id="grid-size-val">92</span>
-                    <button id="grid-bigger" type="button" title="Bigger cells">+</button>
-                  </span>
-                </div>
-                <div class="menu-label">System</div>
-                <button class="menu-item" type="button" data-view="models">🧪 Models</button>
-                <button class="menu-item" type="button" data-view="abilities">🛠️ Abilities</button>
-                <button class="menu-item" type="button" data-view="requests">🗒️ Requests<span id="fr-count" class="menu-count hidden"></span></button>
-                <button class="menu-item" type="button" data-view="problems">🚨 Problems<span id="pb-count" class="menu-count hidden"></span></button>
-                <button class="menu-item" type="button" data-view="logs">🧾 Logs</button>
-                <button class="menu-item" type="button" data-view="replay">🎬 Replay</button>
-                <button class="menu-item" type="button" data-view="prompts">📜 Prompts</button>
-              </div>
-            </div>
           </div>
         </div>
         <nav id="primary-tabs" class="primary-tabs" aria-label="Primary">
@@ -118,7 +92,73 @@
 
         <aside id="dock" class="dock" data-state="rail">
           <div class="dock-rail">
-            <button id="dock-expand" class="dock-rail-btn" type="button" title="Open Dashy (Ctrl+J)">✦</button>
+            <button id="dock-expand" class="dock-rail-action dock-ai-action" type="button" title="Open Dashy (Ctrl+J)">
+              <span class="rail-icon">✦</span>
+              <span class="rail-label">Dashy</span>
+            </button>
+            <button id="dock-rail-pin" class="dock-rail-action dock-pin-action" type="button" title="Pin rail" aria-label="Pin rail" aria-pressed="false">
+              <span class="rail-icon">📌</span>
+              <span class="rail-label">Pin rail</span>
+            </button>
+            <div id="overflow-menu" class="dock-rail-sections">
+              <div class="rail-section-label">Layout</div>
+              <button id="collapse-all" class="dock-rail-action" type="button" title="Collapse or expand all sections">
+                <span class="rail-icon">⊟</span>
+                <span class="rail-label">Collapse all</span>
+              </button>
+              <button id="snap-toggle" class="dock-rail-action" type="button" title="Show grid guides (cards always snap)">
+                <span class="rail-icon">⊞</span>
+                <span class="rail-label">Grid: off</span>
+              </button>
+              <button id="arrange-toggle" class="dock-rail-action" type="button" title="Auto-arrange: compact cards up to fill gaps">
+                <span class="rail-icon">🧲</span>
+                <span class="rail-label">Arrange: on</span>
+              </button>
+              <button id="edit-toggle" class="dock-rail-action" type="button" title="Lock / unlock the layout">
+                <span class="rail-icon">🔓</span>
+                <span class="rail-label">Edit</span>
+              </button>
+              <div class="dock-rail-row dock-grid-row" title="Grid size">
+                <span class="rail-icon">↕</span>
+                <span class="rail-label">Grid size</span>
+                <span class="rail-stepper">
+                  <button id="grid-smaller" type="button" title="Smaller cells">−</button>
+                  <span id="grid-size-val">92</span>
+                  <button id="grid-bigger" type="button" title="Bigger cells">+</button>
+                </span>
+              </div>
+              <div class="rail-section-label">System</div>
+              <button class="dock-rail-action" type="button" data-view="models">
+                <span class="rail-icon">🧪</span>
+                <span class="rail-label">Models</span>
+              </button>
+              <button class="dock-rail-action" type="button" data-view="abilities">
+                <span class="rail-icon">🛠️</span>
+                <span class="rail-label">Abilities</span>
+              </button>
+              <button class="dock-rail-action" type="button" data-view="requests">
+                <span class="rail-icon">🗒️</span>
+                <span class="rail-label">Requests</span>
+                <span id="fr-count" class="menu-count hidden"></span>
+              </button>
+              <button class="dock-rail-action" type="button" data-view="problems">
+                <span class="rail-icon">🚨</span>
+                <span class="rail-label">Problems</span>
+                <span id="pb-count" class="menu-count hidden"></span>
+              </button>
+              <button class="dock-rail-action" type="button" data-view="logs">
+                <span class="rail-icon">🧾</span>
+                <span class="rail-label">Logs</span>
+              </button>
+              <button class="dock-rail-action" type="button" data-view="replay">
+                <span class="rail-icon">🎬</span>
+                <span class="rail-label">Replay</span>
+              </button>
+              <button class="dock-rail-action" type="button" data-view="prompts">
+                <span class="rail-icon">📜</span>
+                <span class="rail-label">Prompts</span>
+              </button>
+            </div>
             <span id="dock-activity" class="dock-activity hidden"></span>
           </div>
           <div class="dock-panel">

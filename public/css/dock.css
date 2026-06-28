@@ -7,7 +7,8 @@
   background: var(--surface-1); border-left: 1px solid var(--edge-soft);
   z-index: var(--z-dock);
 }
-.dock[data-state="rail"] { width: 48px; }
+.dock[data-state="rail"] { width: 54px; }
+.dock[data-state="rail"][data-rail-pinned="true"] { width: 232px; }
 .dock[data-state="open"] { width: var(--dock-w, 400px); min-width: 320px; max-width: 60vw; }
 .dock[data-state="rail"] .dock-panel { display: none; }
 .dock[data-state="open"] .dock-rail { display: none; }
@@ -31,13 +32,57 @@
 .dock[data-state="float"] .dock-head:active { cursor: grabbing; }
 
 /* ---- Rail ---- */
-.dock-rail { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); padding-top: var(--sp-3); width: 100%; }
-.dock-rail-btn {
-  width: 34px; height: 34px; border: 0; border-radius: var(--r-2); cursor: pointer;
-  background: var(--ai-gradient); color: #fff; font-size: var(--fs-3); line-height: 1;
-  box-shadow: var(--shadow-1); transition: transform var(--t-fast), box-shadow var(--t-fast);
+.dock-rail {
+  display: flex; flex-direction: column; align-items: stretch; gap: 4px;
+  width: 100%; min-width: 0; height: 100%; overflow-y: auto; overflow-x: hidden;
+  padding: 8px 6px; background: var(--surface-1);
 }
-.dock-rail-btn:hover { transform: scale(1.08); box-shadow: 0 0 16px var(--ai-dim); }
+.dock-rail-sections { display: contents; }
+.dock-rail-action,
+.dock-rail-row {
+  display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0; min-height: 38px;
+  border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--muted);
+  padding: 2px 5px; font: inherit; text-align: left;
+}
+.dock-rail-action { cursor: pointer; }
+.dock-rail-action:hover { color: var(--text); background: var(--surface-2); border-color: var(--edge); }
+.rail-icon {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: var(--r-2); font-size: var(--fs-2); line-height: 1;
+}
+.rail-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+.dock-ai-action .rail-icon {
+  background: var(--ai-gradient); color: #fff; box-shadow: var(--shadow-1);
+}
+.dock-pin-action[aria-pressed="true"] {
+  color: var(--text); background: var(--surface-2); border-color: var(--ai);
+}
+.dock-pin-action[aria-pressed="true"] .rail-icon { color: var(--ai-2); }
+.rail-section-label {
+  color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+  padding: 12px 10px 4px;
+}
+.dock-rail-row { color: var(--muted); cursor: default; }
+.rail-stepper {
+  flex: none; display: inline-flex; align-items: center; gap: 8px;
+}
+.rail-stepper button {
+  width: 28px; height: 28px; border: 1px solid var(--edge); background: var(--surface-2);
+  color: var(--text); border-radius: var(--r-1); cursor: pointer; line-height: 1;
+}
+.rail-stepper button:hover { border-color: var(--ai); }
+.rail-stepper span { min-width: 28px; text-align: center; color: var(--text); font-variant-numeric: tabular-nums; }
+.dock:not([data-rail-pinned="true"]) .rail-label,
+.dock:not([data-rail-pinned="true"]) .rail-section-label,
+.dock:not([data-rail-pinned="true"]) .rail-stepper,
+.dock:not([data-rail-pinned="true"]) .menu-count {
+  display: none;
+}
+.dock:not([data-rail-pinned="true"]) .dock-rail-action,
+.dock:not([data-rail-pinned="true"]) .dock-rail-row {
+  justify-content: center;
+  padding: 2px 0;
+}
 .dock-activity { width: 8px; height: 8px; border-radius: 50%; background: var(--ai); animation: activity-blink 1.2s infinite ease-in-out; }
 @keyframes activity-blink { 0%, 100% { opacity: 0.35; } 50% { opacity: 1; } }
 
@@ -194,8 +239,20 @@
 @media (max-width: 900px) {
   .dock { position: fixed; top: 0; right: 0; bottom: 0; box-shadow: var(--shadow-3); z-index: var(--z-dock-sheet); }
   .dock[data-state="rail"] { width: auto; border: 0; background: transparent; box-shadow: none; }
-  .dock[data-state="rail"] .dock-rail { position: fixed; right: 16px; bottom: 16px; width: auto; padding: 0; flex-direction: row; align-items: center; }
-  .dock[data-state="rail"] .dock-rail-btn { width: 48px; height: 48px; border-radius: 50%; font-size: 22px; box-shadow: var(--shadow-2); }
+  .dock[data-state="rail"][data-rail-pinned="true"] { width: auto; }
+  .dock[data-state="rail"] .dock-rail {
+    position: fixed; right: 16px; bottom: 16px; width: auto; height: auto; max-width: calc(100vw - 32px);
+    padding: 0; flex-direction: row; align-items: center; overflow-x: auto; overflow-y: hidden;
+    background: transparent;
+  }
+  .dock[data-state="rail"]:not([data-rail-pinned="true"]) .dock-rail-action,
+  .dock[data-state="rail"]:not([data-rail-pinned="true"]) .dock-rail-row { min-height: 48px; }
+  .dock[data-state="rail"]:not([data-rail-pinned="true"]) .rail-icon { width: 48px; height: 48px; border-radius: 50%; font-size: 22px; box-shadow: var(--shadow-2); }
+  .dock[data-state="rail"][data-rail-pinned="true"] .dock-rail {
+    width: min(232px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+    padding: 8px 6px; flex-direction: column; align-items: stretch; overflow-y: auto; overflow-x: hidden;
+    background: var(--surface-1); border: 1px solid var(--edge); border-radius: var(--r-3);
+  }
   .dock[data-state="open"], .dock[data-state="float"] { width: min(100vw, 440px); max-width: 100vw; }
   /* No floating windows on a phone: float renders as the same edge sheet. */
   .dock[data-state="float"] { left: auto !important; top: 0 !important; height: auto !important; resize: none; border-radius: 0; }

@@ -58,17 +58,15 @@ function renderPrimaryTabs() {
   }
 }
 
-function setRailPinned(pinned, { persist = true, suppressHover = false } = {}) {
+function setRailPinned(pinned, { persist = true } = {}) {
   const rail = $('#workspace-rail');
   const button = $('#workspace-rail-pin');
   if (!rail || !button) return;
   rail.dataset.pinned = pinned ? 'true' : 'false';
-  if (pinned) delete rail.dataset.hoverSuppressed;
-  else if (suppressHover) rail.dataset.hoverSuppressed = 'true';
+  delete rail.dataset.hoverSuppressed;
   button.setAttribute('aria-pressed', String(pinned));
   button.title = pinned ? 'Unpin workspace rail' : 'Pin workspace rail';
   button.setAttribute('aria-label', button.title);
-  if (suppressHover) button.blur();
   if (persist) localStorage.setItem(STORAGE_KEYS.workspaceRail, pinned ? 'pinned' : 'rail');
   requestAnimationFrame(refreshGridWidth);
   setTimeout(refreshGridWidth, 220);
@@ -191,13 +189,8 @@ export function initWorkspaces() {
   setRailPinned(localStorage.getItem(STORAGE_KEYS.workspaceRail) === 'pinned', { persist: false });
 
   const rail = $('#workspace-rail');
-  rail?.addEventListener('pointerleave', () => {
-    delete rail.dataset.hoverSuppressed;
-  });
-
   $('#workspace-rail-pin')?.addEventListener('click', () => {
-    const nextPinned = rail?.dataset.pinned !== 'true';
-    setRailPinned(nextPinned, { suppressHover: !nextPinned });
+    setRailPinned(rail?.dataset.pinned !== 'true');
   });
 
   $('#primary-tabs')?.addEventListener('click', (e) => {
@@ -276,7 +269,6 @@ export function initWorkspaces() {
   $('#overflow-menu').addEventListener('click', (e) => {
     const item = e.target.closest('[data-view]');
     if (!item) return;
-    $('#overflow-menu').classList.add('hidden');
     showView(item.dataset.view);
   });
 

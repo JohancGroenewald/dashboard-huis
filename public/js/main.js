@@ -58,15 +58,6 @@ subscribe('dashboard', () => {
   document.title = `${title} · Dashboard`;
 });
 
-const overflowMenu = $('#overflow-menu');
-$('#menu-toggle').addEventListener('click', (e) => {
-  e.stopPropagation();
-  overflowMenu.classList.toggle('hidden');
-});
-document.addEventListener('click', (e) => {
-  if (!e.target.closest('.dropdown')) overflowMenu.classList.add('hidden');
-});
-
 $('#undo-btn').addEventListener('click', () => history('/api/undo'));
 $('#redo-btn').addEventListener('click', () => history('/api/redo'));
 

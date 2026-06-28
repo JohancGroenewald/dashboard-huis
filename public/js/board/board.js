@@ -124,7 +124,8 @@ function renderBoard() {
 
   const cab = $('#collapse-all');
   const allCollapsed = sections.length > 0 && sections.every((s) => s.collapsed);
-  cab.textContent = allCollapsed ? '⊞ Expand all' : '⊟ Collapse all';
+  cab.querySelector('.rail-icon').textContent = allCollapsed ? '⊞' : '⊟';
+  cab.querySelector('.rail-label').textContent = allCollapsed ? 'Expand all' : 'Collapse all';
   cab.classList.toggle('hidden', sections.length === 0);
 
   for (const section of sections) {
@@ -169,9 +170,14 @@ function renderBoard() {
 }
 
 function wireLayoutMenu() {
-  const arrangeLabel = () => { $('#arrange-toggle').textContent = `🧲 Arrange: ${autoArrange ? 'on' : 'off'}`; };
+  const setRailAction = (sel, icon, label) => {
+    const action = $(sel);
+    action.querySelector('.rail-icon').textContent = icon;
+    action.querySelector('.rail-label').textContent = label;
+  };
+  const arrangeLabel = () => setRailAction('#arrange-toggle', '🧲', `Arrange: ${autoArrange ? 'on' : 'off'}`);
   const snapLabel = () => {
-    $('#snap-toggle').textContent = `⊞ Grid: ${showGrid ? 'on' : 'off'}`;
+    setRailAction('#snap-toggle', '⊞', `Grid: ${showGrid ? 'on' : 'off'}`);
     gridEl.classList.toggle('show-grid', showGrid);
     updateGridOverlay();
   };
@@ -196,7 +202,7 @@ function wireLayoutMenu() {
   $('#edit-toggle').addEventListener('click', () => {
     locked = !locked;
     grid.setStatic(locked);
-    $('#edit-toggle').textContent = locked ? '🔒 Locked' : '🔓 Edit';
+    setRailAction('#edit-toggle', locked ? '🔒' : '🔓', locked ? 'Locked' : 'Edit');
     gridEl.classList.toggle('locked', locked);
   });
   $('#snap-toggle').addEventListener('click', () => {

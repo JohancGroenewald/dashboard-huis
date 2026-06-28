@@ -17,6 +17,20 @@ let lastExpanded = 'open'; // which expanded mode Ctrl+J/✦ returns to
 let popEsc = null;
 let sizeTimer = null;
 
+function setRailPinned(pinned, { persist = true } = {}) {
+  dock.dataset.railPinned = pinned ? 'true' : 'false';
+  const button = $('#dock-rail-pin');
+  if (button) {
+    const label = pinned ? 'Unpin rail' : 'Pin rail';
+    button.setAttribute('aria-pressed', String(pinned));
+    button.title = label;
+    button.setAttribute('aria-label', label);
+    button.querySelector('.rail-label').textContent = label;
+  }
+  if (persist) localStorage.setItem(STORAGE_KEYS.dockRail, pinned ? 'pinned' : 'rail');
+  refreshGridWidth();
+}
+
 function clampWidth(w) {
   return Math.min(Math.max(w, DOCK_UI.minWidth), Math.round(window.innerWidth * DOCK_UI.maxViewportFraction));
 }
@@ -181,6 +195,7 @@ function wireFloatDrag() {
 }
 
 export function initDock() {
+  setRailPinned(localStorage.getItem(STORAGE_KEYS.dockRail) === 'pinned', { persist: false });
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEYS.dock) || 'null');
     if (saved?.width) width = saved.width;
@@ -193,6 +208,7 @@ export function initDock() {
   applyComposerH();
 
   $('#dock-expand').addEventListener('click', () => openDock());
+  $('#dock-rail-pin').addEventListener('click', () => setRailPinned(dock.dataset.railPinned !== 'true'));
   $('#dock-collapse').addEventListener('click', () => collapseDock());
   $('#dock-float').addEventListener('click', () => setMode(mode() === 'float' ? 'open' : 'float'));
   setKeyHandler('toggleDock', toggleDock);

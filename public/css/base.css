@@ -168,13 +168,8 @@ kbd {
   border-right: 1px solid var(--edge-soft);
   transition: width var(--t-med) var(--ease), box-shadow var(--t-fast);
 }
-.workspace-rail:not([data-hover-suppressed="true"]):hover .workspace-rail-panel,
-.workspace-rail:not([data-hover-suppressed="true"]):focus-within .workspace-rail-panel,
 .workspace-rail[data-pinned="true"] .workspace-rail-panel {
   width: var(--workspace-rail-open-w);
-  box-shadow: var(--shadow-2);
-}
-.workspace-rail[data-pinned="true"] .workspace-rail-panel {
   position: static;
   box-shadow: none;
 }
@@ -216,7 +211,7 @@ kbd {
   border-color: var(--edge);
   background: var(--surface-2);
 }
-.workspace-rail:is(:not([data-pinned="true"]):not(:hover):not(:focus-within), [data-hover-suppressed="true"]:not([data-pinned="true"])) .workspace-rail-title { display: none; }
+.workspace-rail:not([data-pinned="true"]) .workspace-rail-title { display: none; }
 
 /* ---- Workspace tabs ---- */
 .ws-tabs {
@@ -293,20 +288,20 @@ kbd {
 .ws-tab:hover .ws-x { opacity: 0.55; }
 .ws-tab:hover .ws-style { opacity: 0.55; }
 .ws-style:hover, .ws-x:hover { opacity: 1; background: rgba(255, 255, 255, 0.2); }
-.workspace-rail:is(:not([data-pinned="true"]):not(:hover):not(:focus-within), [data-hover-suppressed="true"]:not([data-pinned="true"])) .ws-tab {
+.workspace-rail:not([data-pinned="true"]) .ws-tab {
   justify-content: center;
   gap: 0;
   padding: 5px;
 }
-.workspace-rail:is(:not([data-pinned="true"]):not(:hover):not(:focus-within), [data-hover-suppressed="true"]:not([data-pinned="true"])) .ws-tab:not(.active) .ws-initial {
+.workspace-rail:not([data-pinned="true"]) .ws-tab:not(.active) .ws-initial {
   color: var(--ws-color, var(--text));
 }
-.workspace-rail:is(:not([data-pinned="true"]):not(:hover):not(:focus-within), [data-hover-suppressed="true"]:not([data-pinned="true"])) .ws-tab.active .ws-initial {
+.workspace-rail:not([data-pinned="true"]) .ws-tab.active .ws-initial {
   color: var(--ws-color, var(--accent-2));
 }
-.workspace-rail:is(:not([data-pinned="true"]):not(:hover):not(:focus-within), [data-hover-suppressed="true"]:not([data-pinned="true"])) .ws-name,
-.workspace-rail:is(:not([data-pinned="true"]):not(:hover):not(:focus-within), [data-hover-suppressed="true"]:not([data-pinned="true"])) .ws-style,
-.workspace-rail:is(:not([data-pinned="true"]):not(:hover):not(:focus-within), [data-hover-suppressed="true"]:not([data-pinned="true"])) .ws-x {
+.workspace-rail:not([data-pinned="true"]) .ws-name,
+.workspace-rail:not([data-pinned="true"]) .ws-style,
+.workspace-rail:not([data-pinned="true"]) .ws-x {
   display: none;
 }
 .ws-add {
@@ -323,7 +318,7 @@ kbd {
   padding: 4px 8px;
   border-radius: 8px;
 }
-.workspace-rail:is(:not([data-pinned="true"]):not(:hover):not(:focus-within), [data-hover-suppressed="true"]:not([data-pinned="true"])) .ws-add {
+.workspace-rail:not([data-pinned="true"]) .ws-add {
   width: 40px;
   align-self: center;
 }
